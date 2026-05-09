@@ -672,6 +672,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       setStatus("Ставка опубликована.", "success");
     }
 
+    if (isBookingAgentProvided(bookingAgentRaw)) {
+      rememberBookingAgentSuggestion(bookingAgentRaw);
+    }
+
     await saveRates(rates);
     refreshAutocompleteLists(rates);
     refreshYearTabs(rates);
@@ -1532,37 +1536,88 @@ document.addEventListener("DOMContentLoaded", async () => {
     ].join("|");
   }
 
-  async function loadRates() {
+  function pocketBaseAuthHeaders() {
     const token = localStorage.getItem("pb_token");
+    if (!token || !String(token).trim()) {
+      return {};
+    }
+    const raw = String(token).trim();
+    const value = raw.toLowerCase().startsWith("bearer ")
+      ? raw
+      : "Bearer " + raw;
+    return { Authorization: value };
+  }
+
+  function normalizePocketBaseRateRecord(record) {
+    if (!record || typeof record !== "object") {
+      return {};
+    }
+    let d = record.data;
+    if (typeof d === "string") {
+      try {
+        d = JSON.parse(d);
+      } catch {
+        d = {};
+      }
+    }
+    if (!d || typeof d !== "object" || Array.isArray(d)) {
+      d = {};
+    }
+    return { ...d, _pbId: record.id };
+  }
+
+  function stripPbMetaForSave(rate) {
+    if (!rate || typeof rate !== "object") {
+      return {};
+    }
+    const copy = { ...rate };
+    delete copy._pbId;
+    return copy;
+  }
+
+  async function loadRates() {
+    const auth = pocketBaseAuthHeaders();
+    if (!auth.Authorization) {
+      return [];
+    }
     try {
       const res = await fetch(
         `${API_BASE}/api/collections/rates/records?perPage=500&sort=-created`,
         {
-          headers: { Authorization: token },
+          headers: { ...auth },
         }
       );
+      if (!res.ok) {
+        return [];
+      }
       const data = await res.json();
-      return (data.items || []).map((record) => ({ ...record.data, _pbId: record.id }));
+      return (data.items || []).map((record) =>
+        normalizePocketBaseRateRecord(record)
+      );
     } catch (e) {
       return [];
     }
   }
 
   async function saveRates(rates) {
-    const token = localStorage.getItem("pb_token");
+    const auth = pocketBaseAuthHeaders();
+    if (!auth.Authorization) {
+      return;
+    }
+    const headers = { ...auth, "Content-Type": "application/json" };
     for (const rate of rates) {
       const pbId = rate._pbId;
-      const payload = { data: rate };
+      const payload = { data: stripPbMetaForSave(rate) };
       if (pbId) {
         await fetch(`${API_BASE}/api/collections/rates/records/${pbId}`, {
           method: "PATCH",
-          headers: { Authorization: token, "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(payload),
         });
       } else {
         await fetch(`${API_BASE}/api/collections/rates/records`, {
           method: "POST",
-          headers: { Authorization: token, "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(payload),
         });
       }
