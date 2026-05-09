@@ -229,7 +229,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const railRubDefaultWrap = document.getElementById("rail-rub-default-wrap");
   const railRubDefaultInput = document.getElementById("railRub");
   const seaUsdWrap = document.getElementById("sea-usd-wrap");
-  const autoRubWrap = document.getElementById("auto-rub-wrap");
   const railRub20Wrap = document.getElementById("rail-rub-20-wrap");
   const railRub20Lt24Input = document.getElementById("railRub20Lt24");
   const railRub20Gt24Input = document.getElementById("railRub20Gt24");
@@ -288,7 +287,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     !warehouseAddressesWrap ||
     !addWarehouseAddressBtn ||
     !seaUsdWrap ||
-    !autoRubWrap ||
     !originQuickPicks ||
     !stationQuickPicks ||
     !portsSelectAllBtn ||
@@ -4325,6 +4323,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     controls.appendChild(removeBtn);
     row.appendChild(label);
     row.appendChild(controls);
+    const autoSlot = document.createElement("div");
+    autoSlot.className = "cost-follow cost-follow--auto";
+    autoSlot.setAttribute("data-auto-rub-slot", "");
+    row.appendChild(autoSlot);
     warehouseAddressesWrap.appendChild(row);
   }
 
@@ -4351,7 +4353,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function resetWarehouseAddressRows() {
     warehouseAddressesWrap.innerHTML =
-      '<div class="warehouse-address-row"><label for="warehouseAddress-1">Адрес склада выгрузки 1 *</label><div class="warehouse-address-controls"><input id="warehouseAddress-1" name="warehouseAddress" required placeholder="Например, МО, Подольск, Домодедовское ш., 12" /><button type="button" id="add-warehouse-address-btn" class="btn-add-date" aria-label="Добавить адрес выгрузки">+</button></div></div>';
+      '<div class="warehouse-address-row"><label for="warehouseAddress-1">Адрес склада выгрузки 1 *</label><div class="warehouse-address-controls"><input id="warehouseAddress-1" name="warehouseAddress" required placeholder="Например, МО, Подольск, Домодедовское ш., 12" /><button type="button" id="add-warehouse-address-btn" class="btn-add-date" aria-label="Добавить адрес выгрузки">+</button></div><div class="cost-follow cost-follow--auto" data-auto-rub-slot></div></div>';
     const freshAddBtn = document.getElementById("add-warehouse-address-btn");
     if (freshAddBtn instanceof HTMLButtonElement) {
       freshAddBtn.addEventListener("click", () => {
@@ -4379,7 +4381,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function getAutoRubValues() {
-    return [...autoRubWrap.querySelectorAll('input[name="autoRub"]')].map((input) => {
+    return [
+      ...warehouseAddressesWrap.querySelectorAll(
+        ".warehouse-address-row input[name=\"autoRub\"]"
+      ),
+    ].map((input) => {
       const raw =
         input instanceof HTMLInputElement ? String(input.value || "").trim() : "";
       return raw === "" ? Number.NaN : Number(raw);
@@ -4488,18 +4494,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function syncAutoRubRowsToWarehouseAddresses() {
-    const addressCount = Math.max(
-      1,
-      warehouseAddressesWrap.querySelectorAll(".warehouse-address-row").length
-    );
-    const prevValues = [...autoRubWrap.querySelectorAll('input[name="autoRub"]')].map((input) =>
-      input instanceof HTMLInputElement ? String(input.value || "").trim() : ""
-    );
-    autoRubWrap.innerHTML = "";
-    for (let i = 0; i < addressCount; i++) {
+    const rows = [
+      ...warehouseAddressesWrap.querySelectorAll(".warehouse-address-row"),
+    ];
+    const prevValues = rows.map((rowEl) => {
+      const prevInput = rowEl.querySelector('input[name="autoRub"]');
+      return prevInput instanceof HTMLInputElement
+        ? String(prevInput.value || "").trim()
+        : "";
+    });
+    rows.forEach((rowEl, i) => {
+      let slot = rowEl.querySelector("[data-auto-rub-slot]");
+      if (!(slot instanceof HTMLElement)) {
+        slot = document.createElement("div");
+        slot.className = "cost-follow cost-follow--auto";
+        slot.setAttribute("data-auto-rub-slot", "");
+        rowEl.appendChild(slot);
+      }
+      slot.innerHTML = "";
       const idx = i + 1;
-      const row = document.createElement("div");
-      row.className = "auto-rub-row";
 
       const label = document.createElement("label");
       label.htmlFor = "autoRub-" + String(idx);
@@ -4516,10 +4529,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       input.placeholder = "Например, 28000";
       input.value = prevValues[i] || "";
 
-      row.appendChild(label);
-      row.appendChild(input);
-      autoRubWrap.appendChild(row);
-    }
+      slot.appendChild(label);
+      slot.appendChild(input);
+    });
   }
 
   function formatOriginPorts(value) {
