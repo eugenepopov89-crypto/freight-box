@@ -1,0 +1,4 @@
+# Сборка подставляет свежий ?v= для styles.css / rates.js (scripts/cache-bust.mjs).
+[build]
+  command = "node scripts/cache-bust.mjs"
+  publish = "."
