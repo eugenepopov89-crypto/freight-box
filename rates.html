@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=form-cost-inline-20260509" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -192,6 +192,52 @@
                       <label>SDS-SHIPPING <input type="checkbox" name="shippingLineQuickOptions" value="SDS-SHIPPING" /></label>
                     </div>
                   </div>
+
+                  <div class="cost-follow">
+                    <div id="sea-usd-wrap" class="sailing-dates-wrap">
+                      <div class="sea-usd-row">
+                        <label for="seaUsd-1">Фрахт для строки 1, USD *</label>
+                        <input
+                          id="seaUsd-1"
+                          name="seaUsd"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          required
+                          placeholder="Например, 1450"
+                        />
+                        <label for="seaSailingDate-1">Дата выхода для строки 1 *</label>
+                        <input id="seaSailingDate-1" name="seaSailingDate" type="date" required />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="cost-follow">
+                    <p class="helper-text cost-follow-hint">
+                      Ближайшие даты выхода судна; при нескольких линиях добавляйте строки через +.
+                    </p>
+                    <div id="sailing-dates-wrap" class="sailing-dates-wrap">
+                      <div class="sailing-date-row sailing-date-row--with-line">
+                        <select name="nextSailingDateOrigin">
+                          <option value="">Порт отправления (из маршрута)</option>
+                        </select>
+                        <input
+                          name="nextSailingDateLine"
+                          list="shipping-line-suggestions"
+                          placeholder="Для какой линии (при необходимости)"
+                        />
+                        <input name="nextSailingDates" type="date" required />
+                        <button
+                          type="button"
+                          id="add-sailing-date-btn"
+                          class="btn-add-date"
+                          aria-label="Добавить дату"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -333,6 +379,45 @@
                     <option value="Минск-Северный"></option>
                     <option value="Степянка"></option>
                   </datalist>
+
+                  <div class="cost-follow">
+                    <div id="rail-rub-default-wrap">
+                      <label for="railRub">ЖД терминал отправления–станция назначения, RUB *</label>
+                      <input
+                        id="railRub"
+                        name="railRub"
+                        type="number"
+                        step="1"
+                        min="0"
+                        required
+                        placeholder="Например, 235000"
+                      />
+                    </div>
+                    <div class="field-group field-group--full rail-rub-20-wrap" id="rail-rub-20-wrap" hidden>
+                      <div>
+                        <label for="railRub20Lt24">ЖД терминал отправления–станция назначения для 20'ft &lt; 24 t, RUB *</label>
+                        <input
+                          id="railRub20Lt24"
+                          name="railRub20Lt24"
+                          type="number"
+                          step="1"
+                          min="0"
+                          placeholder="Например, 235000"
+                        />
+                      </div>
+                      <div>
+                        <label for="railRub20Gt24">ЖД терминал отправления–станция назначения для 20'ft &gt; 24 t, RUB *</label>
+                        <input
+                          id="railRub20Gt24"
+                          name="railRub20Gt24"
+                          type="number"
+                          step="1"
+                          min="0"
+                          placeholder="Например, 255000"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -358,6 +443,7 @@
                           +
                         </button>
                       </div>
+                      <div class="cost-follow cost-follow--auto" data-auto-rub-slot></div>
                     </div>
                   </div>
                 </div>
@@ -449,6 +535,23 @@
                   />
                 </div>
               </div>
+
+              <div class="field-group field-group--full" id="security-cost-wrap" hidden>
+                <div>
+                  <label for="securityCostRub">Стоимость охраны, RUB</label>
+                  <p class="helper-text">
+                    По желанию: укажите при «Наличие охраны — Да» (поле недоступно при «Нет»).
+                  </p>
+                  <input
+                    id="securityCostRub"
+                    name="securityCostRub"
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="Например, 15000"
+                  />
+                </div>
+              </div>
             </div>
 
             <div class="form-block">
@@ -479,37 +582,6 @@
                 </div>
               </div>
 
-              <div class="field-group field-group--full">
-                <div>
-                  <label>Ближайшие даты выхода судна *</label>
-                  <p class="helper-text">
-                    При нескольких морских линиях добавьте через + отдельные строки
-                    «порт + линия + дата».
-                  </p>
-                  <div id="sailing-dates-wrap" class="sailing-dates-wrap">
-                    <div class="sailing-date-row sailing-date-row--with-line">
-                      <select name="nextSailingDateOrigin">
-                        <option value="">Порт отправления (из маршрута)</option>
-                      </select>
-                      <input
-                        name="nextSailingDateLine"
-                        list="shipping-line-suggestions"
-                        placeholder="Для какой линии (при необходимости)"
-                      />
-                      <input name="nextSailingDates" type="date" required />
-                      <button
-                        type="button"
-                        id="add-sailing-date-btn"
-                        class="btn-add-date"
-                        aria-label="Добавить дату"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <div class="field-group">
                 <div>
                   <label for="transitDays">Транзитный срок (дней) *</label>
@@ -529,100 +601,6 @@
                     id="manager"
                     name="manager"
                     placeholder="Например, ставка согласована с линией"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div class="form-block">
-              <h2 class="form-block-heading">Стоимость доставки</h2>
-              <div class="field-group field-group--three">
-                <div>
-                  <label>Морской фрахт, USD *</label>
-                  <div id="sea-usd-wrap" class="sailing-dates-wrap">
-                    <div class="sea-usd-row">
-                      <label for="seaUsd-1">Фрахт для строки 1, USD *</label>
-                      <input
-                        id="seaUsd-1"
-                        name="seaUsd"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        placeholder="Например, 1450"
-                      />
-                      <label for="seaSailingDate-1">Дата выхода для строки 1 *</label>
-                      <input id="seaSailingDate-1" name="seaSailingDate" type="date" required />
-                    </div>
-                  </div>
-                </div>
-                <div id="rail-rub-default-wrap">
-                  <label for="railRub">ЖД терминал отправления–станция назначения, RUB *</label>
-                  <input
-                    id="railRub"
-                    name="railRub"
-                    type="number"
-                    step="1"
-                    min="0"
-                    required
-                    placeholder="Например, 235000"
-                  />
-                </div>
-                <div class="field-group field-group--full rail-rub-20-wrap" id="rail-rub-20-wrap" hidden>
-                  <div>
-                    <label for="railRub20Lt24">ЖД терминал отправления–станция назначения для 20'ft &lt; 24 t, RUB *</label>
-                    <input
-                      id="railRub20Lt24"
-                      name="railRub20Lt24"
-                      type="number"
-                      step="1"
-                      min="0"
-                      placeholder="Например, 235000"
-                    />
-                  </div>
-                  <div>
-                    <label for="railRub20Gt24">ЖД терминал отправления–станция назначения для 20'ft &gt; 24 t, RUB *</label>
-                    <input
-                      id="railRub20Gt24"
-                      name="railRub20Gt24"
-                      type="number"
-                      step="1"
-                      min="0"
-                      placeholder="Например, 255000"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label>Авто до склада, RUB *</label>
-                  <div id="auto-rub-wrap" class="sailing-dates-wrap">
-                    <div class="auto-rub-row">
-                      <label for="autoRub-1">Авто до склада выгрузки 1, RUB *</label>
-                      <input
-                        id="autoRub-1"
-                        name="autoRub"
-                        type="number"
-                        step="1"
-                        min="0"
-                        required
-                        placeholder="Например, 28000"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="field-group field-group--full" id="security-cost-wrap" hidden>
-                <div>
-                  <label for="securityCostRub">Стоимость охраны, RUB</label>
-                  <p class="helper-text">
-                    По желанию: укажите при «Наличие охраны — Да» (поле недоступно при «Нет»).
-                  </p>
-                  <input
-                    id="securityCostRub"
-                    name="securityCostRub"
-                    type="number"
-                    step="1"
-                    min="0"
-                    placeholder="Например, 15000"
                   />
                 </div>
               </div>
@@ -1285,7 +1263,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=kp-share-twoclick-20260509"></script>
+    <script src="rates.js?v=form-cost-inline-20260509"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
