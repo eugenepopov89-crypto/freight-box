@@ -1,0 +1,8 @@
+{
+  "name": "freight-box",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "nodemailer": "^6.9.15"
+  }
+}
