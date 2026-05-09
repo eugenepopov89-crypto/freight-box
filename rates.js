@@ -1,9 +1,10 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const STORAGE_KEY = "factoriall-rates-v1";
   const SALES_PROFIT_UNDO_STACK_KEY = "factoriall-rates-sales-profit-undo-v1";
-  const BOOKING_AGENT_SUGGESTIONS_KEY =
-    "factoriall-booking-agent-suggestions-v1";
+  /** Имя коллекции в PocketBase: одна запись на агента, текстовое поле `name`. */
+  const BOOKING_AGENTS_COLLECTION = "booking_agents";
   const API_BASE = "https://pocketbase-production-3100.up.railway.app";
+  let bookingAgentsPbCache = [];
   const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK"];
   const months = [
     "Январь",
@@ -360,6 +361,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   enableDatalistOpenOnFocus(bookingAgentShippingLineInput);
 
   const initialRates = await loadRates();
+  await fetchBookingAgentsPb();
   refreshAutocompleteLists(initialRates);
   buildMonthFilterTabs();
   refreshYearTabs(initialRates);
@@ -672,11 +674,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       setStatus("Ставка опубликована.", "success");
     }
 
-    if (isBookingAgentProvided(bookingAgentRaw)) {
-      rememberBookingAgentSuggestion(bookingAgentRaw);
-    }
-
     await saveRates(rates);
+    if (isBookingAgentProvided(bookingAgentRaw)) {
+      await createBookingAgentPbRecord(bookingAgentRaw);
+    }
     refreshAutocompleteLists(rates);
     refreshYearTabs(rates);
     syncFilterTabsActiveStates();
@@ -796,15 +797,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     newShippingLineOptionInput.value = "";
   });
 
-  addBookingAgentOptionBtn.addEventListener("click", () => {
+  addBookingAgentOptionBtn.addEventListener("click", async () => {
     const value = String(newBookingAgentOptionInput.value || "")
       .trim()
       .replace(/\s+/g, " ");
     if (!value) {
       return;
     }
-    addOptionToDatalist(bookingAgentSuggestions, value);
-    rememberBookingAgentSuggestion(value);
+    await createBookingAgentPbRecord(value);
+    try {
+      const latest = await loadRates();
+      refreshAutocompleteLists(latest);
+    } catch (_) {
+      refreshAutocompleteLists([]);
+    }
     bookingAgentInput.value = value;
     newBookingAgentOptionInput.value = "";
     syncBookingAgentLineVisibility();
@@ -1621,6 +1627,112 @@ document.addEventListener("DOMContentLoaded", async () => {
           body: JSON.stringify(payload),
         });
       }
+    }
+  }
+
+  function normalizeBookingAgentDedupeKey(raw) {
+    return String(raw || "").trim().toLocaleLowerCase("ru-RU");
+  }
+
+  function bookingAgentNameExists(names, candidate) {
+    const key = normalizeBookingAgentDedupeKey(candidate);
+    if (!key) {
+      return true;
+    }
+    return names.some(
+      (n) => normalizeBookingAgentDedupeKey(n) === key
+    );
+  }
+
+  async function fetchBookingAgentsPb() {
+    bookingAgentsPbCache = [];
+    const auth = pocketBaseAuthHeaders();
+    if (!auth.Authorization) {
+      return;
+    }
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/collections/${BOOKING_AGENTS_COLLECTION}/records?perPage=500&sort=name`,
+        { headers: { ...auth } }
+      );
+      if (!res.ok) {
+        if (res.status === 404) {
+          console.warn(
+            "[rates] PocketBase: коллекция \"" +
+              BOOKING_AGENTS_COLLECTION +
+              "\" не найдена — создайте её в админке (поле name, text)."
+          );
+        }
+        return;
+      }
+      const data = await res.json();
+      const names = (data.items || [])
+        .map((it) =>
+          String(it.name == null ? "" : it.name)
+            .trim()
+            .replace(/\s+/g, " ")
+        )
+        .filter(Boolean);
+      bookingAgentsPbCache = [...new Set(names.filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "ru")
+      );
+    } catch (err) {
+      console.warn("[rates] booking_agents fetch failed:", err);
+    }
+  }
+
+  async function createBookingAgentPbRecord(displayName) {
+    const trimmed = String(displayName || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!trimmed) {
+      return false;
+    }
+    if (normalizeBookingAgentDedupeKey(trimmed) === "нет") {
+      await fetchBookingAgentsPb();
+      return true;
+    }
+    const auth = pocketBaseAuthHeaders();
+    if (!auth.Authorization) {
+      if (typeof setStatus === "function") {
+        setStatus("Войдите в систему, чтобы сохранить агента в общий справочник.", "error");
+      }
+      return false;
+    }
+    await fetchBookingAgentsPb();
+    if (bookingAgentNameExists(bookingAgentsPbCache, trimmed)) {
+      return true;
+    }
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/collections/${BOOKING_AGENTS_COLLECTION}/records`,
+        {
+          method: "POST",
+          headers: { ...auth, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        }
+      );
+      if (!res.ok) {
+        const detail = await res.text();
+        console.warn("booking_agents POST", res.status, detail);
+        if (typeof setStatus === "function") {
+          setStatus(
+            "Не удалось добавить агента в справочник (коллекция booking_agents / права API). Код: " +
+              res.status +
+              ".",
+            "error"
+          );
+        }
+        return false;
+      }
+      await fetchBookingAgentsPb();
+      return true;
+    } catch (err) {
+      console.warn("booking_agents POST failed:", err);
+      if (typeof setStatus === "function") {
+        setStatus("Ошибка сети при сохранении агента в справочник.", "error");
+      }
+      return false;
     }
   }
 
@@ -3527,45 +3639,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncSalesPrintMeta();
   }
 
-  function loadCustomBookingAgentSuggestions() {
-    try {
-      const raw = localStorage.getItem(BOOKING_AGENT_SUGGESTIONS_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      return parsed
-        .map((item) =>
-          String(item || "").trim().replace(/\s+/g, " ")
-        )
-        .filter(Boolean);
-    } catch (_) {
-      return [];
-    }
-  }
-
-  function saveCustomBookingAgentSuggestions(list) {
-    try {
-      localStorage.setItem(
-        BOOKING_AGENT_SUGGESTIONS_KEY,
-        JSON.stringify(list)
-      );
-    } catch (_) {}
-  }
-
-  function rememberBookingAgentSuggestion(value) {
-    const trimmed = String(value || "")
-      .trim()
-      .replace(/\s+/g, " ");
-    if (!trimmed) {
-      return;
-    }
-    const merged = uniqueSorted(
-      loadCustomBookingAgentSuggestions().concat([trimmed])
-    );
-    saveCustomBookingAgentSuggestions(merged);
-  }
-
   function refreshAutocompleteLists(rates) {
     const terminals = uniqueSorted(
       DEFAULT_RAIL_TERMINALS.concat(
@@ -3578,7 +3651,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       )
     );
     const bookingAgents = uniqueSorted(
-      loadCustomBookingAgentSuggestions().concat(
+      bookingAgentsPbCache.concat(
         rates.map((item) => String(item.bookingAgent || "").trim())
       )
     );
