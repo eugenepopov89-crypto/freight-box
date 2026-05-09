@@ -60,6 +60,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const bookingAgentShippingLineInput = document.getElementById(
     "bookingAgentShippingLine"
   );
+  const bookingAgentRouteLineSuggestions = document.getElementById(
+    "booking-agent-route-line-suggestions"
+  );
   const linesSelectAllBtn = document.getElementById("lines-select-all");
   const linesClearAllBtn = document.getElementById("lines-clear-all");
   const addShippingLineOptionBtn = document.getElementById("add-shipping-line-option");
@@ -353,6 +356,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   enableDatalistOpenOnFocus(shippingLineInput);
   enableDatalistOpenOnFocus(railTerminalInput);
   enableDatalistOpenOnFocus(bookingAgentInput);
+  syncBookingAgentShippingLineDatalist();
+  enableDatalistOpenOnFocus(bookingAgentShippingLineInput);
 
   const initialRates = await loadRates();
   refreshAutocompleteLists(initialRates);
@@ -4278,6 +4283,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function syncShippingLineQuickPicksToInput() {
     const selectedLines = getSelectedShippingLines();
     shippingLineInput.value = selectedLines.join(", ");
+    syncBookingAgentShippingLineDatalist();
     syncSeaUsdRowsToRouteCombinations();
   }
 
@@ -4298,6 +4304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       input.checked = selected.has(normalizeQuickOptionToken(input.value));
     });
+    syncBookingAgentShippingLineDatalist();
     syncSeaUsdRowsToRouteCombinations();
   }
 
@@ -4308,12 +4315,44 @@ document.addEventListener("DOMContentLoaded", async () => {
     return normalized !== "" && normalized !== "нет";
   }
 
+  function syncBookingAgentShippingLineDatalist() {
+    if (
+      !(bookingAgentRouteLineSuggestions instanceof HTMLDataListElement) ||
+      !(bookingAgentShippingLineInput instanceof HTMLInputElement)
+    ) {
+      return;
+    }
+    const lines = getShippingLinesFromInput();
+    const sorted = [...new Set(lines)].sort((a, b) =>
+      a.localeCompare(b, "ru", { sensitivity: "base" })
+    );
+    bookingAgentRouteLineSuggestions.innerHTML = sorted
+      .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
+      .join("");
+    const current = String(bookingAgentShippingLineInput.value || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (
+      current &&
+      sorted.length &&
+      !sorted.some(
+        (line) =>
+          normalizeShippingLineToken(line) ===
+          normalizeShippingLineToken(current)
+      )
+    ) {
+      bookingAgentShippingLineInput.value = "";
+    }
+  }
+
   function syncBookingAgentLineVisibility() {
     const shouldShow = isBookingAgentProvided(bookingAgentInput.value);
     bookingAgentLineWrap.hidden = !shouldShow;
     bookingAgentShippingLineInput.required = shouldShow;
     if (!shouldShow) {
       bookingAgentShippingLineInput.value = "";
+    } else {
+      syncBookingAgentShippingLineDatalist();
     }
   }
 
