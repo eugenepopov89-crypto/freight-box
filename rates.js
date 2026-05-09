@@ -804,7 +804,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!value) {
       return;
     }
-    await createBookingAgentPbRecord(value);
+    const ok = await createBookingAgentPbRecord(value);
     try {
       const latest = await loadRates();
       refreshAutocompleteLists(latest);
@@ -814,6 +814,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     bookingAgentInput.value = value;
     newBookingAgentOptionInput.value = "";
     syncBookingAgentLineVisibility();
+    if (ok) {
+      setStatus(
+        "Агент «" + value + "» сохранён в общий список подсказок (PocketBase).",
+        "success"
+      );
+    }
   });
 
   linesSelectAllBtn.addEventListener("click", () => {
@@ -1638,15 +1644,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  function normalizeBookingAgentDisplayName(raw) {
+    return String(raw || "").trim().replace(/\s+/g, " ");
+  }
+
   /**
-   * Имя букирующего агента в записи PocketBase: либо поле name, либо data.name (как у ставок).
+   * Имя букирующего агента в записи PB: поддерживаются распространённые имена полей и data.* (как у ставок).
    */
   function extractBookingAgentNameFromPbRecord(record) {
     if (!record || typeof record !== "object") {
       return "";
     }
-    if (record.name != null && String(record.name).trim()) {
-      return String(record.name).trim().replace(/\s+/g, " ");
+    const scalarKeys = [
+      "name",
+      "title",
+      "label",
+      "agent",
+      "company",
+      "full_name",
+    ];
+    for (let i = 0; i < scalarKeys.length; i++) {
+      const k = scalarKeys[i];
+      if (record[k] != null && String(record[k]).trim()) {
+        return normalizeBookingAgentDisplayName(record[k]);
+      }
     }
     let d = record.data;
     if (typeof d === "string") {
@@ -1656,10 +1677,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         d = null;
       }
     }
-    if (d && typeof d === "object" && !Array.isArray(d) && d.name != null) {
-      return String(d.name).trim().replace(/\s+/g, " ");
+    if (d && typeof d === "object" && !Array.isArray(d)) {
+      for (let i = 0; i < scalarKeys.length; i++) {
+        const k = scalarKeys[i];
+        if (d[k] != null && String(d[k]).trim()) {
+          return normalizeBookingAgentDisplayName(d[k]);
+        }
+      }
     }
     return "";
+  }
+
+  function bookingAgentPbSortDedupe(names) {
+    const clean = (names || [])
+      .map((s) => normalizeBookingAgentDisplayName(s))
+      .filter(Boolean);
+    return [...new Set(clean)].sort((a, b) => a.localeCompare(b, "ru"));
   }
 
   function normalizeBookingAgentDedupeKey(raw) {
@@ -1677,17 +1710,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function mergeNameIntoBookingAgentsCache(displayName) {
-    const t = String(displayName || "")
-      .trim()
-      .replace(/\s+/g, " ");
+    const t = normalizeBookingAgentDisplayName(displayName);
     if (!t || normalizeBookingAgentDedupeKey(t) === "нет") {
       return;
     }
     if (bookingAgentNameExists(bookingAgentsPbCache, t)) {
       return;
     }
-    bookingAgentsPbCache = [...bookingAgentsPbCache, t].sort((a, b) =>
-      a.localeCompare(b, "ru")
+    bookingAgentsPbCache = bookingAgentPbSortDedupe(
+      bookingAgentsPbCache.concat([t])
     );
   }
 
@@ -1747,11 +1778,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
       const data = await res.json();
-      const names = (data.items || [])
+      const rawItems = Array.isArray(data.items) ? data.items : [];
+      const fromServer = rawItems
         .map((it) => extractBookingAgentNameFromPbRecord(it))
         .filter(Boolean);
-      bookingAgentsPbCache = [...new Set(names)].sort((a, b) =>
-        a.localeCompare(b, "ru")
+      /*
+       * Нельзя просто брать только fromServer: при «чужом» имени поля в PB там [] —
+       * и мы затёрли бы кэш сразу после успешного POST (merge был бы потерян).
+       */
+      if (fromServer.length === 0 && rawItems.length > 0) {
+        console.warn(
+          "[rates] booking_agents: пришли записи из API, но имя поля не совпало с известными (name, title, data.name…)."
+        );
+      }
+      bookingAgentsPbCache = bookingAgentPbSortDedupe(
+        (bookingAgentsPbCache || []).concat(fromServer)
       );
     } catch (err) {
       console.warn("[rates] booking_agents fetch failed:", err);
@@ -1792,48 +1833,61 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 
+    const postBodies = [
+      { name: trimmed },
+      { data: { name: trimmed } },
+      { title: trimmed },
+      { agent: trimmed },
+    ];
+
     try {
-      let res = await postPayload({ name: trimmed });
-      let firstBody = "";
-      if (!res.ok) {
-        firstBody = await res.text();
-        if (res.status === 400) {
-          res = await postPayload({ data: { name: trimmed } });
-        } else {
-          console.warn(
-            "[rates] booking_agents POST",
-            res.status,
-            firstBody
-          );
-          if (typeof setStatus === "function") {
-            setStatus(
-              "Не удалось добавить агента в справочник. " +
-                formatPbBookingAgentError(res.status, firstBody),
-              "error"
-            );
-          }
-          return false;
+      let lastStatus = 0;
+      let lastBody = "";
+      let res = null;
+      let recJson = "";
+
+      for (let i = 0; i < postBodies.length; i++) {
+        res = await postPayload(postBodies[i]);
+        lastStatus = res.status;
+        lastBody = await res.text();
+        if (res.ok) {
+          recJson = lastBody;
+          break;
+        }
+        if (
+          lastStatus !== 400 &&
+          lastStatus !== 405
+        ) {
+          break;
         }
       }
-      if (!res.ok) {
-        const secondBody = await res.text();
-        const detail =
-          secondBody || firstBody || "";
-        console.warn("[rates] booking_agents POST", res.status, detail);
+
+      if (!res || !res.ok) {
+        console.warn("[rates] booking_agents POST", lastStatus, lastBody);
         if (typeof setStatus === "function") {
+          let hint = "";
+          if (lastStatus === 404) {
+            hint =
+              " Коллекции «booking_agents» нет или неверное имя (Admin → Collections). Добавьте коллекцию с текстовым полем name.";
+          } else if (lastStatus === 403 || lastStatus === 401) {
+            hint =
+              " Проверьте правила PocketBase для booking_agents: Create и View/List для авторизованных (@request.auth.id != \"\" ).";
+          }
           setStatus(
             "Не удалось добавить агента в справочник. " +
-              formatPbBookingAgentError(res.status, detail),
+              formatPbBookingAgentError(lastStatus, lastBody) +
+              hint,
             "error"
           );
         }
         return false;
       }
+
       let rec = null;
       try {
-        rec = await res.json();
+        rec = JSON.parse(recJson);
       } catch (_) {
-        /* ignore */
+        rec = null;
       }
       mergeNameIntoBookingAgentsCache(
         extractBookingAgentNameFromPbRecord(rec || {}) || trimmed
@@ -3362,8 +3416,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /**
-   * После любого await в обработчике клика Chrome снимает «user gesture» —
-   * navigator.clipboard.writeText начинает отклоняться; execCommand(copy) надёжнее.
+   * execCommand(copy) чаще срабатывает без Clipboard API; без readonly лучше на iOS.
    */
   function copyTextViaExecCommand(text) {
     const value = String(text || "");
@@ -3372,8 +3425,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const ta = document.createElement("textarea");
     ta.value = value;
-    ta.setAttribute("readonly", "");
     ta.setAttribute("aria-hidden", "true");
+    ta.setAttribute("autocomplete", "off");
     ta.style.position = "fixed";
     ta.style.top = "0";
     ta.style.left = "0";
@@ -3385,7 +3438,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ta.style.opacity = "0";
     ta.style.pointerEvents = "none";
     document.body.appendChild(ta);
-    ta.focus();
+    ta.focus({ preventScroll: true });
     ta.select();
     ta.setSelectionRange(0, value.length);
     let ok = false;
@@ -3403,6 +3456,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!value) {
       return false;
     }
+    if (copyTextViaExecCommand(value)) {
+      return true;
+    }
     if (
       typeof navigator !== "undefined" &&
       navigator.clipboard &&
@@ -3412,10 +3468,54 @@ document.addEventListener("DOMContentLoaded", async () => {
         await navigator.clipboard.writeText(value);
         return true;
       } catch (_) {
-        /* после await теряется user activation — чаще падаем сюда */
+        /* нет жеста пользователя / политика браузера */
       }
     }
-    return copyTextViaExecCommand(value);
+    return false;
+  }
+
+  /** Двухшаговое копирование КП: после await loadRates() жест снят — второй клик даёт новый жест. */
+  let kpSharePendingCopyUrl = "";
+  let kpSharePendingFingerprint = "";
+  let kpSharePendingExpiresMs = 0;
+
+  function buildKpSalesShareFingerprint() {
+    return [
+      [...(salesWorksetIds || [])].map(normalizeRateId).sort().join("\u001f"),
+      String(activeDestination),
+      String(activeYear),
+      String(activeMonth),
+      String(salesKpClientCompanyInput?.value || ""),
+      String(salesKpRecipientFioInput?.value || ""),
+      String(salesKpManagerSelect?.value || ""),
+      String(salesKpCurrencyTermsInput?.value || ""),
+      String(salesKpPaymentTermsInput?.value || ""),
+      String(salesKpInsuranceTermsInput?.value || ""),
+      String(salesManagerEmailInput?.value || ""),
+    ].join("\u007f");
+  }
+
+  async function copyPreparedSalesKpUrlToClipboard(url) {
+    const value = String(url || "");
+    if (!value) {
+      return false;
+    }
+    if (copyTextViaExecCommand(value)) {
+      return true;
+    }
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === "function"
+    ) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    return false;
   }
 
   async function copySalesKpShareLink() {
@@ -3423,6 +3523,40 @@ document.addEventListener("DOMContentLoaded", async () => {
       setShareStatus("Сначала сформируйте таблицу для продаж.", true);
       return;
     }
+    const fp = buildKpSalesShareFingerprint();
+    const now = Date.now();
+    if (
+      kpSharePendingCopyUrl &&
+      kpSharePendingFingerprint === fp &&
+      now < kpSharePendingExpiresMs
+    ) {
+      const urlSnapshot = kpSharePendingCopyUrl;
+      const copied = await copyPreparedSalesKpUrlToClipboard(urlSnapshot);
+      kpSharePendingCopyUrl = "";
+      kpSharePendingFingerprint = "";
+      kpSharePendingExpiresMs = 0;
+      if (copied) {
+        setShareStatus("Ссылка КП скопирована в буфер обмена.", false);
+      } else {
+        setShareStatus(
+          "Не удалось записать в буфер. Откроется поле — выделите ссылку и скопируйте вручную.",
+          true
+        );
+        try {
+          window.prompt(
+            "Ссылка КП — выделите и скопируйте (⌘C / Ctrl+C):",
+            urlSnapshot
+          );
+        } catch (_) {
+          setShareStatus(
+            "Скопируйте ссылку из диалога выше или откройте сайт по HTTPS.",
+            true
+          );
+        }
+      }
+      return;
+    }
+
     const payload = {
       v: 1,
       createdAt: new Date().toISOString(),
@@ -3448,23 +3582,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     url.searchParams.set(SHARE_PARAM_KEY, encoded);
     url.searchParams.set("view", "kp");
     const shareUrl = url.toString();
-    const copied = await copyTextToClipboardBestEffort(shareUrl);
-    if (copied) {
-      setShareStatus("Ссылка КП скопирована в буфер обмена.", false);
-    } else {
-      setShareStatus(
-        "Ссылка сформирована. Автокопирование заблокировано браузером — откроется окно, скопируйте оттуда.",
-        true
-      );
-      try {
-        window.prompt("Ссылка КП — выделите и скопируйте (⌘C / Ctrl+C):", shareUrl);
-      } catch (_) {
-        setShareStatus(
-          "Не удалось открыть окно со ссылкой. Обновите страницу или откройте сайт по HTTPS.",
-          true
-        );
-      }
-    }
+
+    kpSharePendingCopyUrl = shareUrl;
+    kpSharePendingFingerprint = fp;
+    kpSharePendingExpiresMs = now + 4 * 60 * 1000;
+
+    setShareStatus(
+      "Ссылка готова. Нажмите «Скопировать ссылку КП» ещё раз — тогда браузер разрешит запись в буфер.",
+      false
+    );
   }
 
   async function hydrateSalesKpFromSharedLink() {
