@@ -2371,9 +2371,29 @@ footer {
   align-items: center;
 }
 
+.cost-follow {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.45);
+}
+
+.cost-follow-hint {
+  margin-bottom: 0.5rem;
+}
+
+.cost-follow--auto {
+  display: grid;
+  gap: 4px;
+}
+
 .warehouse-address-row {
   display: grid;
   gap: 4px;
+}
+
+.warehouse-address-row > .cost-follow--auto {
+  margin-top: 0.5rem;
+  padding-top: 0.65rem;
 }
 
 .warehouse-address-controls {
