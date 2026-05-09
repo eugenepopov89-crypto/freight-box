@@ -5,6 +5,50 @@ document.addEventListener("DOMContentLoaded", async () => {
   const BOOKING_AGENTS_COLLECTION = "booking_agents";
   const API_BASE = "https://pocketbase-production-3100.up.railway.app";
   let bookingAgentsPbCache = [];
+
+  const LS_BOOKING_AGENT_OPTIONS = "bookingAgentOptions";
+  const LS_SHIPPING_LINE_OPTIONS = "shippingLineOptions";
+  const LS_BOOKING_ROUTE_LINE_OPTIONS = "bookingAgentRouteLineOptions";
+
+  function loadStoredOptions(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed
+        .map((item) => String(item || "").trim().replace(/\s+/g, " "))
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  function saveStoredOptions(key, values) {
+    try {
+      const normalized = (values || [])
+        .map((v) => String(v || "").trim().replace(/\s+/g, " "))
+        .filter(Boolean);
+      const sorted = [...new Set(normalized)].sort((a, b) =>
+        a.localeCompare(b, "ru")
+      );
+      localStorage.setItem(key, JSON.stringify(sorted));
+    } catch (err) {
+      console.warn("[rates] localStorage save failed:", key, err);
+    }
+  }
+
+  function appendStoredOption(key, value) {
+    const trimmed = String(value || "").trim().replace(/\s+/g, " ");
+    if (!trimmed) {
+      return;
+    }
+    saveStoredOptions(key, loadStoredOptions(key).concat([trimmed]));
+  }
   const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK"];
   const months = [
     "Январь",
@@ -788,10 +832,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!value) {
       return;
     }
+    appendStoredOption(LS_SHIPPING_LINE_OPTIONS, value);
+    appendStoredOption(LS_BOOKING_ROUTE_LINE_OPTIONS, value);
     addOptionToDatalist(shippingLineSuggestions, value);
     addCheckboxOption(shippingLineQuickPicks, "shippingLineQuickOptions", value);
     shippingLineInput.value = value;
     syncShippingLineInputToQuickPicks();
+    syncBookingAgentShippingLineDatalist();
     newShippingLineOptionInput.value = "";
   });
 
@@ -802,6 +849,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!value) {
       return;
     }
+    appendStoredOption(LS_BOOKING_AGENT_OPTIONS, value);
+    addOptionToDatalist(bookingAgentSuggestions, value);
+
     const ok = await createBookingAgentPbRecord(value);
     try {
       const latest = await loadRates();
@@ -3952,12 +4002,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     const shippingLines = uniqueSorted(
       DEFAULT_SHIPPING_LINES.concat(
-        rates.map((item) => String(item.shippingLine || "").trim())
+        rates.map((item) => String(item.shippingLine || "").trim()),
+        loadStoredOptions(LS_SHIPPING_LINE_OPTIONS)
       )
     );
     const bookingAgents = uniqueSorted(
       bookingAgentsPbCache.concat(
-        rates.map((item) => String(item.bookingAgent || "").trim())
+        rates.map((item) => String(item.bookingAgent || "").trim()),
+        loadStoredOptions(LS_BOOKING_AGENT_OPTIONS)
       )
     );
     const stationVals = [];
@@ -3984,6 +4036,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     sortDatalistOptions(shippingLineSuggestions);
     sortDatalistOptions(bookingAgentSuggestions);
     sortDatalistOptions(stationSuggestions);
+    syncBookingAgentShippingLineDatalist();
   }
 
   function uniqueSorted(values) {
@@ -4770,10 +4823,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     const lines = getShippingLinesFromInput();
-    const sorted = [...new Set(lines)].sort((a, b) =>
-      a.localeCompare(b, "ru", { sensitivity: "base" })
+    const merged = uniqueSorted(
+      lines.concat(loadStoredOptions(LS_BOOKING_ROUTE_LINE_OPTIONS))
     );
-    bookingAgentRouteLineSuggestions.innerHTML = sorted
+    bookingAgentRouteLineSuggestions.innerHTML = merged
       .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
       .join("");
     const current = String(bookingAgentShippingLineInput.value || "")
@@ -4781,8 +4834,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replace(/\s+/g, " ");
     if (
       current &&
-      sorted.length &&
-      !sorted.some(
+      merged.length &&
+      !merged.some(
         (line) =>
           normalizeShippingLineToken(line) ===
           normalizeShippingLineToken(current)
