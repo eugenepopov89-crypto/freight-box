@@ -2372,16 +2372,25 @@ footer {
 }
 
 .cost-follow {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.45);
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: #f8f9fa;
+  border-left: 3px solid #1a1a1a;
+  border-radius: 0 4px 4px 0;
 }
 
 .cost-follow-hint {
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
+  color: #666;
+  font-size: 0.85em;
 }
 
 .cost-follow--auto {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #f8f9fa;
+  border-left: 3px solid #1a1a1a;
+  border-radius: 0 4px 4px 0;
   display: grid;
   gap: 4px;
 }
@@ -2389,11 +2398,6 @@ footer {
 .warehouse-address-row {
   display: grid;
   gap: 4px;
-}
-
-.warehouse-address-row > .cost-follow--auto {
-  margin-top: 0.5rem;
-  padding-top: 0.65rem;
 }
 
 .warehouse-address-controls {
