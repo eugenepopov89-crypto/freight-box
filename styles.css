@@ -2395,6 +2395,98 @@ footer {
   gap: 4px;
 }
 
+.cost-follow--sea {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.cost-follow-hint--lead {
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.sea-usd-wrap-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sailing-dates-stack {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(26, 26, 26, 0.12);
+}
+
+.cost-follow--rail {
+  margin-top: 14px;
+}
+
+.cost-follow--rail #rail-rub-default-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+.cost-follow--rail #rail-rub-default-wrap label {
+  font-size: 0.88rem;
+}
+
+.rail-rub-20-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (min-width: 520px) {
+  .rail-rub-20-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+}
+
+.destination-stations-wrap-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sea-usd-row.sea-usd-row--grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px 14px;
+}
+
+@media (min-width: 640px) {
+  .sea-usd-row.sea-usd-row--grid {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 200px);
+    grid-template-rows: auto auto;
+    align-items: end;
+  }
+
+  .sea-usd-row.sea-usd-row--grid label:first-of-type {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-row--grid input[name="seaUsd"] {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .sea-usd-row.sea-usd-row--grid label:nth-of-type(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-row--grid input[name="seaSailingDate"] {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
 .warehouse-address-row {
   display: grid;
   gap: 4px;
