@@ -1348,11 +1348,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const url = new URL(window.location.href);
     url.searchParams.set(FILTER_SHARE_PARAM_KEY, encoded);
     const shareUrl = url.toString();
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const copied = await copyTextToClipboardBestEffort(shareUrl);
+    if (copied) {
       setStatus("Ссылка на активный фильтр скопирована в буфер обмена.", "success");
-    } catch (error) {
-      setStatus("Не удалось скопировать. Ссылка: " + shareUrl, "error");
+    } else {
+      setStatus(
+        "Фильтр в ссылке сформирован. Автокопирование недоступно — сейчас откроется окно со ссылкой.",
+        "error"
+      );
+      try {
+        window.prompt("Ссылка с фильтром — скопируйте:", shareUrl);
+      } catch (_) {
+        /* ignore */
+      }
     }
   });
 
@@ -3353,6 +3361,63 @@ document.addEventListener("DOMContentLoaded", async () => {
     salesShareStatus.style.color = isError ? "#b91c1c" : "";
   }
 
+  /**
+   * После любого await в обработчике клика Chrome снимает «user gesture» —
+   * navigator.clipboard.writeText начинает отклоняться; execCommand(copy) надёжнее.
+   */
+  function copyTextViaExecCommand(text) {
+    const value = String(text || "");
+    if (!value) {
+      return false;
+    }
+    const ta = document.createElement("textarea");
+    ta.value = value;
+    ta.setAttribute("readonly", "");
+    ta.setAttribute("aria-hidden", "true");
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.width = "1px";
+    ta.style.height = "1px";
+    ta.style.padding = "0";
+    ta.style.margin = "0";
+    ta.style.border = "none";
+    ta.style.opacity = "0";
+    ta.style.pointerEvents = "none";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, value.length);
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch (_) {
+      ok = false;
+    }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  async function copyTextToClipboardBestEffort(text) {
+    const value = String(text || "");
+    if (!value) {
+      return false;
+    }
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === "function"
+    ) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch (_) {
+        /* после await теряется user activation — чаще падаем сюда */
+      }
+    }
+    return copyTextViaExecCommand(value);
+  }
+
   async function copySalesKpShareLink() {
     if (!Array.isArray(salesWorksetIds) || !salesWorksetIds.length) {
       setShareStatus("Сначала сформируйте таблицу для продаж.", true);
@@ -3383,11 +3448,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     url.searchParams.set(SHARE_PARAM_KEY, encoded);
     url.searchParams.set("view", "kp");
     const shareUrl = url.toString();
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const copied = await copyTextToClipboardBestEffort(shareUrl);
+    if (copied) {
       setShareStatus("Ссылка КП скопирована в буфер обмена.", false);
-    } catch {
-      setShareStatus("Не удалось скопировать. Ссылка: " + shareUrl, true);
+    } else {
+      setShareStatus(
+        "Ссылка сформирована. Автокопирование заблокировано браузером — откроется окно, скопируйте оттуда.",
+        true
+      );
+      try {
+        window.prompt("Ссылка КП — выделите и скопируйте (⌘C / Ctrl+C):", shareUrl);
+      } catch (_) {
+        setShareStatus(
+          "Не удалось открыть окно со ссылкой. Обновите страницу или откройте сайт по HTTPS.",
+          true
+        );
+      }
     }
   }
 
