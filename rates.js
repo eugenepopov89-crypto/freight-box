@@ -4600,18 +4600,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       const portLabel = combo.origin || "—";
       const lineLabel = combo.shippingLine || "—";
       const row = document.createElement("div");
-      row.className = "sea-usd-row";
+      row.className = "sea-usd-row sea-usd-row--grid";
 
       const label = document.createElement("label");
       label.htmlFor = "seaUsd-" + String(idx);
       label.textContent =
-        "Фрахт для строки " +
-        String(idx) +
-        " (" +
-        portLabel +
-        " / " +
-        lineLabel +
-        "), USD *";
+        "Фрахт USD · " + portLabel + " × " + lineLabel + " *";
 
       const input = document.createElement("input");
       input.id = "seaUsd-" + String(idx);
@@ -4625,7 +4619,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const dateLabel = document.createElement("label");
       dateLabel.htmlFor = "seaSailingDate-" + String(idx);
-      dateLabel.textContent = "Дата выхода для строки " + String(idx) + " *";
+      dateLabel.textContent = "Дата выхода *";
 
       const dateInput = document.createElement("input");
       dateInput.id = "seaSailingDate-" + String(idx);
@@ -4667,7 +4661,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const label = document.createElement("label");
       label.htmlFor = "autoRub-" + String(idx);
       label.textContent =
-        "Авто до склада выгрузки " + String(idx) + ", RUB *";
+        "Авто до склада " + String(idx) + ", RUB *";
 
       const input = document.createElement("input");
       input.id = "autoRub-" + String(idx);
@@ -5100,7 +5094,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lineInput = document.createElement("input");
     lineInput.name = "nextSailingDateLine";
     lineInput.setAttribute("list", "shipping-line-suggestions");
-    lineInput.placeholder = "Для какой линии (при необходимости)";
+    lineInput.placeholder = "Линия (при необходимости)";
 
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
@@ -5119,7 +5113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function resetSailingDateRows() {
     sailingDatesWrap.innerHTML =
-      '<div class="sailing-date-row sailing-date-row--with-line"><select name="nextSailingDateOrigin"><option value="">Порт отправления (из маршрута)</option></select><input name="nextSailingDateLine" list="shipping-line-suggestions" placeholder="Для какой линии (при необходимости)" /><input name="nextSailingDates" type="date" required /><button type="button" id="add-sailing-date-btn" class="btn-add-date" aria-label="Добавить дату">+</button></div>';
+      '<div class="sailing-date-row sailing-date-row--with-line"><select name="nextSailingDateOrigin"><option value="">Порт отправления (из маршрута)</option></select><input name="nextSailingDateLine" list="shipping-line-suggestions" placeholder="Линия (при необходимости)" /><input name="nextSailingDates" type="date" required /><button type="button" id="add-sailing-date-btn" class="btn-add-date" aria-label="Добавить дату">+</button></div>';
     const freshAddBtn = document.getElementById("add-sailing-date-btn");
     if (freshAddBtn instanceof HTMLButtonElement) {
       freshAddBtn.addEventListener("click", () => {
