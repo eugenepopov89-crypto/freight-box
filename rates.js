@@ -215,7 +215,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if ((!h || h === "") && proto === "file:") {
       return "http://127.0.0.1:3847/kp-opened";
     }
-    return "";
+    /* На Netlify (и любом другом деплое) — используем Netlify Function */
+    return "/kp-opened";
   })();
   /** Тот же секрет, что TRACKING_SECRET у сервера (опционально). */
   const TRACKING_WEBHOOK_SECRET = "";
