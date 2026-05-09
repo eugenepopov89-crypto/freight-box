@@ -94,32 +94,47 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   /**
    * Сохранить новую опцию в localStorage и сразу добавить в datalist.
-   * `gridId` зарезервирован (например сетка чекбоксов); можно передать null.
+   * `gridId` зарезервирован; можно передать null.
    */
   function saveNewOption(storageKey, datalistId, gridId, value) {
     void gridId;
     if (value == null || value === "") {
       return;
     }
-    const trimmed = String(value).trim().replace(/\s+/g, " ");
-    if (!trimmed) {
+    value = String(value).trim();
+    if (!value) {
       return;
     }
-    const saved = readSavedList(storageKey);
-    if (saved.includes(trimmed)) {
-      return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      if (!Array.isArray(saved)) {
+        return;
+      }
+      if (!saved.includes(value)) {
+        saved.push(value);
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+      }
+    } catch (e) {
+      console.warn("localStorage недоступен:", e);
     }
-    saved.push(trimmed);
-    writeSavedList(storageKey, saved);
     const datalist = document.getElementById(datalistId);
-    if (
-      datalist &&
-      ![...datalist.querySelectorAll("option")].some((opt) => opt.value === trimmed)
-    ) {
+    if (!datalist) {
+      return;
+    }
+    let exists = false;
+    if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+      exists = !!datalist.querySelector(
+        `option[value="${CSS.escape(value)}"]`
+      );
+    } else {
+      exists = [...datalist.querySelectorAll("option")].some(
+        (opt) => opt.value === value
+      );
+    }
+    if (!exists) {
       const opt = document.createElement("option");
-      opt.value = trimmed;
+      opt.value = value;
       datalist.appendChild(opt);
-      sortDatalistOptions(datalist);
     }
   }
 
