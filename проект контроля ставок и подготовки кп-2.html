@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Публикация ставок | Факториалл Русь</title>
+    <meta
+      name="description"
+      content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="page">
+    <header>
+      <div class="shell nav">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">F</span>
+          <span>
+            Факториалл Русь
+            <span class="brand-sub">Транспортно-логистические решения</span>
+          </span>
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <section class="shell section" aria-labelledby="rates-form-title">
+        <div class="section-header">
+          <div>
+            <div class="section-kicker">Публикация ставок</div>
+            <h1 id="rates-form-title" class="section-title">
+              FOB Shanghai / FOB Qingdao → Vladivostok → RU/BY
+            </h1>
+          </div>
+          <p class="section-subtitle">
+            Ставка формируется из морского фрахта (USD), ЖД плеча
+            Владивосток–станция назначения (RUB) и автодоставки от станции до
+            склада выгрузки (RUB).
+          </p>
+        </div>
+
+        <section class="form-card rates-panel" aria-label="Форма ставок">
+          <div class="rates-period-hint" id="current-period"></div>
+
+          <form id="rates-form" novalidate>
+            <div class="form-block">
+              <h2 class="form-block-heading">Маршрут</h2>
+
+              <div class="field-group field-group-align-start">
+                <div>
+                  <label>Порты отправления (China) *</label>
+                  <div id="origin-ports-wrap" class="sailing-dates-wrap">
+                    <div class="origin-port-row">
+                      <input
+                        name="originPorts"
+                        list="china-port-suggestions"
+                        placeholder="Например, SHANGHAI"
+                      />
+                      <button
+                        type="button"
+                        id="add-origin-port-btn"
+                        class="btn-add-date"
+                        aria-label="Добавить порт"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div class="origin-quick-picks">
+                    <div class="origin-quick-pick-controls">
+                      <button type="button" id="ports-select-all" class="btn-mini-control">
+                        Выбрать все
+                      </button>
+                      <button type="button" id="ports-clear-all" class="btn-mini-control">
+                        Очистить
+                      </button>
+                    </div>
+                    <div class="quick-add-row">
+                      <input
+                        id="new-port-option"
+                        list="china-port-suggestions"
+                        placeholder="Добавить новый порт в список"
+                      />
+                      <button type="button" id="add-port-option" class="btn-mini-control">
+                        Добавить в список
+                      </button>
+                    </div>
+                    <div class="origin-quick-pick-grid" id="origin-quick-picks">
+                      <label><input type="checkbox" name="originQuickPorts" value="SHANGHAI" /> SHANGHAI</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="QINGDAO" /> QINGDAO</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="NINGBO" /> NINGBO</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="SHENZHEN" /> SHENZHEN</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="GUANGZHOU" /> GUANGZHOU</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="XIAMEN" /> XIAMEN</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="TIANJIN" /> TIANJIN</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="DALIAN" /> DALIAN</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="LIANYUNGANG" /> LIANYUNGANG</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="YANTIAN" /> YANTIAN</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="NANSHA" /> NANSHA</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="FUZHOU" /> FUZHOU</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="ZHONGSHAN" /> ZHONGSHAN</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="ZHANJIANG" /> ZHANJIANG</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="WENZHOU" /> WENZHOU</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="RIZHAO" /> RIZHAO</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="QINZHOU" /> QINZHOU</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="YINGKOU" /> YINGKOU</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="WEIHAI" /> WEIHAI</label>
+                      <label><input type="checkbox" name="originQuickPorts" value="TAICANG" /> TAICANG</label>
+                    </div>
+                  </div>
+                  <datalist id="china-port-suggestions">
+                    <option value="SHANGHAI"></option>
+                    <option value="QINGDAO"></option>
+                    <option value="NINGBO"></option>
+                    <option value="SHENZHEN"></option>
+                    <option value="GUANGZHOU"></option>
+                    <option value="XIAMEN"></option>
+                    <option value="TIANJIN"></option>
+                    <option value="DALIAN"></option>
+                    <option value="LIANYUNGANG"></option>
+                    <option value="YANTIAN"></option>
+                    <option value="NANSHA"></option>
+                    <option value="FUZHOU"></option>
+                    <option value="ZHONGSHAN"></option>
+                    <option value="ZHANJIANG"></option>
+                    <option value="WENZHOU"></option>
+                    <option value="RIZHAO"></option>
+                    <option value="QINZHOU"></option>
+                    <option value="YINGKOU"></option>
+                    <option value="WEIHAI"></option>
+                    <option value="TAICANG"></option>
+                  </datalist>
+                </div>
+                <div class="destination-field-slot">
+                  <label for="destination">Финальное направление *</label>
+                  <select id="destination" name="destination" required>
+                    <option value="MOSCOW">MOSCOW</option>
+                    <option value="ST. PETERSBURG">ST. PETERSBURG</option>
+                    <option value="MINSK">MINSK</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label for="shippingLine">Морская линия *</label>
+                  <input
+                    id="shippingLine"
+                    name="shippingLine"
+                    required
+                    placeholder="Например, FESCO / Maersk / ONE"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label for="bookingAgent">Букирующий агент (при наличии) *</label>
+                  <p class="helper-text">
+                    Обязательное поле; если агента нет — укажите <strong>НЕТ</strong>.
+                  </p>
+                  <input
+                    id="bookingAgent"
+                    name="bookingAgent"
+                    required
+                    autocomplete="organization"
+                    placeholder="Например, ООО «…» или НЕТ"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label for="railTerminal">Терминал отправления ЖД (Дальний Восток) *</label>
+                  <input
+                    id="railTerminal"
+                    name="railTerminal"
+                    list="terminal-suggestions"
+                    required
+                    placeholder="Например, ВМТП / ВМКТ / Соллерс"
+                  />
+                  <datalist id="terminal-suggestions"></datalist>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Станции назначения (Москва / СПб / Минск) *</label>
+                  <div id="destination-stations-wrap" class="sailing-dates-wrap">
+                    <div class="origin-port-row">
+                      <input
+                        name="destinationStations"
+                        list="station-suggestions"
+                        placeholder="Например, Ворсино"
+                      />
+                      <button
+                        type="button"
+                        id="add-destination-station-btn"
+                        class="btn-add-date"
+                        aria-label="Добавить станцию"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div class="origin-quick-picks">
+                    <div class="origin-quick-pick-controls">
+                      <button type="button" id="stations-select-all" class="btn-mini-control">
+                        Выбрать все
+                      </button>
+                      <button type="button" id="stations-clear-all" class="btn-mini-control">
+                        Очистить
+                      </button>
+                    </div>
+                    <div class="quick-add-row">
+                      <input
+                        id="new-station-option"
+                        list="station-suggestions"
+                        placeholder="Добавить новую станцию в список"
+                      />
+                      <button type="button" id="add-station-option" class="btn-mini-control">
+                        Добавить в список
+                      </button>
+                    </div>
+                    <div class="origin-quick-pick-grid" id="station-quick-picks">
+                      <label><input type="checkbox" name="destinationQuickStations" value="Ворсино" data-destination="MOSCOW" /> Ворсино</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Селятино" data-destination="MOSCOW" /> Селятино</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Ховрино" data-destination="MOSCOW" /> Ховрино</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Белый Раст" data-destination="MOSCOW" /> Белый Раст</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Электроугли" data-destination="MOSCOW" /> Электроугли</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Шушары" data-destination="ST. PETERSBURG" /> Шушары</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Автово" data-destination="ST. PETERSBURG" /> Автово</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Предпортовая" data-destination="ST. PETERSBURG" /> Предпортовая</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Купчинская" data-destination="ST. PETERSBURG" /> Купчинская</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Колядичи" data-destination="MINSK" /> Колядичи</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Минск-Северный" data-destination="MINSK" /> Минск-Северный</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Степянка" data-destination="MINSK" /> Степянка</label>
+                    </div>
+                  </div>
+                  <datalist id="station-suggestions">
+                    <option value="Ворсино"></option>
+                    <option value="Селятино"></option>
+                    <option value="Ховрино"></option>
+                    <option value="Белый Раст"></option>
+                    <option value="Электроугли"></option>
+                    <option value="Шушары"></option>
+                    <option value="Автово"></option>
+                    <option value="Предпортовая"></option>
+                    <option value="Купчинская"></option>
+                    <option value="Колядичи"></option>
+                    <option value="Минск-Северный"></option>
+                    <option value="Степянка"></option>
+                  </datalist>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label for="warehouseAddress">Адрес склада выгрузки *</label>
+                  <input
+                    id="warehouseAddress"
+                    name="warehouseAddress"
+                    required
+                    placeholder="Например, МО, Подольск, Домодедовское ш., 12"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <fieldset class="customs-clearance-fieldset">
+                  <legend>Таможенная очистка *</legend>
+                  <p class="helper-text customs-clearance-hint">
+                    Отметьте один вариант: в порту назначения или на станции назначения (одновременно оба недоступны).
+                  </p>
+                  <div class="customs-clearance-options">
+                    <label class="customs-clearance-label">
+                      <input
+                        type="radio"
+                        name="customsClearance"
+                        value="destinationPort"
+                        required
+                      />
+                      Таможенная очистка в порту назначения
+                    </label>
+                    <label class="customs-clearance-label">
+                      <input
+                        type="radio"
+                        name="customsClearance"
+                        value="destinationStation"
+                      />
+                      Таможенная очистка на станции назначения
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+            </div>
+
+            <div class="form-block">
+              <h2 class="form-block-heading">Тип контейнера и данные по грузу</h2>
+              <div class="field-group field-group--three">
+                <div>
+                  <label for="containerType">Тип контейнера *</label>
+                  <select id="containerType" name="containerType" required>
+                    <option value="20FT">20FT</option>
+                    <option value="40HQ">40HQ</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="cargoWeightKg">Вес груза, кг *</label>
+                  <input
+                    id="cargoWeightKg"
+                    name="cargoWeightKg"
+                    type="number"
+                    step="0.001"
+                    min="0.001"
+                    required
+                    placeholder="Например, 18500"
+                  />
+                </div>
+                <div>
+                  <fieldset class="cargo-security-fieldset">
+                    <legend class="cargo-security-legend">Наличие охраны *</legend>
+                    <div class="cargo-security-options">
+                      <label class="cargo-security-label">
+                        <input
+                          type="radio"
+                          name="cargoSecurity"
+                          value="yes"
+                          required
+                        />
+                        Да
+                      </label>
+                      <label class="cargo-security-label">
+                        <input type="radio" name="cargoSecurity" value="no" />
+                        Нет
+                      </label>
+                    </div>
+                  </fieldset>
+                </div>
+              </div>
+              <div class="field-group field-group--full">
+                <div>
+                  <label for="tnvedCode">Код ТН ВЭД</label>
+                  <p class="helper-text" id="tnved-hint">
+                    Если выбрано «Наличие охраны — Да», код ТН ВЭД нужно указать обязательно.
+                  </p>
+                  <input
+                    id="tnvedCode"
+                    name="tnvedCode"
+                    inputmode="text"
+                    autocomplete="off"
+                    placeholder="Например, 8708309009"
+                    aria-describedby="tnved-hint"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-block">
+              <h2 class="form-block-heading">Валидность и сроки</h2>
+              <div class="field-group field-group--three">
+                <div>
+                  <label for="validYear">Год *</label>
+                  <input
+                    id="validYear"
+                    name="validYear"
+                    type="number"
+                    min="2026"
+                    max="2100"
+                    required
+                    value="2026"
+                  />
+                </div>
+                <div>
+                  <label for="validMonth">Месяц *</label>
+                  <select id="validMonth" name="validMonth" required></select>
+                </div>
+                <div>
+                  <label for="validitySlot">Период действия *</label>
+                  <select id="validitySlot" name="validitySlot" required>
+                    <option value="H1">1–15 число</option>
+                    <option value="H2">15–конец месяца</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Ближайшие даты выхода судна *</label>
+                  <div id="sailing-dates-wrap" class="sailing-dates-wrap">
+                    <div class="sailing-date-row">
+                      <input name="nextSailingDates" type="date" required />
+                      <button
+                        type="button"
+                        id="add-sailing-date-btn"
+                        class="btn-add-date"
+                        aria-label="Добавить дату"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div>
+                  <label for="transitDays">Транзитный срок (дней) *</label>
+                  <input
+                    id="transitDays"
+                    name="transitDays"
+                    type="number"
+                    step="1"
+                    min="1"
+                    required
+                    placeholder="Например, 32"
+                  />
+                </div>
+                <div>
+                  <label for="manager">Менеджер / комментарий</label>
+                  <input
+                    id="manager"
+                    name="manager"
+                    placeholder="Например, ставка согласована с линией"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-block">
+              <h2 class="form-block-heading">Стоимость доставки</h2>
+              <div class="field-group field-group--three">
+                <div>
+                  <label for="seaUsd">Морской фрахт, USD *</label>
+                  <input
+                    id="seaUsd"
+                    name="seaUsd"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    placeholder="Например, 1450"
+                  />
+                </div>
+                <div>
+                  <label for="railRub">ЖД терминал отправления–станция назначения, RUB *</label>
+                  <input
+                    id="railRub"
+                    name="railRub"
+                    type="number"
+                    step="1"
+                    min="0"
+                    required
+                    placeholder="Например, 235000"
+                  />
+                </div>
+                <div>
+                  <label for="autoRub">Авто до склада, RUB *</label>
+                  <input
+                    id="autoRub"
+                    name="autoRub"
+                    type="number"
+                    step="1"
+                    min="0"
+                    required
+                    placeholder="Например, 28000"
+                  />
+                </div>
+              </div>
+              <div class="field-group field-group--full" id="security-cost-wrap" hidden>
+                <div>
+                  <label for="securityCostRub">Стоимость охраны, RUB</label>
+                  <p class="helper-text">
+                    По желанию: укажите при «Наличие охраны — Да» (поле недоступно при «Нет»).
+                  </p>
+                  <input
+                    id="securityCostRub"
+                    name="securityCostRub"
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="Например, 15000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-footer">
+              <div>
+                <span class="badge-soft">Сохранение включено</span>
+                <div class="helper-text">
+                  Ставки сохраняются локально в браузере и могут регулярно
+                  обновляться по периодам.
+                </div>
+              </div>
+              <button type="submit" class="btn-primary">
+                Сохранить / обновить ставку
+              </button>
+            </div>
+            <p id="rates-status" class="status" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <section class="rates-table-wrap" aria-label="Список опубликованных ставок">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Реестр ставок</div>
+              <h2 class="section-title">Таблицы по направлениям</h2>
+            </div>
+            <button
+              type="button"
+              id="print-tab-btn"
+              class="btn-ghost"
+              title="В PDF попадёт таблица с учётом вкладки, года, месяца и при необходимости портов, типа контейнера, линий и агентов"
+            >
+              Сохранить активную вкладку в PDF
+            </button>
+          </div>
+
+          <div class="rates-publication-tabs no-print" id="rates-publication-tabs">
+            <div class="rates-filter-row rates-filter-row--destination">
+              <span class="rates-filter-label">Назначение</span>
+              <div class="rates-tabs rates-tabs--destination" id="rates-tabs">
+                <button
+                  type="button"
+                  class="rates-tab is-active"
+                  data-destination="MOSCOW"
+                >
+                  MOSCOW
+                </button>
+                <button
+                  type="button"
+                  class="rates-tab"
+                  data-destination="ST. PETERSBURG"
+                >
+                  ST. PETERSBURG
+                </button>
+                <button type="button" class="rates-tab" data-destination="MINSK">
+                  MINSK
+                </button>
+              </div>
+            </div>
+
+            <div class="rates-filter-row">
+              <span class="rates-filter-label">Год</span>
+              <div class="rates-tabs rates-tabs--year" id="rates-year-tabs"></div>
+            </div>
+
+            <div class="rates-filter-row">
+              <span class="rates-filter-label">Месяц</span>
+              <div
+                class="rates-tabs rates-tabs--month"
+                id="rates-month-tabs"
+              ></div>
+            </div>
+
+            <div class="rates-filter-row rates-filter-row--checkboxes">
+              <span class="rates-filter-label">Порты<br />отправл.</span>
+              <div class="rates-filter-checkbox-block">
+                <div class="rates-filter-chip-actions">
+                  <button type="button" id="origin-ports-filter-all" class="btn-mini-control">
+                    Все порты
+                  </button>
+                  <button type="button" id="origin-ports-filter-clear" class="btn-mini-control">
+                    Не фильтровать
+                  </button>
+                </div>
+                <p class="rates-filter-explainer">
+                  Отметьте порты China из текущей выборки: в таблице и в PDF останутся только ставки,
+                  где в отправлении есть хотя бы один из выбранных портов.
+                </p>
+                <div class="rates-checkbox-strip" id="rates-origin-port-filters"></div>
+              </div>
+            </div>
+
+            <div class="rates-filter-row rates-filter-row--checkboxes">
+              <span class="rates-filter-label">Тип<br />контейнера</span>
+              <div class="rates-filter-checkbox-block">
+                <div class="rates-filter-chip-actions">
+                  <button type="button" id="container-type-filter-all" class="btn-mini-control">
+                    Все типы
+                  </button>
+                  <button type="button" id="container-type-filter-clear" class="btn-mini-control">
+                    Не фильтровать
+                  </button>
+                </div>
+                <p class="rates-filter-explainer">
+                  Отметьте 20FT / 40HQ и др. из текущей выборки: таблица и PDF покажут только строки с
+                  выбранными типами контейнера.
+                </p>
+                <div class="rates-checkbox-strip" id="rates-container-type-filters"></div>
+              </div>
+            </div>
+
+            <div class="rates-filter-row rates-filter-row--checkboxes">
+              <span class="rates-filter-label">Морские<br />линии</span>
+              <div class="rates-filter-checkbox-block">
+                <div class="rates-filter-chip-actions">
+                  <button type="button" id="lines-filter-all" class="btn-mini-control">
+                    Все линии
+                  </button>
+                  <button type="button" id="lines-filter-clear" class="btn-mini-control">
+                    Не фильтровать
+                  </button>
+                </div>
+                <p class="rates-filter-explainer">
+                  Без галочек и при «Не фильтровать» показаны все линии. Отметьте одну или
+                  несколько — в таблице и в PDF только они.
+                </p>
+                <div class="rates-checkbox-strip" id="rates-line-filters"></div>
+              </div>
+            </div>
+
+            <div class="rates-filter-row rates-filter-row--checkboxes">
+              <span class="rates-filter-label">Букирующие<br />агенты</span>
+              <div class="rates-filter-checkbox-block">
+                <div class="rates-filter-chip-actions">
+                  <button type="button" id="agents-filter-all" class="btn-mini-control">
+                    Все агенты
+                  </button>
+                  <button type="button" id="agents-filter-clear" class="btn-mini-control">
+                    Не фильтровать
+                  </button>
+                </div>
+                <p class="rates-filter-explainer">
+                  Аналогично: ограничьте таблицу и печать по выбранным агентам (в т. ч.
+                  строка «НЕТ» будет отдельным пунктом, если сохранена).
+                </p>
+                <div class="rates-checkbox-strip" id="rates-agent-filters"></div>
+              </div>
+            </div>
+
+            <div class="rates-filter-row rates-filter-row--cbr">
+              <span class="rates-filter-label">ЦБ&nbsp;РФ</span>
+              <div class="rates-cbr-block">
+                <div class="rates-cbr-actions">
+                  <button
+                    type="button"
+                    id="rates-cbr-sort-btn"
+                    class="btn-mini-control btn-cbr-sort"
+                    aria-pressed="false"
+                  >
+                    Сортировать по сумме ₽ курс ЦБ
+                  </button>
+                  <button
+                    type="button"
+                    id="rates-cbr-exclude-lastmile-btn"
+                    class="btn-mini-control btn-cbr-exclude-lastmile"
+                    aria-pressed="false"
+                  >
+                    Не учитывать стоимость последней мили при пересчёте ЦБ
+                  </button>
+                </div>
+                <p class="rates-filter-explainer rates-cbr-explainer">
+                  Берём курс USD с открытых данных ЦБ РФ на ближайшую доступную дату
+                  (<a href="https://www.cbr-xml-daily.ru/">cbr-xml-daily.ru</a>), переводим
+                  морской фрахт в рубли, складываем ЖД, авто и охрану (если указана при «Охрана — Да»),
+                  кроме режима второй кнопки — тогда только море × курс и ЖД. Сортировка — от меньшей суммы к
+                  большей.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="rates-cbr-sort-banner"
+            class="rates-cbr-sort-banner no-print"
+            hidden
+            role="status"
+          ></div>
+
+          <div class="print-sheet" id="print-sheet">
+            <div class="print-top-header">
+              <span class="print-title-full"
+                >КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ ДЛЯ ГК UTS ОТ ГК FAKTOR</span
+              >
+            </div>
+
+            <div class="rates-scroll">
+              <table class="rates-table" id="rates-table">
+                <thead>
+                  <tr>
+                    <th>Отправление</th>
+                    <th>Назначение</th>
+                    <th>ЖД терминал</th>
+                    <th>Станция назначения</th>
+                    <th>Таможня</th>
+                    <th>Склад выгрузки</th>
+                    <th>Ближайшие выходы</th>
+                    <th>Морская линия</th>
+                    <th>Контейнер</th>
+                    <th class="no-print">Букирующий агент</th>
+                    <th>Море, USD</th>
+                    <th
+                      scope="col"
+                      title="ЖД терминал отправления–станция назначения для 20'ft &lt; 24 t, RUB"
+                    >
+                      ЖД терминал отправл.–ст.&nbsp;назнач.<br />
+                      для 20'ft &lt; 24 t, RUB
+                    </th>
+                    <th
+                      scope="col"
+                      title="ЖД терминал отправления–станция назначения для 20'ft &gt; 24 t, RUB"
+                    >
+                      ЖД терминал отправл.–ст.&nbsp;назнач.<br />
+                      для 20'ft &gt; 24 t, RUB
+                    </th>
+                    <th
+                      scope="col"
+                      title="ЖД терминал отправления–станция назначения для 40' HQ, RUB"
+                    >
+                      ЖД терминал отправл.–ст.&nbsp;назнач.<br />
+                      для 40' HQ, RUB
+                    </th>
+                    <th>Авто, RUB</th>
+                    <th>Транзит, дней</th>
+                    <th>Период</th>
+                    <th>Обновлено</th>
+                    <th>Комментарий</th>
+                    <th class="no-print">Действие</th>
+                  </tr>
+                </thead>
+                <tbody id="rates-tbody">
+                  <tr>
+                    <td colspan="20">Пока нет сохраненных ставок.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="print-bottom-footer">
+              <span class="print-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22">
+                  <path d="M6 3h12a2 2 0 0 1 2 2v8a4 4 0 0 1-4 4l2 2h-2l-2-2h-4l-2 2H6l2-2a4 4 0 0 1-4-4V5a2 2 0 0 1 2-2Zm0 4h12V5H6v2Zm2 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm8 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="print-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22">
+                  <path d="M1 18h22v2H1v-2Zm2-4h3l2 4H5l-2-4Zm6 0h3l2 4h-3l-2-4Zm6 0h3l2 4h-3l-2-4Z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span>Интермодальная логистика: море + ЖД + авто</span>
+              <span class="print-route" id="print-route-bottom"></span>
+            </div>
+          </div>
+
+          <section
+            class="form-card rates-sales-panel"
+            id="rates-sales-panel"
+            aria-label="Таблица для продаж и профит"
+          >
+            <div class="rates-sales-panel-head no-print">
+              <div class="rates-sales-panel-intro">
+                <div class="section-kicker section-kicker-tight">Продажам</div>
+                <h2 class="section-title rates-sales-panel-title">Таблица для продаж (отделённая от полного реестра)</h2>
+                <p class="rates-sales-intro">
+                  Выставьте в блоке фильтров выше направление, период, порты Китая и остальные галочки так, чтобы
+                  <strong class="rates-sales-strong">основная таблица реестра</strong> содержала ровно тот состав строк,
+                  по которым вы хотите торговаться. Затем нажмите «Сформировать таблицу для продаж» — сюда
+                  подтянутся только эти строки. Профит и откат действуют <strong class="rates-sales-strong">только на
+                  них</strong> (число в общем списке и цены совпадают: это те же сохранённые ставки).
+                  Кнопка «Печать / PDF» открывает диалог печати только по этой таблице; PDF получается, если в диалоге
+                  выбрать «Сохранить как PDF» (или аналог) вместо принтера.
+                </p>
+              </div>
+              <div class="rates-sales-workset-actions">
+                <button type="button" id="sales-workset-build-btn" class="btn-primary btn-sales-build">
+                  Сформировать таблицу для продаж из текущего отбора
+                </button>
+                <button type="button" id="sales-workset-clear-btn" class="btn-mini-control" disabled>
+                  Очистить таблицу продаж
+                </button>
+                <button
+                  type="button"
+                  id="sales-print-btn"
+                  class="btn-ghost btn-sales-print"
+                  disabled
+                  title="Откроется окно печати браузера. Чтобы получить файл, выберите «Сохранить как PDF» (или аналог) в качестве принтера."
+                >
+                  Печать / PDF
+                </button>
+              </div>
+            </div>
+
+            <div class="sales-print-bundle" id="sales-print-bundle">
+              <header class="sales-print-doc-header">
+                <div class="sales-print-doc-title">Таблица для продаж</div>
+                <p class="sales-print-doc-meta" id="sales-print-meta"></p>
+              </header>
+              <div class="rates-scroll sales-workset-scroll">
+                <table class="rates-table sales-workset-table" aria-describedby="rates-sales-caption">
+                  <caption id="rates-sales-caption" class="visually-hidden">
+                    Компактный список ставок после кнопки «Сформировать таблицу для продаж»
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th>Отправление</th>
+                      <th>Морская линия</th>
+                      <th>Контейнер</th>
+                      <th>Море, USD</th>
+                      <th>ЖД, RUB</th>
+                      <th>Обновлено</th>
+                      <th>Период</th>
+                      <th>Букирующий агент</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sales-workset-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="rates-sales-profit-block no-print">
+              <div class="rates-filter-label rates-sales-profit-label">Профит для этой таблицы</div>
+              <div class="rates-sales-block-inner">
+                <div class="rates-sales-row">
+                  <div class="rates-sales-field">
+                    <label for="sales-profit-pct">Профит, %</label>
+                    <input
+                      id="sales-profit-pct"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      placeholder="Например, 30"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="rates-sales-actions">
+                    <button type="button" id="sales-profit-apply-btn" class="btn-primary btn-sales-apply">
+                      Добавить профит и пересчитать
+                    </button>
+                    <button
+                      type="button"
+                      id="sales-profit-revert-btn"
+                      class="btn-mini-control btn-sales-revert"
+                      disabled
+                      aria-disabled="true"
+                    >
+                      Вернуть к ставкам без профита
+                    </button>
+                  </div>
+                </div>
+                <p class="rates-filter-explainer rates-sales-explainer">
+                  Берём курс ЦБ к USD: сумма моря (USD) + ЖД (RUB÷курс) в условном USD → от неё ваш процент. Округление вверх без копеек.
+                  От надбавки <strong class="rates-sales-strong">80%</strong> добавляются к строке моря (USD),
+                  <strong class="rates-sales-strong">20%</strong> — к ЖД (RUB). «Вернуть…» отменяет
+                  последний такой пересчёт только по строкам вашей таблицы продаж; можно нажать несколько раз подряд
+                  (история в localStorage браузера).
+                </p>
+              </div>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <footer>
+      <div class="shell footer-inner">
+        <div>© <span id="year-rates"></span> Факториалл Русь</div>
+      </div>
+    </footer>
+
+    <script src="rates.js?v=kpceil-20260507"></script>
+  </body>
+</html>

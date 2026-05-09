@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light only" />
+  <title>FREIGHT BOX — Вход</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Martian+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { color-scheme: light only; }
+    html, body { height: 100%; background: #ffffff !important; color: #0a0a0a !important; }
+    body { font-family: 'Martian Mono', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; background: #ffffff !important; }
+    .login-wrapper { width: 100%; max-width: 340px; margin-top: -60px; animation: fadeUp 0.6s ease both; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 3.6rem; letter-spacing: 0.08em; color: #0a0a0a !important; line-height: 1; margin-bottom: 0.25rem; user-select: none; }
+    .logo-sub { font-size: 0.62rem; letter-spacing: 0.22em; color: #999999 !important; text-transform: uppercase; margin-bottom: 3rem; }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: #999999 !important; margin-bottom: 0.45rem; }
+    .field input { width: 100%; padding: 0.75rem 0; font-family: 'Martian Mono', monospace; font-size: 0.82rem; color: #0a0a0a !important; background: #ffffff !important; border: none; border-bottom: 1.5px solid #e0e0e0; outline: none; transition: border-color 0.2s; letter-spacing: 0.04em; -webkit-text-fill-color: #0a0a0a; }
+    .field input::placeholder { -webkit-text-fill-color: #e0e0e0; }
+    .field input:focus { border-bottom-color: #0a0a0a; }
+    .field input:-webkit-autofill, .field input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important; -webkit-text-fill-color: #0a0a0a !important; }
+    .btn-login { display: block; width: 100%; margin-top: 2.2rem; padding: 0.85rem; font-family: 'Martian Mono', monospace; font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase; color: #ffffff !important; background: #0a0a0a !important; border: none; cursor: pointer; transition: opacity 0.18s; }
+    .btn-login:hover { opacity: 0.78; }
+    .btn-login:active { opacity: 0.6; }
+    .btn-login:disabled { opacity: 0.4; cursor: default; }
+    .error-msg { margin-top: 1rem; font-size: 0.62rem; letter-spacing: 0.1em; color: #c0392b; min-height: 1rem; text-align: center; }
+    .page-footer { position: fixed; bottom: 2rem; font-size: 0.55rem; letter-spacing: 0.18em; color: #e0e0e0 !important; text-transform: uppercase; user-select: none; font-family: 'Martian Mono', monospace; }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="logo">Freight Box</div>
+    <div class="logo-sub">Публикация ставок</div>
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" placeholder="you@company.com" required />
+    </div>
+    <div class="field">
+      <label for="password">Пароль</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required />
+    </div>
+    <button class="btn-login" id="login-btn">Войти</button>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+  <div class="page-footer">Freight Box</div>
+  <script>
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginBtn = document.getElementById('login-btn');
+    const errorMsg = document.getElementById('error-msg');
+
+    [emailInput, passwordInput].forEach(el => {
+      el.addEventListener('keydown', e => { if (e.key === 'Enter') loginBtn.click(); });
+    });
+
+    loginBtn.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      errorMsg.textContent = '';
+      if (!email || !password) { errorMsg.textContent = 'Введите email и пароль'; return; }
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Вход…';
+      try {
+        const API_BASE = 'https://pocketbase-production-3100.up.railway.app';
+        const res = await fetch(`${API_BASE}/api/collections/users/auth-with-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identity: email, password: password })
+        });
+        if (!res.ok) throw new Error('Неверный email или пароль');
+        const data = await res.json();
+        localStorage.setItem('pb_token', data.token);
+        localStorage.setItem('pb_user', JSON.stringify(data.record));
+        window.location.href = 'rates.html';
+      } catch (err) {
+        errorMsg.textContent = err.message || 'Ошибка входа';
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Войти';
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+    });
+
+    if (localStorage.getItem('pb_token')) { window.location.href = 'rates.html'; }
+  </script>
+</body>
+</html>

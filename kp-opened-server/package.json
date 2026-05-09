@@ -1,0 +1,12 @@
+{
+  "name": "kp-opened-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "nodemailer": "^6.9.15"
+  }
+}

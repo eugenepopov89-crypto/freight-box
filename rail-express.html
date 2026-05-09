@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ускоренный ЖД | FREIGHT BOX</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="page">
+    <header>
+      <div class="shell nav">
+        <a class="brand brand--text-only" href="index.html">
+          <span>FREIGHT BOX</span>
+          <span class="brand-tagline">Unpacking Uniqueness</span>
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <section class="shell section" aria-labelledby="express-form-title">
+        <div class="section-header">
+          <div>
+            <div class="section-kicker">Ускоренный ЖД</div>
+            <h1 id="express-form-title" class="section-title">
+              Форма публикации ставок
+            </h1>
+          </div>
+        </div>
+
+        <section class="form-card rates-panel" aria-label="Форма ускоренного ЖД">
+          <form id="express-form" novalidate>
+            <div class="form-block">
+              <h2 class="form-block-heading">Маршрут и параметры</h2>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Станция отправления *</label>
+                  <input id="departureStationInput" name="departureStationInput" list="departure-station-suggestions" />
+                  <datalist id="departure-station-suggestions"></datalist>
+                  <div class="origin-quick-picks">
+                    <div class="origin-quick-pick-grid" id="departure-station-picks"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Погран переход *</label>
+                  <input id="borderCrossingInput" name="borderCrossingInput" list="border-crossing-suggestions" />
+                  <datalist id="border-crossing-suggestions">
+                    <option value="МАНЬЧЖУРИЯ / ЗАБАЙКАЛЬСК"></option>
+                    <option value="ДОСТЫК"></option>
+                    <option value="ХОРГОС"></option>
+                    <option value="АЛАШАНЬКОУ"></option>
+                    <option value="НАУШКИ"></option>
+                    <option value="ЭРЛЯНЬ"></option>
+                  </datalist>
+                  <div class="origin-quick-picks">
+                    <div class="origin-quick-pick-grid" id="border-crossing-picks">
+                      <label>МАНЬЧЖУРИЯ / ЗАБАЙКАЛЬСК <input type="checkbox" name="borderCrossingQuick" value="МАНЬЧЖУРИЯ / ЗАБАЙКАЛЬСК" /></label>
+                      <label>ДОСТЫК <input type="checkbox" name="borderCrossingQuick" value="ДОСТЫК" /></label>
+                      <label>ХОРГОС <input type="checkbox" name="borderCrossingQuick" value="ХОРГОС" /></label>
+                      <label>АЛАШАНЬКОУ <input type="checkbox" name="borderCrossingQuick" value="АЛАШАНЬКОУ" /></label>
+                      <label>НАУШКИ <input type="checkbox" name="borderCrossingQuick" value="НАУШКИ" /></label>
+                      <label>ЭРЛЯНЬ <input type="checkbox" name="borderCrossingQuick" value="ЭРЛЯНЬ" /></label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Станция прибытия *</label>
+                  <input id="arrivalStationInput" name="arrivalStationInput" list="arrival-station-suggestions" />
+                  <datalist id="arrival-station-suggestions"></datalist>
+                  <div class="origin-quick-picks">
+                    <div class="origin-quick-pick-grid" id="arrival-station-picks"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Адреса складов выгрузки *</label>
+                  <div id="warehouse-addresses-wrap" class="sailing-dates-wrap">
+                    <div class="warehouse-address-row">
+                      <label for="warehouseAddress-1">Адрес склада выгрузки 1 *</label>
+                      <div class="warehouse-address-controls">
+                        <input id="warehouseAddress-1" name="warehouseAddress" required />
+                        <button type="button" id="add-warehouse-address-btn" class="btn-add-date">+</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Даты выхода *</label>
+                  <div id="departure-dates-wrap" class="sailing-dates-wrap">
+                    <div class="sailing-date-row">
+                      <input name="departureDates" type="date" required />
+                      <button type="button" id="add-departure-date-btn" class="btn-add-date">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group field-group--three">
+                <div>
+                  <label for="validYear">Год *</label>
+                  <input id="validYear" name="validYear" type="number" required />
+                </div>
+                <div>
+                  <label for="validMonth">Месяц *</label>
+                  <select id="validMonth" name="validMonth" required></select>
+                </div>
+                <div>
+                  <label for="validitySlot">Срок действия *</label>
+                  <select id="validitySlot" name="validitySlot" required>
+                    <option value="H1">1–15</option>
+                    <option value="H2">15–конец</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-group field-group--three">
+                <div>
+                  <label for="containerType">Тип контейнера *</label>
+                  <input id="containerType" name="containerType" value="40HQ" readonly />
+                </div>
+                <div>
+                  <label for="cargoWeightKg">Вес груза, кг</label>
+                  <input id="cargoWeightKg" name="cargoWeightKg" type="number" min="0" step="0.001" />
+                </div>
+                <div>
+                  <label for="transitDays">Транзитный срок, дней *</label>
+                  <input id="transitDays" name="transitDays" type="number" min="1" required />
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Коды ТН ВЭД</label>
+                  <div id="tnved-wrap" class="sailing-dates-wrap">
+                    <div class="destination-station-row">
+                      <input name="tnvedCode" placeholder="Например, 8471300000" />
+                      <button type="button" id="add-tnved-btn" class="btn-add-date">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <fieldset class="cargo-security-fieldset">
+                  <legend>Наличие грузовых мест весом более 1500 кг</legend>
+                  <label class="cargo-security-label">
+                    <input type="checkbox" id="hasHeavyPlaces" />
+                    Да, есть
+                  </label>
+                  <div id="heavy-places-wrap" class="sailing-dates-wrap" hidden>
+                    <div class="destination-station-row">
+                      <input name="heavyPlaceWeight" type="number" min="1500" step="1" placeholder="Вес места, кг" />
+                      <button type="button" id="add-heavy-place-btn" class="btn-add-date">+</button>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+            </div>
+
+            <div class="form-block">
+              <h2 class="form-block-heading">Стоимость и профит</h2>
+              <div class="field-group field-group--three">
+                <div>
+                  <label for="railUsd">Стоимость ЖД, USD *</label>
+                  <input id="railUsd" name="railUsd" type="number" min="0" step="0.01" required />
+                </div>
+                <div>
+                  <label for="profitRailUsd">Профит продавца на ЖД, USD</label>
+                  <input id="profitRailUsd" name="profitRailUsd" type="number" min="0" step="0.01" value="0" />
+                </div>
+                <div>
+                  <label for="profitAutoRub">Профит продавца на автодовоз, RUB</label>
+                  <input id="profitAutoRub" name="profitAutoRub" type="number" min="0" step="1" value="0" />
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <label>Стоимость довоза до складов, RUB *</label>
+                  <div id="auto-rub-wrap" class="sailing-dates-wrap">
+                    <div class="auto-rub-row">
+                      <label for="autoRub-1">До склада выгрузки 1, RUB *</label>
+                      <input id="autoRub-1" name="autoRub" type="number" min="0" step="1" required />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-footer">
+              <button type="submit" class="btn-primary">Опубликовать ставку</button>
+              <p id="express-status" class="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </section>
+
+        <section class="rates-table-wrap">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Реестр ускоренного ЖД</div>
+              <h2 class="section-title">Опубликованные ставки</h2>
+            </div>
+            <div class="section-header-actions">
+              <button id="express-print-btn" type="button" class="btn-ghost">Сохранить КП в PDF</button>
+              <button id="express-share-btn" type="button" class="btn-ghost">Создать ссылку КП</button>
+            </div>
+          </div>
+          <div class="rates-scroll">
+            <table class="rates-table">
+              <thead>
+                <tr>
+                  <th>Станция отправления</th>
+                  <th>Погран переход</th>
+                  <th>Станция прибытия</th>
+                  <th>Склад выгрузки</th>
+                  <th>ЖД, USD</th>
+                  <th>Авто, RUB</th>
+                  <th>Итого c профитом</th>
+                </tr>
+              </thead>
+              <tbody id="express-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <article class="sales-kp-print-sheet" id="express-kp-sheet">
+          <div class="kp-header">
+            <h3>Коммерческое предложение (Ускоренный ЖД)</h3>
+          </div>
+          <div class="rates-scroll">
+            <table class="rates-table">
+              <thead>
+                <tr>
+                  <th>Маршрут</th>
+                  <th>Склад</th>
+                  <th>ЖД, USD</th>
+                  <th>Авто, RUB</th>
+                </tr>
+              </thead>
+              <tbody id="express-kp-tbody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="rail-express.js"></script>
+  </body>
+</html>
