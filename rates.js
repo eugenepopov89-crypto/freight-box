@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const STORAGE_KEY = "factoriall-rates-v1";
   const SALES_PROFIT_UNDO_STACK_KEY = "factoriall-rates-sales-profit-undo-v1";
+  const BOOKING_AGENT_SUGGESTIONS_KEY =
+    "factoriall-booking-agent-suggestions-v1";
   const API_BASE = "https://pocketbase-production-3100.up.railway.app";
   const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK"];
   const months = [
@@ -793,6 +795,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     addOptionToDatalist(bookingAgentSuggestions, value);
+    rememberBookingAgentSuggestion(value);
     bookingAgentInput.value = value;
     newBookingAgentOptionInput.value = "";
     syncBookingAgentLineVisibility();
@@ -3464,6 +3467,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncSalesPrintMeta();
   }
 
+  function loadCustomBookingAgentSuggestions() {
+    try {
+      const raw = localStorage.getItem(BOOKING_AGENT_SUGGESTIONS_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed
+        .map((item) =>
+          String(item || "").trim().replace(/\s+/g, " ")
+        )
+        .filter(Boolean);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveCustomBookingAgentSuggestions(list) {
+    try {
+      localStorage.setItem(
+        BOOKING_AGENT_SUGGESTIONS_KEY,
+        JSON.stringify(list)
+      );
+    } catch (_) {}
+  }
+
+  function rememberBookingAgentSuggestion(value) {
+    const trimmed = String(value || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!trimmed) {
+      return;
+    }
+    const merged = uniqueSorted(
+      loadCustomBookingAgentSuggestions().concat([trimmed])
+    );
+    saveCustomBookingAgentSuggestions(merged);
+  }
+
   function refreshAutocompleteLists(rates) {
     const terminals = uniqueSorted(
       DEFAULT_RAIL_TERMINALS.concat(
@@ -3476,7 +3518,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       )
     );
     const bookingAgents = uniqueSorted(
-      rates.map((item) => String(item.bookingAgent || "").trim())
+      loadCustomBookingAgentSuggestions().concat(
+        rates.map((item) => String(item.bookingAgent || "").trim())
+      )
     );
     const stationVals = [];
     rates.forEach((item) => {
