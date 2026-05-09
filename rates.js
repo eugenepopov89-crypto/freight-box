@@ -6,21 +6,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   const API_BASE = "https://pocketbase-production-3100.up.railway.app";
   let bookingAgentsPbCache = [];
 
-  const LS_BOOKING_AGENT_OPTIONS = "bookingAgentOptions";
-  const LS_SHIPPING_LINE_OPTIONS = "shippingLineOptions";
-  const LS_BOOKING_ROUTE_LINE_OPTIONS = "bookingAgentRouteLineOptions";
+  /** Пользовательские подсказки в datalist (localStorage). */
+  const AGENTS_KEY = "freightbox-booking-agents";
+  const LINES_KEY = "freightbox-shipping-lines";
+  /** Линии для поля «Для какой морской линии используется агент» (дополняют маршрут). */
+  const ROUTE_LINES_KEY = "freightbox-booking-route-lines";
 
-  function loadStoredOptions(key) {
+  function readSavedList(storageKey) {
     try {
-      const raw = localStorage.getItem(key);
-      if (!raw) {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      if (!Array.isArray(saved)) {
         return [];
       }
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      return parsed
+      return saved
         .map((item) => String(item || "").trim().replace(/\s+/g, " "))
         .filter(Boolean);
     } catch {
@@ -28,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function saveStoredOptions(key, values) {
+  function writeSavedList(storageKey, values) {
     try {
       const normalized = (values || [])
         .map((v) => String(v || "").trim().replace(/\s+/g, " "))
@@ -36,19 +34,97 @@ document.addEventListener("DOMContentLoaded", async () => {
       const sorted = [...new Set(normalized)].sort((a, b) =>
         a.localeCompare(b, "ru")
       );
-      localStorage.setItem(key, JSON.stringify(sorted));
+      localStorage.setItem(storageKey, JSON.stringify(sorted));
     } catch (err) {
-      console.warn("[rates] localStorage save failed:", key, err);
+      console.warn("[rates] localStorage save failed:", storageKey, err);
     }
   }
 
-  function appendStoredOption(key, value) {
-    const trimmed = String(value || "").trim().replace(/\s+/g, " ");
+  /** Однократный перенос со старых ключей (`bookingAgentOptions` и т.д.). */
+  function migrateLegacyOptionKeys() {
+    const pairs = [
+      ["bookingAgentOptions", AGENTS_KEY],
+      ["shippingLineOptions", LINES_KEY],
+      ["bookingAgentRouteLineOptions", ROUTE_LINES_KEY],
+    ];
+    pairs.forEach(([oldKey, newKey]) => {
+      const raw = localStorage.getItem(oldKey);
+      if (!raw) {
+        return;
+      }
+      try {
+        const oldArr = JSON.parse(raw);
+        if (!Array.isArray(oldArr)) {
+          return;
+        }
+        const merged = [...new Set(readSavedList(newKey).concat(
+          oldArr.map((item) => String(item || "").trim()).filter(Boolean)
+        ))].sort((a, b) => a.localeCompare(b, "ru"));
+        writeSavedList(newKey, merged);
+        localStorage.removeItem(oldKey);
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+
+  /**
+   * Загрузка сохранённых строк из localStorage и добавление option в datalist
+   * (без CSS-селектора по значению — безопасно для кавычек и спецсимволов).
+   */
+  function loadSavedOptions(storageKey, datalistId) {
+    const saved = readSavedList(storageKey);
+    const datalist = document.getElementById(datalistId);
+    if (!datalist) {
+      return saved;
+    }
+    saved.forEach((val) => {
+      const exists = [...datalist.querySelectorAll("option")].some(
+        (opt) => opt.value === val
+      );
+      if (!exists) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        datalist.appendChild(opt);
+      }
+    });
+    sortDatalistOptions(datalist);
+    return saved;
+  }
+
+  /**
+   * Сохранить новую опцию в localStorage и сразу добавить в datalist.
+   * `gridId` зарезервирован (например сетка чекбоксов); можно передать null.
+   */
+  function saveNewOption(storageKey, datalistId, gridId, value) {
+    void gridId;
+    if (value == null || value === "") {
+      return;
+    }
+    const trimmed = String(value).trim().replace(/\s+/g, " ");
     if (!trimmed) {
       return;
     }
-    saveStoredOptions(key, loadStoredOptions(key).concat([trimmed]));
+    const saved = readSavedList(storageKey);
+    if (saved.includes(trimmed)) {
+      return;
+    }
+    saved.push(trimmed);
+    writeSavedList(storageKey, saved);
+    const datalist = document.getElementById(datalistId);
+    if (
+      datalist &&
+      ![...datalist.querySelectorAll("option")].some((opt) => opt.value === trimmed)
+    ) {
+      const opt = document.createElement("option");
+      opt.value = trimmed;
+      datalist.appendChild(opt);
+      sortDatalistOptions(datalist);
+    }
   }
+
+  migrateLegacyOptionKeys();
+
   const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK"];
   const months = [
     "Январь",
@@ -365,6 +441,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   ) {
     return;
   }
+
+  loadSavedOptions(AGENTS_KEY, "booking-agent-suggestions");
+  loadSavedOptions(LINES_KEY, "shipping-line-suggestions");
 
   document.getElementById("year-rates").textContent = String(
     new Date().getFullYear()
@@ -826,45 +905,48 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   addShippingLineOptionBtn.addEventListener("click", () => {
-    const value = String(newShippingLineOptionInput.value || "")
+    const newValue = String(newShippingLineOptionInput.value || "")
       .trim()
       .replace(/\s+/g, " ");
-    if (!value) {
+    if (!newValue) {
       return;
     }
-    appendStoredOption(LS_SHIPPING_LINE_OPTIONS, value);
-    appendStoredOption(LS_BOOKING_ROUTE_LINE_OPTIONS, value);
-    addOptionToDatalist(shippingLineSuggestions, value);
-    addCheckboxOption(shippingLineQuickPicks, "shippingLineQuickOptions", value);
-    shippingLineInput.value = value;
+    addCheckboxOption(shippingLineQuickPicks, "shippingLineQuickOptions", newValue);
+    shippingLineInput.value = newValue;
     syncShippingLineInputToQuickPicks();
     syncBookingAgentShippingLineDatalist();
+    saveNewOption(LINES_KEY, "shipping-line-suggestions", null, newValue);
+    saveNewOption(
+      ROUTE_LINES_KEY,
+      "booking-agent-route-line-suggestions",
+      null,
+      newValue
+    );
     newShippingLineOptionInput.value = "";
   });
 
   addBookingAgentOptionBtn.addEventListener("click", async () => {
-    const value = String(newBookingAgentOptionInput.value || "")
+    const newValue = String(newBookingAgentOptionInput.value || "")
       .trim()
       .replace(/\s+/g, " ");
-    if (!value) {
+    if (!newValue) {
       return;
     }
-    appendStoredOption(LS_BOOKING_AGENT_OPTIONS, value);
-    addOptionToDatalist(bookingAgentSuggestions, value);
 
-    const ok = await createBookingAgentPbRecord(value);
+    const ok = await createBookingAgentPbRecord(newValue);
     try {
       const latest = await loadRates();
       refreshAutocompleteLists(latest);
     } catch (_) {
       refreshAutocompleteLists([]);
     }
-    bookingAgentInput.value = value;
+    bookingAgentInput.value = newValue;
     newBookingAgentOptionInput.value = "";
     syncBookingAgentLineVisibility();
+    saveNewOption(AGENTS_KEY, "booking-agent-suggestions", null, newValue);
     if (ok) {
       setStatus(
-        "Агент «" + value + "» сохранён в общий список подсказок (PocketBase).",
+        "Агент «" + newValue + "» сохранён в общий список подсказок (PocketBase).",
         "success"
       );
     }
@@ -4003,13 +4085,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const shippingLines = uniqueSorted(
       DEFAULT_SHIPPING_LINES.concat(
         rates.map((item) => String(item.shippingLine || "").trim()),
-        loadStoredOptions(LS_SHIPPING_LINE_OPTIONS)
+        readSavedList(LINES_KEY)
       )
     );
     const bookingAgents = uniqueSorted(
       bookingAgentsPbCache.concat(
         rates.map((item) => String(item.bookingAgent || "").trim()),
-        loadStoredOptions(LS_BOOKING_AGENT_OPTIONS)
+        readSavedList(AGENTS_KEY)
       )
     );
     const stationVals = [];
@@ -4823,9 +4905,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     const lines = getShippingLinesFromInput();
-    const merged = uniqueSorted(
-      lines.concat(loadStoredOptions(LS_BOOKING_ROUTE_LINE_OPTIONS))
-    );
+    const merged = uniqueSorted(lines.concat(readSavedList(ROUTE_LINES_KEY)));
     bookingAgentRouteLineSuggestions.innerHTML = merged
       .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
       .join("");
