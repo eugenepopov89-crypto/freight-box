@@ -1826,18 +1826,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function getRateOriginPortsUpper(rate) {
-    const list =
-      Array.isArray(rate.originPorts) && rate.originPorts.length
-        ? rate.originPorts
-        : [rate.origin];
-    const set = new Set();
+    const raw = rate.originPorts;
+    let list = [];
+    if (Array.isArray(raw) && raw.length) {
+      list = raw;
+    } else if (raw != null && String(raw).trim() !== "") {
+      list = String(raw)
+        .split(/[,;]/)
+        .map((chunk) => normalizeOriginPortLabel(chunk))
+        .filter(Boolean);
+    }
+    if (!list.length) {
+      const o = normalizeOriginPortLabel(rate.origin);
+      if (o) {
+        list = [o];
+      }
+    }
+    const seen = new Set();
+    const out = [];
     list.forEach((p) => {
       const up = normalizeOriginPortLabel(p);
-      if (up) {
-        set.add(up);
+      if (up && !seen.has(up)) {
+        seen.add(up);
+        out.push(up);
       }
     });
-    return [...set];
+    return out;
   }
 
   function getRateShippingLines(rate) {
@@ -2639,23 +2653,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   function expandRatesByRouteDimensions(rates) {
     const expanded = [];
     rates.forEach((rate) => {
-      const origins =
-        Array.isArray(rate.originPorts) && rate.originPorts.length
-          ? rate.originPorts
-          : [rate.origin];
-      const shippingLines =
-        Array.isArray(rate.shippingLines) && rate.shippingLines.length
-          ? rate.shippingLines
-          : String(rate.shippingLine || "")
-              .split(",")
-              .map((item) => item.trim().replace(/\s+/g, " "))
-              .filter(Boolean);
-      const addresses = getWarehouseAddressesForRate(rate);
+      const origins = getRateOriginPortsUpper(rate).map((p) =>
+        String(p || "").trim().toUpperCase()
+      );
+      const shippingLines = getRateShippingLines(rate);
+      let addresses = getWarehouseAddressesForRate(rate);
+      if (!addresses.length) {
+        addresses = [""];
+      }
       const seaRouteRowsRaw = Array.isArray(rate.seaRouteRows) ? rate.seaRouteRows : [];
       const seaUsds = Array.isArray(rate.seaUsds) ? rate.seaUsds : [rate.seaUsd];
       const autoRubs = Array.isArray(rate.autoRubs) ? rate.autoRubs : [rate.autoRub];
-      if (!origins.length || !addresses.length || !shippingLines.length) {
+      if (!origins.length) {
         expanded.push(rate);
+        return;
+      }
+      if (!shippingLines.length) {
+        origins.forEach((origin) => {
+          expanded.push({
+            ...rate,
+            origin: String(origin || "").trim().toUpperCase(),
+            originPorts: [String(origin || "").trim().toUpperCase()],
+          });
+        });
         return;
       }
       const routeCombos = buildOriginLineCombinations(origins, shippingLines);
@@ -2757,7 +2777,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    let displayRows = expandRatesByRouteDimensions(filtered);
+    let displayRows = filtered;
     if (
       publicationSortMode === "cbr_total_asc" &&
       typeof cbrRubPerUsd === "number" &&
