@@ -1630,6 +1630,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  /**
+   * Имя букирующего агента в записи PocketBase: либо поле name, либо data.name (как у ставок).
+   */
+  function extractBookingAgentNameFromPbRecord(record) {
+    if (!record || typeof record !== "object") {
+      return "";
+    }
+    if (record.name != null && String(record.name).trim()) {
+      return String(record.name).trim().replace(/\s+/g, " ");
+    }
+    let d = record.data;
+    if (typeof d === "string") {
+      try {
+        d = JSON.parse(d);
+      } catch {
+        d = null;
+      }
+    }
+    if (d && typeof d === "object" && !Array.isArray(d) && d.name != null) {
+      return String(d.name).trim().replace(/\s+/g, " ");
+    }
+    return "";
+  }
+
   function normalizeBookingAgentDedupeKey(raw) {
     return String(raw || "").trim().toLocaleLowerCase("ru-RU");
   }
@@ -1644,36 +1668,81 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
   }
 
-  async function fetchBookingAgentsPb() {
-    bookingAgentsPbCache = [];
-    const auth = pocketBaseAuthHeaders();
-    if (!auth.Authorization) {
+  function mergeNameIntoBookingAgentsCache(displayName) {
+    const t = String(displayName || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!t || normalizeBookingAgentDedupeKey(t) === "нет") {
       return;
     }
+    if (bookingAgentNameExists(bookingAgentsPbCache, t)) {
+      return;
+    }
+    bookingAgentsPbCache = [...bookingAgentsPbCache, t].sort((a, b) =>
+      a.localeCompare(b, "ru")
+    );
+  }
+
+  function formatPbBookingAgentError(status, bodyText) {
+    const code = "HTTP " + status;
+    const raw = String(bodyText || "").trim();
+    if (!raw) {
+      return code;
+    }
     try {
-      const res = await fetch(
-        `${API_BASE}/api/collections/${BOOKING_AGENTS_COLLECTION}/records?perPage=500&sort=name`,
-        { headers: { ...auth } }
-      );
+      const j = JSON.parse(raw);
+      if (j.message) {
+        return code + ": " + j.message;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    if (raw.length <= 240) {
+      return code + ": " + raw;
+    }
+    return code + ": " + raw.slice(0, 240) + "…";
+  }
+
+  async function fetchBookingAgentsPb() {
+    const auth = pocketBaseAuthHeaders();
+    if (!auth.Authorization) {
+      bookingAgentsPbCache = [];
+      return;
+    }
+    const urlBase =
+      `${API_BASE}/api/collections/${BOOKING_AGENTS_COLLECTION}/records?perPage=500`;
+    try {
+      let res = await fetch(urlBase + "&sort=name", {
+        headers: { ...auth },
+      });
+      if (!res.ok) {
+        res = await fetch(urlBase + "&sort=-created", {
+          headers: { ...auth },
+        });
+      }
+      if (!res.ok) {
+        res = await fetch(urlBase, { headers: { ...auth } });
+      }
       if (!res.ok) {
         if (res.status === 404) {
           console.warn(
             "[rates] PocketBase: коллекция \"" +
               BOOKING_AGENTS_COLLECTION +
-              "\" не найдена — создайте её в админке (поле name, text)."
+              "\" не найдена — создайте её в админке (поле name или JSON data.name)."
+          );
+        } else if (res.status === 403) {
+          console.warn(
+            "[rates] booking_agents: нет прав на просмотр списка (List rule). " +
+              "Запись может создаваться, но список из API недоступен — проверьте правила коллекции."
           );
         }
         return;
       }
       const data = await res.json();
       const names = (data.items || [])
-        .map((it) =>
-          String(it.name == null ? "" : it.name)
-            .trim()
-            .replace(/\s+/g, " ")
-        )
+        .map((it) => extractBookingAgentNameFromPbRecord(it))
         .filter(Boolean);
-      bookingAgentsPbCache = [...new Set(names.filter(Boolean))].sort((a, b) =>
+      bookingAgentsPbCache = [...new Set(names)].sort((a, b) =>
         a.localeCompare(b, "ru")
       );
     } catch (err) {
@@ -1703,32 +1772,68 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (bookingAgentNameExists(bookingAgentsPbCache, trimmed)) {
       return true;
     }
+
+    const postUrl = `${API_BASE}/api/collections/${BOOKING_AGENTS_COLLECTION}/records`;
+    const postHeaders = { ...auth, "Content-Type": "application/json" };
+
+    async function postPayload(bodyObj) {
+      return fetch(postUrl, {
+        method: "POST",
+        headers: postHeaders,
+        body: JSON.stringify(bodyObj),
+      });
+    }
+
     try {
-      const res = await fetch(
-        `${API_BASE}/api/collections/${BOOKING_AGENTS_COLLECTION}/records`,
-        {
-          method: "POST",
-          headers: { ...auth, "Content-Type": "application/json" },
-          body: JSON.stringify({ name: trimmed }),
-        }
-      );
+      let res = await postPayload({ name: trimmed });
+      let firstBody = "";
       if (!res.ok) {
-        const detail = await res.text();
-        console.warn("booking_agents POST", res.status, detail);
+        firstBody = await res.text();
+        if (res.status === 400) {
+          res = await postPayload({ data: { name: trimmed } });
+        } else {
+          console.warn(
+            "[rates] booking_agents POST",
+            res.status,
+            firstBody
+          );
+          if (typeof setStatus === "function") {
+            setStatus(
+              "Не удалось добавить агента в справочник. " +
+                formatPbBookingAgentError(res.status, firstBody),
+              "error"
+            );
+          }
+          return false;
+        }
+      }
+      if (!res.ok) {
+        const secondBody = await res.text();
+        const detail =
+          secondBody || firstBody || "";
+        console.warn("[rates] booking_agents POST", res.status, detail);
         if (typeof setStatus === "function") {
           setStatus(
-            "Не удалось добавить агента в справочник (коллекция booking_agents / права API). Код: " +
-              res.status +
-              ".",
+            "Не удалось добавить агента в справочник. " +
+              formatPbBookingAgentError(res.status, detail),
             "error"
           );
         }
         return false;
       }
+      let rec = null;
+      try {
+        rec = await res.json();
+      } catch (_) {
+        /* ignore */
+      }
+      mergeNameIntoBookingAgentsCache(
+        extractBookingAgentNameFromPbRecord(rec || {}) || trimmed
+      );
       await fetchBookingAgentsPb();
       return true;
     } catch (err) {
-      console.warn("booking_agents POST failed:", err);
+      console.warn("[rates] booking_agents POST failed:", err);
       if (typeof setStatus === "function") {
         setStatus("Ошибка сети при сохранении агента в справочник.", "error");
       }
