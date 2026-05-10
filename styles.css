@@ -2530,7 +2530,7 @@ footer {
 
 .origin-quick-picks-details {
   margin-top: 0;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 10px;
   background: rgba(248, 250, 252, 0.8);
@@ -2560,11 +2560,18 @@ footer {
 }
 
 .origin-ports-route-wrap--after-picks {
-  margin-top: 10px;
+  margin-top: 0;
+}
+
+.origin-quick-picks-details + #origin-ports-wrap,
+.origin-quick-picks-details + .shipping-line-main-field,
+.origin-quick-picks-details + .booking-agent-line-follow,
+.origin-quick-picks-details + #destination-stations-wrap {
+  margin-top: 0;
 }
 
 .shipping-line-main-field {
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .shipping-line-main-field input {
@@ -2620,10 +2627,9 @@ footer {
   margin-bottom: 2px;
 }
 
-.rail-rub-multi-hint {
-  margin: 0 0 4px;
-  font-size: 0.82rem;
-  line-height: 1.45;
+.cargo-route-selects-hint {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 .rail-rub-rows-stack {
