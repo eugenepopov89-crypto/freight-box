@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778410000000" />
+    <link rel="stylesheet" href="styles.css?v=1778940200000" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -51,6 +51,14 @@
               <h2 class="form-block-heading">Маршрут</h2>
 
               <div class="field-group field-group-align-start">
+                <div>
+                  <label for="deliveryTerms">Условия поставки *</label>
+                  <select id="deliveryTerms" name="deliveryTerms" required>
+                    <option value="FOB" selected>FOB</option>
+                    <option value="EXW">EXW</option>
+                    <option value="FCA">FCA</option>
+                  </select>
+                </div>
                 <div>
                   <label>Порты отправления (China) *</label>
                   <div class="quick-add-row origin-port-list-add-row">
@@ -132,14 +140,7 @@
                     <option value="TAICANG"></option>
                   </datalist>
                 </div>
-                <div class="destination-field-slot">
-                  <label for="destination">Финальное направление *</label>
-                  <select id="destination" name="destination" required>
-                    <option value="MOSCOW">MOSCOW</option>
-                    <option value="ST. PETERSBURG">ST. PETERSBURG</option>
-                    <option value="MINSK">MINSK</option>
-                  </select>
-                </div>
+                <input type="hidden" id="destination" name="destination" value="MOSCOW" />
               </div>
 
               <div class="field-group field-group--full">
@@ -278,6 +279,25 @@
                   </div>
 
                   <div class="cost-follow cost-follow--sea">
+                    <div
+                      id="delivery-exw-fca-row"
+                      class="delivery-exw-fca-row"
+                      hidden
+                    >
+                      <label for="deliveryExwFcaUsd" id="delivery-exw-fca-label">
+                        Стоимость EXW/FCA, USD
+                      </label>
+                      <input
+                        id="deliveryExwFcaUsd"
+                        name="deliveryExwFcaUsd"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        placeholder="Например, 850"
+                      />
+                    </div>
                     <div id="sea-usd-wrap" class="sailing-dates-wrap sea-usd-wrap-inner"></div>
                     <div class="sailing-dates-stack">
                       <div class="extra-sailing-toolbar">
@@ -314,6 +334,38 @@
                         >
                           Добавить строку вручную
                         </button>
+                      </div>
+                    </div>
+                    <div class="tariff-validity-block">
+                      <label class="tariff-validity-label" for="tariffValidFrom">
+                        Срок действия тарифа *
+                      </label>
+                      <p class="helper-text tariff-validity-hint">
+                        Укажите период, в течение которого действуют суммы ниже (в списках и КП год — две последние
+                        цифры, например&nbsp;26).
+                      </p>
+                      <div class="tariff-validity-range-row">
+                        <div class="tariff-validity-field">
+                          <span class="tariff-validity-sub">С даты</span>
+                          <input
+                            id="tariffValidFrom"
+                            name="tariffValidFrom"
+                            type="date"
+                            required
+                            autocomplete="off"
+                          />
+                        </div>
+                        <span class="tariff-validity-dash" aria-hidden="true">—</span>
+                        <div class="tariff-validity-field">
+                          <span class="tariff-validity-sub">По дату</span>
+                          <input
+                            id="tariffValidTo"
+                            name="tariffValidTo"
+                            type="date"
+                            required
+                            autocomplete="off"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -511,32 +563,7 @@
             </div>
 
             <div class="form-block">
-              <h2 class="form-block-heading">Валидность и сроки</h2>
-              <div class="field-group field-group--three">
-                <div>
-                  <label for="validYear">Год *</label>
-                  <input
-                    id="validYear"
-                    name="validYear"
-                    type="number"
-                    min="2026"
-                    max="2100"
-                    required
-                    value="2026"
-                  />
-                </div>
-                <div>
-                  <label for="validMonth">Месяц *</label>
-                  <select id="validMonth" name="validMonth" required></select>
-                </div>
-                <div>
-                  <label for="validitySlot">Период действия *</label>
-                  <select id="validitySlot" name="validitySlot" required>
-                    <option value="H1">1–15 число</option>
-                    <option value="H2">15–конец месяца</option>
-                  </select>
-                </div>
-              </div>
+              <h2 class="form-block-heading">Транзитные сроки / комментарии</h2>
 
               <div class="field-group">
                 <div>
@@ -580,16 +607,25 @@
 
         <section class="rates-table-wrap" aria-label="Список опубликованных ставок">
           <div class="section-header">
-            <div>
+            <div
+              class="rates-registry-live-trigger"
+              id="rates-registry-live-open"
+              role="button"
+              tabindex="0"
+              title="Открыть живой реестр FOB: только ставки со сроком на сегодня, в новом окне"
+            >
               <div class="section-kicker">Реестр ставок</div>
               <h2 class="section-title">Таблицы по направлениям</h2>
+              <p class="rates-registry-live-hint">
+                Нажмите здесь — откроется окно с актуальными FOB по сроку на сегодня
+              </p>
             </div>
             <div class="section-header-actions">
               <button
                 type="button"
                 id="print-tab-btn"
                 class="btn-ghost"
-                title="В PDF попадёт таблица с учётом вкладки, года, месяца и при необходимости портов, типа контейнера, линий и агентов"
+                title="В PDF попадёт таблица с учётом вкладки, календарного месяца отбора, пересечения со сроком действия тарифа и при необходимости портов, типа контейнера, линий и агентов"
               >
                 Сохранить активную вкладку в PDF
               </button>
@@ -804,6 +840,9 @@
                     <th>Ближайшие выходы</th>
                     <th>Морская линия</th>
                     <th>Контейнер</th>
+                    <th scope="col" title="Стоимость EXW или FCA в зависимости от условий поставки, USD">
+                      EXW/FCA,<br />USD
+                    </th>
                     <th class="no-print">Букирующий агент</th>
                     <th>Море, USD</th>
                     <th
@@ -829,7 +868,7 @@
                     </th>
                     <th>Авто, RUB</th>
                     <th>Транзит, дней</th>
-                    <th>Период</th>
+                    <th>Срок действия тарифа</th>
                     <th>Обновлено</th>
                     <th>Комментарий</th>
                     <th class="no-print">Действие</th>
@@ -837,7 +876,7 @@
                 </thead>
                 <tbody id="rates-tbody">
                   <tr>
-                    <td colspan="20">Пока нет сохраненных ставок.</td>
+                    <td colspan="21">Пока нет сохраненных ставок.</td>
                   </tr>
                 </tbody>
               </table>
@@ -964,7 +1003,7 @@
                       <th>Море, USD</th>
                       <th>ЖД, RUB</th>
                       <th>Обновлено</th>
-                      <th>Период</th>
+                      <th>Срок действия тарифа</th>
                     </tr>
                   </thead>
                   <tbody id="sales-workset-tbody"></tbody>
@@ -986,7 +1025,9 @@
                     </div>
                     <div class="kp-header-main">
                       <div class="kp-label">Коммерческое предложение</div>
-                      <h3>Доставка грузов из <span>Китая</span> через Дальний Восток</h3>
+                      <h3 id="sales-kp-china-dv-lead" class="kp-china-dv-lead">
+                        Доставка грузов из Китая через Дальний Восток пароходами морских линий.
+                      </h3>
                       <p class="kp-subtitle" id="sales-kp-route-subtitle">Мультимодальная схема Море + ЖД</p>
                       <div class="kp-route-strip">
                         <div class="kp-route-node">🇨🇳 Порты Китая</div>
@@ -1024,7 +1065,7 @@
                       >
                         <thead>
                           <tr>
-                            <th colspan="17" class="kp-table-placeholder-msg">
+                            <th colspan="24" class="kp-table-placeholder-msg">
                               Заполняется после «Сформировать таблицу для продаж» или из ссылки КП.
                             </th>
                           </tr>
@@ -1247,7 +1288,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778800000000"></script>
+    <script src="rates.js?v=1778940200000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
