@@ -278,29 +278,40 @@
                     </p>
                     <div id="sea-usd-wrap" class="sailing-dates-wrap sea-usd-wrap-inner"></div>
                     <div class="sailing-dates-stack">
-                      <p class="helper-text cost-follow-hint">
-                        Дополнительные окна выхода судна (порт, линия, дата).
-                      </p>
-                      <div id="sailing-dates-wrap" class="sailing-dates-wrap">
-                        <div class="sailing-date-row sailing-date-row--with-line">
-                          <select name="nextSailingDateOrigin">
-                            <option value="">Порт отправления (из маршрута)</option>
-                          </select>
-                          <input
-                            name="nextSailingDateLine"
-                            list="shipping-line-suggestions"
-                            placeholder="Линия (при необходимости)"
-                          />
-                          <input name="nextSailingDates" type="date" required />
-                          <button
-                            type="button"
-                            id="add-sailing-date-btn"
-                            class="btn-add-date"
-                            aria-label="Добавить дату"
-                          >
-                            +
-                          </button>
-                        </div>
+                      <div class="extra-sailing-toolbar">
+                        <span class="extra-sailing-title helper-text cost-follow-hint">
+                          Дополнительные окна выхода судна (порт, линия, дата).
+                        </span>
+                        <button
+                          type="button"
+                          class="btn-mini-control"
+                          id="extra-sailing-toggle"
+                          aria-expanded="false"
+                          aria-controls="extra-sailing-panel"
+                        >
+                          Показать
+                        </button>
+                      </div>
+                      <div
+                        id="extra-sailing-panel"
+                        class="extra-sailing-panel"
+                        hidden
+                      >
+                        <p class="helper-text extra-sailing-hint">
+                          Строки при открытии подтягиваются из блоков связки порта и линии выше —
+                          каждая уникальная пара порт × линия один раз (без повторов из‑за
+                          разных типов контейнера в той же связке).
+                          «Копировать» — то же окно судна второй строкой без даты: календарь
+                          нужно заполнить снова.
+                        </p>
+                        <div id="sailing-dates-wrap" class="sailing-dates-wrap"></div>
+                        <button
+                          type="button"
+                          id="add-sailing-date-btn"
+                          class="btn-mini-control sailing-dates-footer-add"
+                        >
+                          Добавить строку вручную
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1234,7 +1245,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778404800000"></script>
+    <script src="rates.js?v=1778406000000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
