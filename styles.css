@@ -2495,6 +2495,49 @@ footer {
   }
 }
 
+@media (min-width: 640px) {
+  .sea-usd-row.sea-usd-route-primary-grid {
+    grid-template-columns: minmax(160px, 1fr) minmax(0, 1.4fr) minmax(140px, 200px);
+    grid-template-rows: auto auto;
+    align-items: end;
+    column-gap: 12px;
+    row-gap: 8px;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--ct {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-route-container-slot {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--usd {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid input[name="seaUsd"] {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--date {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid input[name="seaSailingDate"] {
+    grid-column: 3;
+    grid-row: 2;
+  }
+}
+
 .warehouse-address-row {
   display: grid;
   gap: 4px;
@@ -2692,6 +2735,23 @@ footer {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.container-types-wrap .container-type-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+.container-types-field-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.container-types-field-title {
+  font-weight: 600;
+  color: var(--text, #334155);
 }
 
 .section-header-actions .btn-ghost,
