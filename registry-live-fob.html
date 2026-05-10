@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <title>FREIGHT BOX — живой реестр FOB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="registry-live-fob.css?v=1778940100000" />
+</head>
+<body class="registry-live-fob">
+  <div class="registry-video-bg" aria-hidden="true">
+    <div class="registry-video-fallback"></div>
+    <video autoplay muted loop playsinline preload="metadata" poster="">
+      <!-- Видео: морской прибой (внешний CDN). При блокировке сети остаётся градиент подложки. -->
+      <source
+        src="https://videos.pexels.com/video-files/2491281/2491281-hd_1920_1080_24fps.mp4"
+        type="video/mp4"
+      />
+      <source
+        src="https://videos.pexels.com/video-files/1409899/1409899-hd_1280_720_24fps.mp4"
+        type="video/mp4"
+      />
+    </video>
+  </div>
+
+  <div class="registry-shell">
+    <header class="registry-banner">
+      <p class="registry-brand-main">FREIGHT BOX</p>
+      <p class="registry-brand-tag">UNPACK YOUR ULTIMATE TARRIF</p>
+    </header>
+
+    <div class="registry-toolbar">
+      <p class="registry-meta">
+        <strong>FOB</strong> · срок действия включает <strong id="registry-today-label">—</strong> · строки после разворота порт × линия
+      </p>
+      <button type="button" class="registry-btn" id="registry-reload">Обновить</button>
+    </div>
+
+    <main class="registry-main">
+      <p id="registry-status" class="registry-status" hidden></p>
+      <div class="registry-table-card">
+        <div class="registry-table-wrap-inner">
+          <table class="registry-table">
+            <thead id="registry-thead"></thead>
+            <tbody id="registry-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <footer class="registry-footer">
+      <p class="registry-footer-brand">FREIGHT BOX — UNPACK YOUR ULTIMATE TARRIF</p>
+    </footer>
+  </div>
+
+  <script src="registry-live-fob.js?v=1778940100000"></script>
+</body>
+</html>
