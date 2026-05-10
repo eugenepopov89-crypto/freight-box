@@ -5495,15 +5495,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const hdr = document.createElement("div");
       hdr.className = "auto-delivery-route-hdr helper-text cost-follow-hint";
       hdr.textContent =
-        "Авто: " +
-        line +
-        " · " +
-        railSlotHeadlineRu(slot) +
-        " · «" +
+        "«" +
         (st || "—") +
-        "» · «" +
+        "» - «" +
         (addr || "—") +
-        "»";
+        "» - " +
+        railSlotHeadlineRu(slot) +
+        " (" +
+        (line || "—") +
+        ")";
       const lab = document.createElement("label");
       lab.textContent = "Авто доставка до адреса, RUB *";
       const inp = document.createElement("input");
