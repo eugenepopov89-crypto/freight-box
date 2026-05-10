@@ -117,6 +117,33 @@
   }
 
   function tariffValidityBounds(rate) {
+    const wins = normalizeTariffLineWindowsFromRecord(rate);
+    if (wins.length) {
+      let minT = Infinity;
+      let maxT = -Infinity;
+      let minD = null;
+      let maxD = null;
+      for (let i = 0; i < wins.length; i++) {
+        const from = parseTariffIsoDateLocal(wins[i].tariffValidFrom);
+        const to = parseTariffIsoDateLocal(wins[i].tariffValidTo);
+        if (!from || !to) {
+          continue;
+        }
+        const ft = from.getTime();
+        const tt = to.getTime();
+        if (ft < minT) {
+          minT = ft;
+          minD = from;
+        }
+        if (tt > maxT) {
+          maxT = tt;
+          maxD = to;
+        }
+      }
+      if (minD && maxD) {
+        return { from: minD, to: maxD };
+      }
+    }
     const fIso = String(rate.tariffValidFrom || "").trim();
     const tIso = String(rate.tariffValidTo || "").trim();
     if (fIso && tIso) {
@@ -130,12 +157,23 @@
   }
 
   function rateIncludesToday(rate) {
+    const t = new Date();
+    const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+    const wins = normalizeTariffLineWindowsFromRecord(rate);
+    if (wins.length) {
+      for (let i = 0; i < wins.length; i++) {
+        const from = parseTariffIsoDateLocal(wins[i].tariffValidFrom);
+        const to = parseTariffIsoDateLocal(wins[i].tariffValidTo);
+        if (from && to && from <= today && to >= today) {
+          return true;
+        }
+      }
+      return false;
+    }
     const b = tariffValidityBounds(rate);
     if (!b) {
       return false;
     }
-    const t = new Date();
-    const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
     return b.from <= today && b.to >= today;
   }
 
@@ -228,6 +266,42 @@
       .split(",")
       .map((line) => line.trim().replace(/\s+/g, " "))
       .filter(Boolean);
+  }
+
+  function normalizeTariffLineWindowsFromRecord(rate) {
+    const arr = Array.isArray(rate?.tariffLineWindows) ? rate.tariffLineWindows : null;
+    if (arr && arr.length) {
+      const out = [];
+      for (let wi = 0; wi < arr.length; wi++) {
+        const w = arr[wi];
+        const sl = String(w?.shippingLine || "")
+          .trim()
+          .replace(/\s+/g, " ");
+        const f = String(w?.tariffValidFrom || "").trim();
+        const t = String(w?.tariffValidTo || "").trim();
+        if (sl && f && t) {
+          out.push({
+            shippingLine: sl,
+            tariffValidFrom: f,
+            tariffValidTo: t,
+          });
+        }
+      }
+      if (out.length) {
+        return out;
+      }
+    }
+    const lines = getRateShippingLines(rate);
+    const fIso = String(rate?.tariffValidFrom || "").trim();
+    const tIso = String(rate?.tariffValidTo || "").trim();
+    if (lines.length && fIso && tIso) {
+      return lines.map((line) => ({
+        shippingLine: String(line || "").trim(),
+        tariffValidFrom: fIso,
+        tariffValidTo: tIso,
+      }));
+    }
+    return [];
   }
 
   function normalizeOriginPortToken(value) {
