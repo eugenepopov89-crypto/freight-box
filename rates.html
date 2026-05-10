@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778369202450" />
+    <link rel="stylesheet" href="styles.css?v=1778369202650" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -257,36 +257,60 @@
 
               <div class="field-group field-group--full">
                 <div>
-                  <label for="bookingAgent">Букирующий агент (при наличии) *</label>
-                  <p class="helper-text">
-                    Обязательное поле; если агента нет — укажите <strong>НЕТ</strong>.
-                  </p>
-                  <input
-                    id="bookingAgent"
-                    name="bookingAgent"
-                    list="booking-agent-suggestions"
-                    required
-                    autocomplete="organization"
-                    placeholder="Например, ООО «…» или НЕТ"
-                  />
-                  <datalist id="booking-agent-suggestions"></datalist>
-                  <div class="quick-add-row">
+                  <label for="bookingAgent">
+                    Букирующий агент (при наличии) *
+                    <span class="field-label-hint">
+                      Обязательное поле; если агента нет — укажите
+                      <strong>НЕТ</strong> (быстрый выбор или поле ниже).
+                    </span>
+                  </label>
+                  <div class="quick-add-row booking-agent-list-add-row">
                     <input
                       id="new-booking-agent-option"
                       list="booking-agent-suggestions"
-                      placeholder="Добавить нового букирующего агента в список"
+                      placeholder="Название агента"
+                      aria-label="Новый букирующий агент для списка подсказок"
                     />
                     <button type="button" id="add-booking-agent-option" class="btn-mini-control">
-                      Добавить в список
+                      Добавить нового букирующего агента в список
                     </button>
                   </div>
-                  <div id="booking-agent-line-wrap" class="quick-add-row" hidden>
+                  <details class="origin-quick-picks-details">
+                    <summary class="origin-quick-picks-summary">
+                      Быстрый выбор букирующего агента
+                    </summary>
+                    <div class="origin-quick-picks-panel">
+                      <div class="origin-quick-pick-controls">
+                        <button type="button" id="agents-select-all" class="btn-mini-control">
+                          Выбрать все
+                        </button>
+                        <button type="button" id="agents-clear-all" class="btn-mini-control">
+                          Очистить
+                        </button>
+                      </div>
+                      <div
+                        class="origin-quick-pick-grid origin-quick-pick-grid--agents"
+                        id="booking-agent-quick-picks"
+                      ></div>
+                    </div>
+                  </details>
+                  <div class="booking-agent-main-field">
+                    <input
+                      id="bookingAgent"
+                      name="bookingAgent"
+                      list="booking-agent-suggestions"
+                      required
+                      autocomplete="organization"
+                    />
+                  </div>
+                  <datalist id="booking-agent-suggestions"></datalist>
+                  <div id="booking-agent-line-wrap" class="booking-agent-line-follow" hidden>
                     <input
                       id="bookingAgentShippingLine"
                       name="bookingAgentShippingLine"
                       list="booking-agent-route-line-suggestions"
                       autocomplete="off"
-                      placeholder="Для какой морской линии используется агент"
+                      placeholder="Морская линия для этого агента"
                     />
                     <datalist id="booking-agent-route-line-suggestions"></datalist>
                   </div>
@@ -304,24 +328,29 @@
                     placeholder="Например, ВМТП / ВМКТ / Соллерс"
                   />
                   <datalist id="terminal-suggestions"></datalist>
-                  <div class="origin-quick-picks origin-quick-picks--uniform">
-                    <div class="origin-quick-pick-controls">
-                      <button type="button" id="terminals-select-all" class="btn-mini-control">
-                        Выбрать все
-                      </button>
-                      <button type="button" id="terminals-clear-all" class="btn-mini-control">
-                        Очистить
-                      </button>
+                  <details class="origin-quick-picks-details">
+                    <summary class="origin-quick-picks-summary">
+                      Быстрый выбор терминала ДВ
+                    </summary>
+                    <div class="origin-quick-picks-panel">
+                      <div class="origin-quick-pick-controls">
+                        <button type="button" id="terminals-select-all" class="btn-mini-control">
+                          Выбрать все
+                        </button>
+                        <button type="button" id="terminals-clear-all" class="btn-mini-control">
+                          Очистить
+                        </button>
+                      </div>
+                      <div class="origin-quick-pick-grid" id="rail-terminal-quick-picks">
+                        <label>ВМТП <input type="checkbox" name="railTerminalQuickOptions" value="ВМТП" /></label>
+                        <label>ВМКТ <input type="checkbox" name="railTerminalQuickOptions" value="ВМКТ" /></label>
+                        <label>СОЛЛЕРС <input type="checkbox" name="railTerminalQuickOptions" value="СОЛЛЕРС" /></label>
+                        <label>ВМПП <input type="checkbox" name="railTerminalQuickOptions" value="ВМПП" /></label>
+                        <label>ВСК(Врангель) <input type="checkbox" name="railTerminalQuickOptions" value="ВСК(Врангель)" /></label>
+                        <label>Находка <input type="checkbox" name="railTerminalQuickOptions" value="Находка" /></label>
+                      </div>
                     </div>
-                    <div class="origin-quick-pick-grid" id="rail-terminal-quick-picks">
-                      <label>ВМТП <input type="checkbox" name="railTerminalQuickOptions" value="ВМТП" /></label>
-                      <label>ВМКТ <input type="checkbox" name="railTerminalQuickOptions" value="ВМКТ" /></label>
-                      <label>СОЛЛЕРС <input type="checkbox" name="railTerminalQuickOptions" value="СОЛЛЕРС" /></label>
-                      <label>ВМПП <input type="checkbox" name="railTerminalQuickOptions" value="ВМПП" /></label>
-                      <label>ВСК(Врангель) <input type="checkbox" name="railTerminalQuickOptions" value="ВСК(Врангель)" /></label>
-                      <label>Находка <input type="checkbox" name="railTerminalQuickOptions" value="Находка" /></label>
-                    </div>
-                  </div>
+                  </details>
                 </div>
               </div>
 
@@ -386,40 +415,46 @@
                     </div>
                   </div>
 
-                  <div class="origin-quick-picks">
-                    <div class="origin-quick-pick-controls">
-                      <button type="button" id="stations-select-all" class="btn-mini-control">
-                        Выбрать все
-                      </button>
-                      <button type="button" id="stations-clear-all" class="btn-mini-control">
-                        Очистить
-                      </button>
-                    </div>
-                    <div class="quick-add-row">
-                      <input
-                        id="new-station-option"
-                        list="station-suggestions"
-                        placeholder="Добавить новую станцию в список"
-                      />
-                      <button type="button" id="add-station-option" class="btn-mini-control">
-                        Добавить в список
-                      </button>
-                    </div>
-                    <div class="origin-quick-pick-grid" id="station-quick-picks">
-                      <label><input type="checkbox" name="destinationQuickStations" value="Ворсино" data-destination="MOSCOW" /> Ворсино</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Селятино" data-destination="MOSCOW" /> Селятино</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Ховрино" data-destination="MOSCOW" /> Ховрино</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Белый Раст" data-destination="MOSCOW" /> Белый Раст</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Электроугли" data-destination="MOSCOW" /> Электроугли</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Шушары" data-destination="ST. PETERSBURG" /> Шушары</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Автово" data-destination="ST. PETERSBURG" /> Автово</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Предпортовая" data-destination="ST. PETERSBURG" /> Предпортовая</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Купчинская" data-destination="ST. PETERSBURG" /> Купчинская</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Колядичи" data-destination="MINSK" /> Колядичи</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Минск-Северный" data-destination="MINSK" /> Минск-Северный</label>
-                      <label><input type="checkbox" name="destinationQuickStations" value="Степянка" data-destination="MINSK" /> Степянка</label>
-                    </div>
+                  <div class="quick-add-row destination-station-list-add-row">
+                    <input
+                      id="new-station-option"
+                      list="station-suggestions"
+                      placeholder="Название станции"
+                      aria-label="Новая станция для списка подсказок"
+                    />
+                    <button type="button" id="add-station-option" class="btn-mini-control">
+                      Добавить новую станцию в список
+                    </button>
                   </div>
+                  <details class="origin-quick-picks-details">
+                    <summary class="origin-quick-picks-summary">
+                      Быстрый выбор станций
+                    </summary>
+                    <div class="origin-quick-picks-panel">
+                      <div class="origin-quick-pick-controls">
+                        <button type="button" id="stations-select-all" class="btn-mini-control">
+                          Выбрать все
+                        </button>
+                        <button type="button" id="stations-clear-all" class="btn-mini-control">
+                          Очистить
+                        </button>
+                      </div>
+                      <div class="origin-quick-pick-grid" id="station-quick-picks">
+                        <label><input type="checkbox" name="destinationQuickStations" value="Ворсино" data-destination="MOSCOW" /> Ворсино</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Селятино" data-destination="MOSCOW" /> Селятино</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Ховрино" data-destination="MOSCOW" /> Ховрино</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Белый Раст" data-destination="MOSCOW" /> Белый Раст</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Электроугли" data-destination="MOSCOW" /> Электроугли</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Шушары" data-destination="ST. PETERSBURG" /> Шушары</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Автово" data-destination="ST. PETERSBURG" /> Автово</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Предпортовая" data-destination="ST. PETERSBURG" /> Предпортовая</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Купчинская" data-destination="ST. PETERSBURG" /> Купчинская</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Колядичи" data-destination="MINSK" /> Колядичи</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Минск-Северный" data-destination="MINSK" /> Минск-Северный</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Степянка" data-destination="MINSK" /> Степянка</label>
+                      </div>
+                    </div>
+                  </details>
                   <datalist id="station-suggestions">
                     <option value="Ворсино"></option>
                     <option value="Селятино"></option>
@@ -712,11 +747,18 @@
                     Не фильтровать
                   </button>
                 </div>
-                <p class="rates-filter-explainer">
-                  Отметьте порты China из текущей выборки: в таблице и в PDF останутся только ставки,
-                  где в отправлении есть хотя бы один из выбранных портов.
-                </p>
-                <div class="rates-checkbox-strip" id="rates-origin-port-filters"></div>
+                <details class="origin-quick-picks-details rates-filter-checkbox-details">
+                  <summary class="origin-quick-picks-summary">
+                    Показать галочки фильтра по портам
+                  </summary>
+                  <div class="origin-quick-picks-panel rates-filter-checkbox-panel">
+                    <p class="rates-filter-explainer">
+                      Отметьте порты China из текущей выборки: в таблице и в PDF останутся только ставки,
+                      где в отправлении есть хотя бы один из выбранных портов.
+                    </p>
+                    <div class="rates-checkbox-strip" id="rates-origin-port-filters"></div>
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -731,11 +773,18 @@
                     Не фильтровать
                   </button>
                 </div>
-                <p class="rates-filter-explainer">
-                  Отметьте 20FT / 40HQ и др. из текущей выборки: таблица и PDF покажут только строки с
-                  выбранными типами контейнера.
-                </p>
-                <div class="rates-checkbox-strip" id="rates-container-type-filters"></div>
+                <details class="origin-quick-picks-details rates-filter-checkbox-details">
+                  <summary class="origin-quick-picks-summary">
+                    Показать галочки фильтра по типу контейнера
+                  </summary>
+                  <div class="origin-quick-picks-panel rates-filter-checkbox-panel">
+                    <p class="rates-filter-explainer">
+                      Отметьте 20FT / 40HQ и др. из текущей выборки: таблица и PDF покажут только строки с
+                      выбранными типами контейнера.
+                    </p>
+                    <div class="rates-checkbox-strip" id="rates-container-type-filters"></div>
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -750,11 +799,18 @@
                     Не фильтровать
                   </button>
                 </div>
-                <p class="rates-filter-explainer">
-                  Без галочек и при «Не фильтровать» показаны все линии. Отметьте одну или
-                  несколько — в таблице и в PDF только они.
-                </p>
-                <div class="rates-checkbox-strip" id="rates-line-filters"></div>
+                <details class="origin-quick-picks-details rates-filter-checkbox-details">
+                  <summary class="origin-quick-picks-summary">
+                    Показать галочки фильтра по морским линиям
+                  </summary>
+                  <div class="origin-quick-picks-panel rates-filter-checkbox-panel">
+                    <p class="rates-filter-explainer">
+                      Без галочек и при «Не фильтровать» показаны все линии. Отметьте одну или
+                      несколько — в таблице и в PDF только они.
+                    </p>
+                    <div class="rates-checkbox-strip" id="rates-line-filters"></div>
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -769,11 +825,18 @@
                     Не фильтровать
                   </button>
                 </div>
-                <p class="rates-filter-explainer">
-                  Аналогично: ограничьте таблицу и печать по выбранным агентам (в т. ч.
-                  строка «НЕТ» будет отдельным пунктом, если сохранена).
-                </p>
-                <div class="rates-checkbox-strip" id="rates-agent-filters"></div>
+                <details class="origin-quick-picks-details rates-filter-checkbox-details">
+                  <summary class="origin-quick-picks-summary">
+                    Показать галочки фильтра по букирующим агентам
+                  </summary>
+                  <div class="origin-quick-picks-panel rates-filter-checkbox-panel">
+                    <p class="rates-filter-explainer">
+                      Аналогично: ограничьте таблицу и печать по выбранным агентам (в т. ч.
+                      строка «НЕТ» будет отдельным пунктом, если сохранена).
+                    </p>
+                    <div class="rates-checkbox-strip" id="rates-agent-filters"></div>
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -1279,7 +1342,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778369202510"></script>
+    <script src="rates.js?v=1778369202601"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
