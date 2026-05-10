@@ -5092,7 +5092,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         slot = "40HQ";
       }
       const line = seaBlk.dataset.routeLine || "—";
-      const origin = seaBlk.dataset.routeOrigin || "—";
       const dvEl = seaBlk.querySelector(".sea-route-dv-terminal");
       const stEl = seaBlk.querySelector(".sea-route-station");
       const dv = dvEl instanceof HTMLInputElement ? String(dvEl.value || "").trim() : "";
@@ -5104,8 +5103,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       hdr.className = "rail-sea-route-hdr helper-text cost-follow-hint";
       hdr.textContent =
         "ЖД: " +
-        origin +
-        " · " +
         line +
         " · " +
         railSlotHeadlineRu(slot) +
@@ -5425,7 +5422,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const ctLabel = document.createElement("label");
       ctLabel.className = "sea-grid-lab sea-grid-lab--ct";
       ctLabel.htmlFor = "seaRouteCt-" + String(idx);
-      ctLabel.textContent = "Тип / тариф ЖД *";
+      ctLabel.textContent = "Тип контейнера *";
       const ctSel = document.createElement("select");
       ctSel.className = "sea-route-container-slot";
       ctSel.id = "seaRouteCt-" + String(idx);
