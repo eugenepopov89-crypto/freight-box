@@ -5452,7 +5452,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       quickBar.className = "sea-route-quick-picks-row";
       quickBar.appendChild(detDv);
       quickBar.appendChild(detSt);
-      bundle.appendChild(quickBar);
 
       const grid = document.createElement("div");
       grid.className = "sea-usd-row sea-usd-row--grid sea-usd-route-primary-grid";
@@ -5606,6 +5605,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       grid.appendChild(unl);
 
       bundle.appendChild(grid);
+      bundle.appendChild(quickBar);
 
       seaUsdWrap.appendChild(bundle);
     }
