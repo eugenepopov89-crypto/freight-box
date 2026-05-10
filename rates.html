@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778369202785" />
+    <link rel="stylesheet" href="styles.css?v=1778369202950" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -58,7 +58,7 @@
                       id="new-port-option"
                       list="china-port-suggestions"
                       placeholder="Название порта"
-                      aria-label="Новый порт для списка подсказок"
+                      aria-label="Порты отправления и новый порт для списка подсказок"
                     />
                     <button type="button" id="add-port-option" class="btn-mini-control">
                       Добавить новый порт в список
@@ -101,13 +101,13 @@
                     </div>
                     </div>
                   </details>
-                  <div id="origin-ports-wrap" class="sailing-dates-wrap origin-ports-route-wrap origin-ports-route-wrap--after-picks">
-                    <div class="origin-port-row">
-                      <input
-                        name="originPorts"
-                        list="china-port-suggestions"
-                      />
-                    </div>
+                  <div id="origin-ports-wrap" class="origin-ports-submit-inputs" hidden>
+                    <input
+                      type="hidden"
+                      id="origin-ports-primary"
+                      name="originPorts"
+                      value=""
+                    />
                   </div>
                   <datalist id="china-port-suggestions">
                     <option value="SHANGHAI"></option>
@@ -147,10 +147,12 @@
                   <label for="shippingLine">Морская линия *</label>
                   <div class="quick-add-row shipping-line-list-add-row">
                     <input
-                      id="new-shipping-line-option"
+                      id="shippingLine"
+                      name="shippingLine"
                       list="shipping-line-suggestions"
+                      required
                       placeholder="Название линии"
-                      aria-label="Новая морская линия для списка подсказок"
+                      aria-label="Морская линия и добавление в список подсказок"
                     />
                     <button type="button" id="add-shipping-line-option" class="btn-mini-control">
                       Добавить новую морскую линию в список
@@ -195,14 +197,6 @@
                       </div>
                     </div>
                   </details>
-                  <div class="shipping-line-main-field">
-                    <input
-                      id="shippingLine"
-                      name="shippingLine"
-                      list="shipping-line-suggestions"
-                      required
-                    />
-                  </div>
                   <datalist id="shipping-line-suggestions"></datalist>
 
                   <div class="cost-follow cost-follow--sea">
@@ -362,7 +356,7 @@
                       id="new-station-option"
                       list="station-suggestions"
                       placeholder="Название станции"
-                      aria-label="Новая станция для списка подсказок"
+                      aria-label="Станции назначения и новая станция для списка подсказок"
                     />
                     <button type="button" id="add-station-option" class="btn-mini-control">
                       Добавить новую станцию в список
@@ -397,22 +391,13 @@
                       </div>
                     </div>
                   </details>
-                  <div id="destination-stations-wrap" class="sailing-dates-wrap destination-stations-wrap-inner">
-                    <div class="destination-station-row">
-                      <input
-                        name="destinationStations"
-                        list="station-suggestions"
-                        placeholder="Например, Ворсино"
-                      />
-                      <button
-                        type="button"
-                        id="add-destination-station-btn"
-                        class="btn-add-date"
-                        aria-label="Добавить станцию"
-                      >
-                        +
-                      </button>
-                    </div>
+                  <div id="destination-stations-wrap" class="destination-stations-submit-inputs" hidden>
+                    <input
+                      type="hidden"
+                      id="destination-stations-primary"
+                      name="destinationStations"
+                      value=""
+                    />
                   </div>
 
                   <div class="cost-follow cost-follow--rail">
@@ -1350,7 +1335,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778369202785"></script>
+    <script src="rates.js?v=1778369202950"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
