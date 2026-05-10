@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   migrateLegacyOptionKeys();
 
-  const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK"];
+  const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK", "RU_REGIONS"];
 
   function getStationQuickPicksRootEl() {
     return document.getElementById("station-quick-picks");
@@ -2009,6 +2009,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       const pbId = victim._pbId;
       let usedSoftArchive = false;
 
+      if (!auth.Authorization) {
+        const next = allRates.filter(
+          (rate) => normalizeRateId(rate.id) !== idNorm
+        );
+        await saveRates(next);
+        refreshAutocompleteLists(next);
+        refreshYearTabs(next);
+        syncFilterTabsActiveStates();
+        fullPublicationRefresh(next);
+        setStatus("Ставка удалена из реестра (локальное хранение браузера).", "success");
+        return;
+      }
+
       if (pbId && auth.Authorization) {
         const delUrl = `${API_BASE}/api/collections/rates/records/${encodeURIComponent(
           String(pbId).trim()
@@ -2047,6 +2060,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
           }
         }
+      } else if (auth.Authorization && !pbId) {
+        const next = allRates.filter(
+          (rate) => normalizeRateId(rate.id) !== idNorm
+        );
+        await saveRates(next);
       }
 
       const refreshed = await loadRates();
@@ -2652,6 +2670,55 @@ document.addEventListener("DOMContentLoaded", async () => {
     return copy;
   }
 
+  function sanitizeRateForLocalPersist(rate) {
+    const base = stripPbMetaForSave(rate);
+    return { ...base };
+  }
+
+  /** Без авторизации PocketBase реестр хранится в localStorage этого браузера (как при открытии проекта по ссылке без входа). */
+  function loadRatesFromLocalStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed
+        .filter((rate) => rate && typeof rate === "object")
+        .map((rate) => sanitizeRateForLocalPersist(rate))
+        .filter((rate) => !isRatesRecordArchived(rate));
+    } catch {
+      return [];
+    }
+  }
+
+  function saveRatesToLocalStorage(rates) {
+    const arr = Array.isArray(rates)
+      ? rates.map((rate) =>
+          rate && typeof rate === "object" ? sanitizeRateForLocalPersist(rate) : null
+        )
+      : [];
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(arr.filter(Boolean))
+    );
+  }
+
+  function persistenceAvailableForRatesImport() {
+    const auth = pocketBaseAuthHeaders();
+    if (auth.Authorization) {
+      return true;
+    }
+    try {
+      const k = "__rates_ls_probe_" + String(Date.now());
+      localStorage.setItem(k, "1");
+      localStorage.removeItem(k);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /** Скрывает ставку в интерфейсе, когда DELETE в PocketBase запрещён (403). PATCH чаще разрешён для авторизованных. */
   function isRatesRecordArchived(rate) {
     const t =
@@ -2688,7 +2755,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function loadRates() {
     const auth = pocketBaseAuthHeaders();
     if (!auth.Authorization) {
-      return [];
+      return loadRatesFromLocalStorage();
     }
     try {
       const res = await fetch(
@@ -2712,6 +2779,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function saveRates(rates) {
     const auth = pocketBaseAuthHeaders();
     if (!auth.Authorization) {
+      saveRatesToLocalStorage(rates);
       return;
     }
     const headers = { ...auth, "Content-Type": "application/json" };
@@ -8057,4 +8125,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     });
   }
+
+  window.__ratesImportApi = {
+    loadRates,
+    saveRates,
+    setStatus,
+    fullPublicationRefresh,
+    stableRateKeyFromRecord,
+    pocketBaseConfigured() {
+      return Boolean(String(localStorage.getItem("pb_token") || "").trim());
+    },
+    persistenceAvailableForRatesImport,
+  };
 });
