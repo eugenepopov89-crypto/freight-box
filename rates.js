@@ -1974,24 +1974,66 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   tbody.addEventListener("click", async (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) {
+    const el = event.target;
+    const btn =
+      el instanceof Element
+        ? el.closest("button[data-action][data-id]")
+        : null;
+    if (!(btn instanceof HTMLButtonElement)) {
       return;
     }
 
-    const action = target.dataset.action;
-    const id = target.dataset.id;
-    if (!action || !id) {
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    if (!action || !String(id || "").trim()) {
       return;
     }
 
     if (action === "delete") {
-      const rates = (await loadRates()).filter((rate) => rate.id !== id);
-      await saveRates(rates);
-      refreshAutocompleteLists(rates);
-      refreshYearTabs(rates);
+      const idNorm = normalizeRateId(id);
+      const allRates = await loadRates();
+      const victim = allRates.find(
+        (rate) => normalizeRateId(rate.id) === idNorm
+      );
+      if (!victim) {
+        setStatus(
+          "Ставка не найдена в списке — обновите страницу и попробуйте снова.",
+          "error"
+        );
+        fullPublicationRefresh(await loadRates());
+        return;
+      }
+      const next = allRates.filter(
+        (rate) => normalizeRateId(rate.id) !== idNorm
+      );
+      const auth = pocketBaseAuthHeaders();
+      const pbId = victim._pbId;
+      if (pbId && auth.Authorization) {
+        const delRes = await fetch(
+          `${API_BASE}/api/collections/rates/records/${encodeURIComponent(
+            String(pbId).trim()
+          )}`,
+          {
+            method: "DELETE",
+            headers: { ...auth },
+          }
+        );
+        if (!delRes.ok) {
+          const errText = await delRes.text().catch(() => "");
+          setStatus(
+            "Не удалось удалить ставку на сервере (код " +
+              String(delRes.status) +
+              (errText ? "): " + errText.slice(0, 120) : ")."),
+            "error"
+          );
+          return;
+        }
+      }
+      await saveRates(next);
+      refreshAutocompleteLists(next);
+      refreshYearTabs(next);
       syncFilterTabsActiveStates();
-      fullPublicationRefresh(rates);
+      fullPublicationRefresh(next);
       setStatus("Ставка удалена.", "success");
     }
   });
