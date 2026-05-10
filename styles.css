@@ -2468,40 +2468,88 @@ footer {
 }
 
 @media (min-width: 640px) {
-  .sea-usd-row.sea-usd-row--grid {
+  .sea-usd-row.sea-usd-row--grid:not(.sea-usd-route-primary-grid) {
     grid-template-columns: minmax(0, 1fr) minmax(140px, 200px);
     grid-template-rows: auto auto;
     align-items: end;
   }
 
-  .sea-usd-row.sea-usd-row--grid label:first-of-type {
+  .sea-usd-row.sea-usd-row--grid:not(.sea-usd-route-primary-grid) label:first-of-type {
     grid-column: 1;
     grid-row: 1;
   }
 
-  .sea-usd-row.sea-usd-row--grid input[name="seaUsd"] {
+  .sea-usd-row.sea-usd-row--grid:not(.sea-usd-route-primary-grid) input[name="seaUsd"] {
     grid-column: 1;
     grid-row: 2;
   }
 
-  .sea-usd-row.sea-usd-row--grid label:nth-of-type(2) {
+  .sea-usd-row.sea-usd-row--grid:not(.sea-usd-route-primary-grid) label:nth-of-type(2) {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .sea-usd-row.sea-usd-row--grid input[name="seaSailingDate"] {
+  .sea-usd-row.sea-usd-row--grid:not(.sea-usd-route-primary-grid) input[name="seaSailingDate"] {
     grid-column: 2;
     grid-row: 2;
   }
 }
 
-@media (min-width: 640px) {
+.sea-route-block {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.sea-route-quick-picks-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: flex-start;
+}
+
+.sea-route-quick-picks-row .origin-quick-picks-details {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.sea-usd-row.sea-usd-route-primary-grid {
+  align-items: end;
+  column-gap: 10px;
+  row-gap: 8px;
+}
+
+.sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.sea-usd-row.sea-usd-route-primary-grid .sea-route-line-display {
+  display: block;
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.95);
+  color: #0f172a;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+@media (min-width: 1180px) {
   .sea-usd-row.sea-usd-route-primary-grid {
-    grid-template-columns: minmax(160px, 1fr) minmax(0, 1.4fr) minmax(140px, 200px);
+    grid-template-columns:
+      minmax(130px, 1.1fr)
+      minmax(100px, 0.95fr)
+      minmax(100px, 1fr)
+      minmax(128px, 120px)
+      minmax(110px, 1fr)
+      minmax(110px, 1fr)
+      minmax(120px, 1.15fr);
     grid-template-rows: auto auto;
-    align-items: end;
-    column-gap: 12px;
-    row-gap: 8px;
   }
 
   .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--ct {
@@ -2517,24 +2565,80 @@ footer {
     min-width: 0;
   }
 
-  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--usd {
+  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--line {
     grid-column: 2;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-route-line-display {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--usd {
+    grid-column: 3;
     grid-row: 1;
   }
 
   .sea-usd-row.sea-usd-route-primary-grid input[name="seaUsd"] {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--date {
-    grid-column: 3;
+    grid-column: 4;
     grid-row: 1;
   }
 
   .sea-usd-row.sea-usd-route-primary-grid input[name="seaSailingDate"] {
-    grid-column: 3;
+    grid-column: 4;
     grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--dv {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-route-dv-terminal {
+    grid-column: 5;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--st {
+    grid-column: 6;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-route-station {
+    grid-column: 6;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-grid-lab--unload {
+    grid-column: 7;
+    grid-row: 1;
+  }
+
+  .sea-usd-row.sea-usd-route-primary-grid .sea-route-unload {
+    grid-column: 7;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 }
 
