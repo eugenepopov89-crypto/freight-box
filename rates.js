@@ -211,6 +211,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const bookingAgentQuickPicks = document.getElementById(
     "booking-agent-quick-picks"
   );
+  const bookingAgentSlotsWrap = document.getElementById("booking-agent-value-rows");
+  const bookingAgentSubmitInput = document.getElementById(
+    "booking-agent-submit-value"
+  );
+  const addBookingAgentSlotBtn = document.getElementById(
+    "add-booking-agent-slot-btn"
+  );
   const agentsSelectAllBtn = document.getElementById("agents-select-all");
   const agentsClearAllBtn = document.getElementById("agents-clear-all");
   const railTerminalInput = document.getElementById("railTerminal");
@@ -437,12 +444,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     !stationsSelectAllBtn ||
     !stationsClearAllBtn ||
     !addPortOptionBtn ||
-    !addStationOptionBtn ||
     !shippingLineInput ||
     !shippingLineQuickPicks ||
     !bookingAgentInput ||
     !bookingAgentLineWrap ||
     !bookingAgentShippingLineInput ||
+    !bookingAgentSlotsWrap ||
+    !bookingAgentSubmitInput ||
+    !addBookingAgentSlotBtn ||
     !linesSelectAllBtn ||
     !linesClearAllBtn ||
     !addShippingLineOptionBtn ||
@@ -456,7 +465,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     !terminalsSelectAllBtn ||
     !terminalsClearAllBtn ||
     !newPortOptionInput ||
-    !newStationOptionInput ||
     !chinaPortSuggestions ||
     !sailingDatesWrap ||
     !addSailingDateBtn ||
@@ -650,10 +658,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   syncShippingLineInputToQuickPicks();
   syncRailTerminalInputToQuickPicks();
   syncBookingAgentInputToQuickPicks();
+  mergeBookingAgentSlotsToHiddenField();
   syncBookingAgentLineVisibility();
   enableDatalistOpenOnFocus(shippingLineInput);
   enableDatalistOpenOnFocus(railTerminalInput);
-  enableDatalistOpenOnFocus(bookingAgentInput);
+  getBookingAgentSlotInputs().forEach((inp) => {
+    enableDatalistOpenOnFocus(inp);
+  });
   syncBookingAgentShippingLineDatalist();
   enableDatalistOpenOnFocus(bookingAgentShippingLineInput);
 
@@ -686,6 +697,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncQuickPickSelectionsToInputRows();
     syncShippingLineQuickPicksToInput();
     applyBookingAgentQuickPicksBeforeSubmit();
+    mergeBookingAgentSlotsToHiddenField();
     syncRailTerminalQuickPicksToInput();
 
     const originPorts = getOriginPorts();
@@ -1091,7 +1103,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await saveRates(rates);
     if (isBookingAgentProvided(bookingAgentRaw)) {
-      await createBookingAgentPbRecord(bookingAgentRaw);
+      await persistBookingAgentsFromMergedField(bookingAgentRaw);
     }
     refreshAutocompleteLists(rates);
     refreshYearTabs(rates);
@@ -1110,6 +1122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncSecurityCostVisibility();
     syncShippingLineQuickPicksToInput();
     syncRailTerminalQuickPicksToInput();
+    resetBookingAgentSlotsToSingleEmpty();
     syncBookingAgentInputToQuickPicks();
     syncBookingAgentLineVisibility();
   });
@@ -1182,7 +1195,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncSeaUsdRowsToRouteCombinations();
   });
 
-  addStationOptionBtn.addEventListener("click", () => {
+  addStationOptionBtn?.addEventListener("click", () => {
+    if (!(newStationOptionInput instanceof HTMLInputElement)) {
+      return;
+    }
     const value = String(newStationOptionInput.value || "")
       .trim()
       .replace(/\s+/g, " ");
@@ -1239,7 +1255,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (_) {
       refreshAutocompleteLists([]);
     }
-    bookingAgentInput.value = newValue;
+    distributeAgentNamesAcrossSlots([newValue]);
     newBookingAgentOptionInput.value = "";
     syncBookingAgentLineVisibility();
     syncBookingAgentInputToQuickPicks();
@@ -1301,9 +1317,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   shippingLineInput.addEventListener("input", () => {
     syncShippingLineInputToQuickPicks();
   });
-  bookingAgentInput.addEventListener("input", () => {
+  bookingAgentSlotsWrap.addEventListener("input", (event) => {
+    const t = event.target;
+    if (!(t instanceof HTMLInputElement)) {
+      return;
+    }
+    if (!t.classList.contains("booking-agent-slot-input")) {
+      return;
+    }
+    mergeBookingAgentSlotsToHiddenField();
     syncBookingAgentLineVisibility();
     syncBookingAgentInputToQuickPicks();
+  });
+
+  addBookingAgentSlotBtn.addEventListener("click", () => {
+    appendBookingAgentSlotRow("");
+    mergeBookingAgentSlotsToHiddenField();
+    nudgeBookingAgentDatalistBindings();
   });
 
   stationQuickPicks.addEventListener("change", (event) => {
@@ -1360,7 +1390,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncSeaUsdRowsToRouteCombinations();
   });
 
-  newStationOptionInput.addEventListener("input", () => {
+  newStationOptionInput?.addEventListener("input", () => {
+    if (!(newStationOptionInput instanceof HTMLInputElement)) {
+      return;
+    }
     const primary = destinationStationsWrap.querySelector(
       'input[name="destinationStations"]'
     );
@@ -2489,6 +2522,150 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       return false;
     }
+  }
+
+  async function persistBookingAgentsFromMergedField(mergedRaw) {
+    const merged = String(mergedRaw || "").trim();
+    if (!isBookingAgentProvided(merged)) {
+      return;
+    }
+    const parts = merged
+      .split(/\s*;\s*/)
+      .map((p) => p.trim().replace(/\s+/g, " "))
+      .filter(Boolean);
+    const seenKeys = new Set();
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (!isBookingAgentProvided(p)) {
+        continue;
+      }
+      const k = normalizeBookingAgentDedupeKey(p);
+      if (seenKeys.has(k)) {
+        continue;
+      }
+      seenKeys.add(k);
+      await createBookingAgentPbRecord(p);
+    }
+  }
+
+  function getBookingAgentSlotInputs() {
+    if (!(bookingAgentSlotsWrap instanceof HTMLElement)) {
+      return bookingAgentInput instanceof HTMLInputElement
+        ? [bookingAgentInput]
+        : [];
+    }
+    return [
+      ...bookingAgentSlotsWrap.querySelectorAll(".booking-agent-slot-input"),
+    ].filter((el) => el instanceof HTMLInputElement);
+  }
+
+  function mergeBookingAgentSlotsToHiddenField() {
+    if (!(bookingAgentSubmitInput instanceof HTMLInputElement)) {
+      return;
+    }
+    const vals = getBookingAgentSlotInputs()
+      .map((inp) =>
+        String(inp.value || "").trim().replace(/\s+/g, " ")
+      )
+      .filter(Boolean);
+    bookingAgentSubmitInput.value = vals.join("; ");
+  }
+
+  function distributeAgentNamesAcrossSlots(namesClean) {
+    if (!(bookingAgentSlotsWrap instanceof HTMLElement)) {
+      mergeBookingAgentSlotsToHiddenField();
+      return;
+    }
+    [
+      ...bookingAgentSlotsWrap.querySelectorAll("[data-booking-agent-row]"),
+    ]
+      .slice(1)
+      .forEach((row) => row.remove());
+    const clean = namesClean
+      .map((n) => String(n || "").trim().replace(/\s+/g, " "))
+      .filter(Boolean);
+    if (!(bookingAgentInput instanceof HTMLInputElement)) {
+      mergeBookingAgentSlotsToHiddenField();
+      return;
+    }
+    if (!clean.length) {
+      bookingAgentInput.value = "";
+      mergeBookingAgentSlotsToHiddenField();
+      return;
+    }
+    bookingAgentInput.value = clean[0] || "";
+    for (let i = 1; i < clean.length; i++) {
+      appendBookingAgentSlotRow(clean[i]);
+    }
+    mergeBookingAgentSlotsToHiddenField();
+  }
+
+  function appendBookingAgentSlotRow(initialValue) {
+    if (!(bookingAgentSlotsWrap instanceof HTMLElement)) {
+      return;
+    }
+    const listId =
+      bookingAgentSuggestions instanceof HTMLElement && bookingAgentSuggestions.id
+        ? bookingAgentSuggestions.id
+        : "booking-agent-suggestions";
+    const row = document.createElement("div");
+    row.className = "booking-agent-slot-row quick-add-row";
+    row.setAttribute("data-booking-agent-row", "");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "booking-agent-slot-input";
+    input.setAttribute("list", listId);
+    input.setAttribute("autocomplete", "organization");
+    input.setAttribute("placeholder", "Название агента");
+    input.setAttribute(
+      "aria-label",
+      "Название букирующего агента (дополнительная строка)"
+    );
+    input.value = String(initialValue || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-mini-control booking-agent-slot-remove-btn";
+    btn.textContent = "−";
+    btn.setAttribute("aria-label", "Удалить этого агента из списка");
+    row.appendChild(input);
+    row.appendChild(btn);
+    bookingAgentSlotsWrap.appendChild(row);
+    btn.addEventListener("click", () => {
+      row.remove();
+      mergeBookingAgentSlotsToHiddenField();
+      syncBookingAgentLineVisibility();
+      syncBookingAgentInputToQuickPicks();
+      nudgeBookingAgentDatalistBindings();
+    });
+    enableDatalistOpenOnFocus(input);
+    input.addEventListener("input", () => {
+      mergeBookingAgentSlotsToHiddenField();
+      syncBookingAgentLineVisibility();
+      syncBookingAgentInputToQuickPicks();
+    });
+  }
+
+  function resetBookingAgentSlotsToSingleEmpty() {
+    if (!(bookingAgentSlotsWrap instanceof HTMLElement)) {
+      if (bookingAgentSubmitInput instanceof HTMLInputElement) {
+        bookingAgentSubmitInput.value = "";
+      }
+      if (bookingAgentInput instanceof HTMLInputElement) {
+        bookingAgentInput.value = "";
+      }
+      return;
+    }
+    [
+      ...bookingAgentSlotsWrap.querySelectorAll("[data-booking-agent-row]"),
+    ]
+      .slice(1)
+      .forEach((row) => row.remove());
+    if (bookingAgentInput instanceof HTMLInputElement) {
+      bookingAgentInput.value = "";
+    }
+    mergeBookingAgentSlotsToHiddenField();
   }
 
   function loadSalesProfitUndoStack() {
@@ -4547,10 +4724,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!listId) {
       return;
     }
-    [bookingAgentInput, newBookingAgentOptionInput].forEach((input) => {
+    const slotInputs = getBookingAgentSlotInputs();
+    const seen = new Set();
+    [...slotInputs, newBookingAgentOptionInput].forEach((input) => {
       if (!(input instanceof HTMLInputElement)) {
         return;
       }
+      if (seen.has(input)) {
+        return;
+      }
+      seen.add(input);
       if (input.getAttribute("list") !== listId) {
         return;
       }
@@ -4575,31 +4758,42 @@ document.addEventListener("DOMContentLoaded", async () => {
   /** Собираем значение главного поля из чекбоксов (как терминалы/линии). */
   function syncBookingAgentQuickPicksToInput() {
     const selected = getSelectedBookingAgentsFromQuickPicks();
-    const joined = selected.join(", ");
-    bookingAgentInput.value = joined;
+    distributeAgentNamesAcrossSlots(selected);
     syncBookingAgentLineVisibility();
     syncBookingAgentShippingLineDatalist();
+    nudgeBookingAgentDatalistBindings();
   }
 
   /** Перед submit: если чекбоксы не трогали — сохраняем вручную введённое; иначе — как в решётке быстрого выбора. */
   function applyBookingAgentQuickPicksBeforeSubmit() {
     const selected = getSelectedBookingAgentsFromQuickPicks();
-    if (!selected.length) {
-      return;
+    if (selected.length) {
+      distributeAgentNamesAcrossSlots(selected);
     }
-    const joined = selected.join(", ");
-    bookingAgentInput.value = joined;
+    mergeBookingAgentSlotsToHiddenField();
     syncBookingAgentLineVisibility();
     syncBookingAgentShippingLineDatalist();
   }
 
-  function syncBookingAgentInputToQuickPicks() {
-    const selected = new Set(
-      String(bookingAgentInput.value || "")
+  function bookingAgentDedupeKeysFromAllSlots() {
+    const keys = new Set();
+    getBookingAgentSlotInputs().forEach((input) => {
+      String(input.value || "")
         .split(",")
-        .map((item) => normalizeBookingAgentDedupeKey(item))
+        .map((item) => item.trim())
         .filter(Boolean)
-    );
+        .forEach((chunk) => {
+          const k = normalizeBookingAgentDedupeKey(chunk);
+          if (k) {
+            keys.add(k);
+          }
+        });
+    });
+    return keys;
+  }
+
+  function syncBookingAgentInputToQuickPicks() {
+    const selected = bookingAgentDedupeKeysFromAllSlots();
     [
       ...bookingAgentQuickPicks.querySelectorAll(
         'input[name="bookingAgentQuickOptions"]'
@@ -4971,7 +5165,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (firstStationInput instanceof HTMLInputElement) {
       firstStationInput.value = selectedStations.join(", ");
     }
-    newStationOptionInput.value = selectedStations.join(", ");
+    if (newStationOptionInput instanceof HTMLInputElement) {
+      newStationOptionInput.value = selectedStations.join(", ");
+    }
   }
 
   function appendOriginPortRow(defaultValue) {
@@ -5970,7 +6166,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function syncBookingAgentLineVisibility() {
-    const shouldShow = isBookingAgentProvided(bookingAgentInput.value);
+    mergeBookingAgentSlotsToHiddenField();
+    const shouldShow = getBookingAgentSlotInputs().some((inp) =>
+      isBookingAgentProvided(String(inp.value || "").trim())
+    );
     bookingAgentLineWrap.hidden = !shouldShow;
     bookingAgentShippingLineInput.required = shouldShow;
     if (!shouldShow) {
@@ -6159,7 +6358,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     firstStationInput.value = joined;
-    newStationOptionInput.value = joined;
+    if (newStationOptionInput instanceof HTMLInputElement) {
+      newStationOptionInput.value = joined;
+    }
     refreshCargoRouteSelectOptions();
   }
 
