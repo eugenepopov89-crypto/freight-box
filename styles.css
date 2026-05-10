@@ -891,6 +891,33 @@ form {
   align-items: start;
 }
 
+/* Одна колонка: без «второй пустой половины» сетки 2×2 */
+.field-group--single-stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Блок «Условия поставки» сразу под заголовком — без лишнего зазора как у соседних полей */
+.form-block-heading + .routes-field-delivery-only {
+  margin-top: -6px;
+}
+
+.routes-field-delivery-only {
+  gap: 10px;
+}
+
+/* Порты отправления: под морской линией, с обычным вертикальным шагом */
+.route-block-origin-ports {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.route-block-origin-ports > label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+}
+
 .form-block {
   margin-bottom: 20px;
 }
