@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   migrateLegacyOptionKeys();
 
-  const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK", "RU_REGIONS"];
+  const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK"];
 
   function getStationQuickPicksRootEl() {
     return document.getElementById("station-quick-picks");
@@ -2702,21 +2702,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       STORAGE_KEY,
       JSON.stringify(arr.filter(Boolean))
     );
-  }
-
-  function persistenceAvailableForRatesImport() {
-    const auth = pocketBaseAuthHeaders();
-    if (auth.Authorization) {
-      return true;
-    }
-    try {
-      const k = "__rates_ls_probe_" + String(Date.now());
-      localStorage.setItem(k, "1");
-      localStorage.removeItem(k);
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   /** Скрывает ставку в интерфейсе, когда DELETE в PocketBase запрещён (403). PATCH чаще разрешён для авторизованных. */
@@ -8125,16 +8110,4 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     });
   }
-
-  window.__ratesImportApi = {
-    loadRates,
-    saveRates,
-    setStatus,
-    fullPublicationRefresh,
-    stableRateKeyFromRecord,
-    pocketBaseConfigured() {
-      return Boolean(String(localStorage.getItem("pb_token") || "").trim());
-    },
-    persistenceAvailableForRatesImport,
-  };
 });
