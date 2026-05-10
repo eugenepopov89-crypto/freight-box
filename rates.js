@@ -13,6 +13,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const ROUTE_LINES_KEY = "freightbox-booking-route-lines";
   /** Подсказки «агента нет» — всегда в списке (WebKit/Safari и форма без входа в PB). */
   const DEFAULT_BOOKING_AGENT_SUGGESTIONS = ["НЕТ", "нет"];
+  /** Чекбоксы быстрого выбора агента: не раздувать дом сотнями имён из реестра. */
+  const MAX_BOOKING_AGENT_QUICK_PICKS = 72;
 
   function readSavedList(storageKey) {
     try {
@@ -208,6 +210,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const newShippingLineOptionInput = document.getElementById("new-shipping-line-option");
   const addBookingAgentOptionBtn = document.getElementById("add-booking-agent-option");
   const newBookingAgentOptionInput = document.getElementById("new-booking-agent-option");
+  const bookingAgentQuickPicks = document.getElementById(
+    "booking-agent-quick-picks"
+  );
+  const agentsSelectAllBtn = document.getElementById("agents-select-all");
+  const agentsClearAllBtn = document.getElementById("agents-clear-all");
   const railTerminalInput = document.getElementById("railTerminal");
   const railTerminalQuickPicks = document.getElementById("rail-terminal-quick-picks");
   const terminalsSelectAllBtn = document.getElementById("terminals-select-all");
@@ -444,6 +451,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     !newShippingLineOptionInput ||
     !addBookingAgentOptionBtn ||
     !newBookingAgentOptionInput ||
+    !bookingAgentQuickPicks ||
+    !agentsSelectAllBtn ||
+    !agentsClearAllBtn ||
     !railTerminalInput ||
     !railTerminalQuickPicks ||
     !terminalsSelectAllBtn ||
@@ -490,8 +500,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   syncSeaUsdRowsToRouteCombinations();
   syncOriginQuickPicksToInput();
   syncShippingLineInputToQuickPicks();
-  syncRailTerminalInputToQuickPicks();
-  syncBookingAgentLineVisibility();
+    syncRailTerminalInputToQuickPicks();
+    syncBookingAgentInputToQuickPicks();
+    syncBookingAgentLineVisibility();
   syncRailRubVisibility();
   enableDatalistOpenOnFocus(shippingLineInput);
   enableDatalistOpenOnFocus(railTerminalInput);
@@ -527,6 +538,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     syncQuickPickSelectionsToInputRows();
     syncShippingLineQuickPicksToInput();
+    applyBookingAgentQuickPicksBeforeSubmit();
     syncRailTerminalQuickPicksToInput();
 
     const formData = new FormData(form);
@@ -835,6 +847,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncRailRubVisibility();
     syncShippingLineQuickPicksToInput();
     syncRailTerminalQuickPicksToInput();
+    syncBookingAgentInputToQuickPicks();
     syncBookingAgentLineVisibility();
   });
 
@@ -963,6 +976,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     bookingAgentInput.value = newValue;
     newBookingAgentOptionInput.value = "";
     syncBookingAgentLineVisibility();
+    syncBookingAgentInputToQuickPicks();
     const hasPb = Boolean(pocketBaseAuthHeaders().Authorization);
     const isNyetHint =
       normalizeBookingAgentDedupeKey(newValue) === "нет";
@@ -1034,6 +1048,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   bookingAgentInput.addEventListener("input", () => {
     syncBookingAgentLineVisibility();
+    syncBookingAgentInputToQuickPicks();
   });
 
   stationQuickPicks.addEventListener("change", (event) => {
@@ -1109,6 +1124,43 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   railTerminalInput.addEventListener("input", () => {
     syncRailTerminalInputToQuickPicks();
+  });
+
+  agentsSelectAllBtn.addEventListener("click", () => {
+    [
+      ...bookingAgentQuickPicks.querySelectorAll(
+        'input[name="bookingAgentQuickOptions"]'
+      ),
+    ].forEach((input) => {
+      if (input instanceof HTMLInputElement) {
+        input.checked = true;
+      }
+    });
+    syncBookingAgentQuickPicksToInput();
+  });
+
+  agentsClearAllBtn.addEventListener("click", () => {
+    [
+      ...bookingAgentQuickPicks.querySelectorAll(
+        'input[name="bookingAgentQuickOptions"]'
+      ),
+    ].forEach((input) => {
+      if (input instanceof HTMLInputElement) {
+        input.checked = false;
+      }
+    });
+    syncBookingAgentQuickPicksToInput();
+  });
+
+  bookingAgentQuickPicks.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+    if (target.name !== "bookingAgentQuickOptions") {
+      return;
+    }
+    syncBookingAgentQuickPicksToInput();
   });
 
   destinationSelect.addEventListener("change", () => {
@@ -4139,6 +4191,76 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  function getSelectedBookingAgentsFromQuickPicks() {
+    return [
+      ...bookingAgentQuickPicks.querySelectorAll(
+        'input[name="bookingAgentQuickOptions"]:checked'
+      ),
+    ]
+      .map((input) =>
+        input instanceof HTMLInputElement ? String(input.value || "").trim() : ""
+      )
+      .filter(Boolean);
+  }
+
+  /** Собираем значение главного поля из чекбоксов (как терминалы/линии). */
+  function syncBookingAgentQuickPicksToInput() {
+    const selected = getSelectedBookingAgentsFromQuickPicks();
+    bookingAgentInput.value = selected.join(", ");
+    syncBookingAgentLineVisibility();
+    syncBookingAgentShippingLineDatalist();
+  }
+
+  /** Перед submit: если чекбоксы не трогали — сохраняем вручную введённое; иначе — как в решётке быстрого выбора. */
+  function applyBookingAgentQuickPicksBeforeSubmit() {
+    const selected = getSelectedBookingAgentsFromQuickPicks();
+    if (!selected.length) {
+      return;
+    }
+    bookingAgentInput.value = selected.join(", ");
+    syncBookingAgentLineVisibility();
+    syncBookingAgentShippingLineDatalist();
+  }
+
+  function syncBookingAgentInputToQuickPicks() {
+    const selected = new Set(
+      String(bookingAgentInput.value || "")
+        .split(",")
+        .map((item) => normalizeBookingAgentDedupeKey(item))
+        .filter(Boolean)
+    );
+    [
+      ...bookingAgentQuickPicks.querySelectorAll(
+        'input[name="bookingAgentQuickOptions"]'
+      ),
+    ].forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      input.checked = selected.has(normalizeBookingAgentDedupeKey(input.value));
+    });
+  }
+
+  function rebuildBookingAgentQuickPickGrid(agentNamesAll) {
+    const capped = bookingAgentPbSortDedupe(agentNamesAll).slice(
+      0,
+      MAX_BOOKING_AGENT_QUICK_PICKS
+    );
+    bookingAgentQuickPicks.innerHTML = capped
+      .map((name) => {
+        const escaped = escapeHtml(name);
+        return (
+          "<label>" +
+          escaped +
+          ' <input type="checkbox" name="bookingAgentQuickOptions" value="' +
+          escaped +
+          '" /></label>'
+        );
+      })
+      .join("");
+    syncBookingAgentInputToQuickPicks();
+  }
+
   function refreshAutocompleteLists(rates) {
     const terminals = uniqueSorted(
       DEFAULT_RAIL_TERMINALS.concat(
@@ -4183,6 +4305,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     sortDatalistOptions(shippingLineSuggestions);
     sortDatalistOptions(bookingAgentSuggestions);
     sortDatalistOptions(stationSuggestions);
+    rebuildBookingAgentQuickPickGrid(bookingAgents);
     syncBookingAgentShippingLineDatalist();
     nudgeBookingAgentDatalistBindings();
   }
@@ -4819,12 +4942,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function addCheckboxOption(container, checkboxName, value, destination) {
     const isStation = checkboxName === "destinationQuickStations";
+    const bookingAgentQ = checkboxName === "bookingAgentQuickOptions";
     const exists = [
       ...container.querySelectorAll(`input[name="${checkboxName}"]`),
     ].some(
       (input) =>
         input instanceof HTMLInputElement &&
-        (isStation
+        (isStation || bookingAgentQ
           ? tokensEqualRu(input.value, value)
           : input.value.trim().toUpperCase() === value.trim().toUpperCase())
     );
@@ -4861,7 +4985,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function sortCheckboxOptions(container, checkboxName) {
     const sortLocale =
-      checkboxName === "destinationQuickStations" ? "ru" : "en";
+      checkboxName === "destinationQuickStations" ||
+      checkboxName === "bookingAgentQuickOptions"
+        ? "ru"
+        : "en";
     const entries = [...container.querySelectorAll(`input[name="${checkboxName}"]`)]
       .map((input) => {
         if (!(input instanceof HTMLInputElement)) {
@@ -4966,7 +5093,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lines = getShippingLinesFromInput();
     const merged = uniqueSorted(lines.concat(readSavedList(ROUTE_LINES_KEY)));
     bookingAgentRouteLineSuggestions.innerHTML = merged
-      .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
+      .map((value) => datalistOptionWithLabelMarkup(value))
       .join("");
     const current = String(bookingAgentShippingLineInput.value || "")
       .trim()
