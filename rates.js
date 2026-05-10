@@ -182,7 +182,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const addOriginPortBtn = document.getElementById("add-origin-port-btn");
   const destinationStationsWrap = document.getElementById("destination-stations-wrap");
   const warehouseAddressesWrap = document.getElementById("warehouse-addresses-wrap");
-  const addWarehouseAddressBtn = document.getElementById("add-warehouse-address-btn");
+  const autoDeliveryRowsWrap = document.getElementById("auto-delivery-rows-wrap");
   const originQuickPicks = document.getElementById("origin-quick-picks");
   const stationQuickPicks = document.getElementById("station-quick-picks");
   const portsSelectAllBtn = document.getElementById("ports-select-all");
@@ -219,12 +219,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const terminalsClearAllBtn = document.getElementById("terminals-clear-all");
   const newPortOptionInput = document.getElementById("new-port-option");
   const newStationOptionInput = document.getElementById("new-station-option");
-  const cargoDepartureTerminalSelect = document.getElementById(
-    "cargoDepartureTerminal"
-  );
-  const cargoDestinationStationSelect = document.getElementById(
-    "cargoDestinationStation"
-  );
   const chinaPortSuggestions = document.getElementById("china-port-suggestions");
   const sailingDatesWrap = document.getElementById("sailing-dates-wrap");
   const addSailingDateBtn = document.getElementById("add-sailing-date-btn");
@@ -376,7 +370,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const TRACKING_WEBHOOK_SECRET = "";
   const seaUsdWrap = document.getElementById("sea-usd-wrap");
   const railRubRowsWrap = document.getElementById("rail-rub-rows-wrap");
+  const cargoDepartureTerminalSelect = document.getElementById("cargoDepartureTerminal");
+  const cargoDestinationStationSelect = document.getElementById("cargoDestinationStation");
   const addRailRubRowBtn = document.getElementById("add-rail-rub-row-btn");
+  const addWarehouseAddressBtn = document.getElementById("add-warehouse-address-btn");
   const salesManagerCards = {
     vlad: {
       fullName: "Влад Давидович",
@@ -429,7 +426,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     !originPortsWrap ||
     !destinationStationsWrap ||
     !warehouseAddressesWrap ||
-    !addWarehouseAddressBtn ||
+    !autoDeliveryRowsWrap ||
     !seaUsdWrap ||
     !originQuickPicks ||
     !stationQuickPicks ||
@@ -458,16 +455,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     !terminalsClearAllBtn ||
     !newPortOptionInput ||
     !newStationOptionInput ||
-    !cargoDepartureTerminalSelect ||
-    !cargoDestinationStationSelect ||
     !chinaPortSuggestions ||
     !sailingDatesWrap ||
     !addSailingDateBtn ||
     !monthSelect ||
     !yearInput ||
     !periodEl ||
-    !railRubRowsWrap ||
-    !addRailRubRowBtn
+    !railRubRowsWrap
   ) {
     return;
   }
@@ -543,34 +537,67 @@ document.addEventListener("DOMContentLoaded", async () => {
     appendRailRubRow("40HQ", "");
   }
 
+  function readSeaRailNum(inputEl) {
+    if (!(inputEl instanceof HTMLInputElement)) {
+      return null;
+    }
+    const raw = String(inputEl.value || "").trim();
+    if (raw === "") {
+      return null;
+    }
+    const n = rateNumericOrNaN(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      return null;
+    }
+    return n;
+  }
+
   function aggregateRailRubTiersFromDom() {
+    const containerSel = document.getElementById("containerType");
+    const ct =
+      containerSel instanceof HTMLSelectElement
+        ? String(containerSel.value || "").trim()
+        : "40HQ";
+    const bundles = [
+      ...railRubRowsWrap.querySelectorAll("[data-sea-rail-route]"),
+    ];
+    /** @type {number|null} */
     let lt24 = null;
+    /** @type {number|null} */
     let gt24 = null;
+    /** @type {number|null} */
     let hq = null;
-    railRubRowsWrap.querySelectorAll("[data-rail-rub-row]").forEach((row) => {
-      const sel = row.querySelector('select[name="railRubTier"]');
-      const inp = row.querySelector('input[name="railRubAmount"]');
-      if (!(sel instanceof HTMLSelectElement) || !(inp instanceof HTMLInputElement)) {
+    /** @type {{railRub40Hq: number|null,railRub20Lt24: number|null,railRub20Gt24: number|null}[]} */
+    const perRoute = [];
+    bundles.forEach((blk, bundleIndex) => {
+      if (!(blk instanceof HTMLElement)) {
         return;
       }
-      const raw = String(inp.value || "").trim();
-      if (raw === "") {
-        return;
-      }
-      const n = rateNumericOrNaN(raw);
-      if (!Number.isFinite(n) || n < 0) {
-        return;
-      }
-      const t = sel.value;
-      if (t === "20LT24") {
-        lt24 = n;
-      } else if (t === "20GT24") {
-        gt24 = n;
-      } else if (t === "40HQ") {
-        hq = n;
+      if (ct === "40HQ") {
+        const hqVal = readSeaRailNum(blk.querySelector('input[data-rail-slot="hq"]'));
+        perRoute.push({
+          railRub40Hq: hqVal,
+          railRub20Lt24: null,
+          railRub20Gt24: null,
+        });
+        if (bundleIndex === 0) {
+          hq = hqVal;
+        }
+      } else {
+        const lt = readSeaRailNum(blk.querySelector('input[data-rail-slot="lt"]'));
+        const gt = readSeaRailNum(blk.querySelector('input[data-rail-slot="gt"]'));
+        perRoute.push({
+          railRub40Hq: null,
+          railRub20Lt24: lt,
+          railRub20Gt24: gt,
+        });
+        if (bundleIndex === 0) {
+          lt24 = lt;
+          gt24 = gt;
+        }
       }
     });
-    return { lt24, gt24, hq };
+    return { lt24, gt24, hq, perRoute };
   }
 
   loadSavedOptions(AGENTS_KEY, "booking-agent-suggestions");
@@ -606,7 +633,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   syncRailTerminalInputToQuickPicks();
   syncBookingAgentInputToQuickPicks();
   syncBookingAgentLineVisibility();
-  resetRailRubRows();
   enableDatalistOpenOnFocus(shippingLineInput);
   enableDatalistOpenOnFocus(railTerminalInput);
   enableDatalistOpenOnFocus(bookingAgentInput);
@@ -614,6 +640,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   enableDatalistOpenOnFocus(bookingAgentShippingLineInput);
 
   document.getElementById("containerType")?.addEventListener("change", () => {
+    syncRailAutoSectionsFromSea();
     refreshCargoRouteSelectOptions();
   });
 
@@ -648,8 +675,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyBookingAgentQuickPicksBeforeSubmit();
     syncRailTerminalQuickPicksToInput();
 
-    const formData = new FormData(form);
     const originPorts = getOriginPorts();
+    if (!originPorts.length) {
+      setStatus(
+        "Добавьте хотя бы один порт отправления (вручную или через чекбоксы).",
+        "error"
+      );
+      return;
+    }
+
+    const shippingLinesPreflight = getShippingLinesFromInput();
+    if (!shippingLinesPreflight.length) {
+      setStatus("Добавьте хотя бы одну морскую линию.", "error");
+      return;
+    }
+
+    syncSeaUsdRowsToRouteCombinations();
+    mirrorLegacyHiddenFromSeaRows();
+
+    const formData = new FormData(form);
     const destinationStations = getDestinationStations();
     const warehouseAddresses = getWarehouseAddresses();
 
@@ -684,24 +728,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const containerTypeRaw = String(formData.get("containerType") || "").trim();
-    const railTiersForSave = aggregateRailRubTiersFromDom();
-    if (containerTypeRaw === "20FT") {
-      if (railTiersForSave.lt24 == null || railTiersForSave.gt24 == null) {
-        setStatus(
-          "Для 20FT добавьте строки «Стоимость ЖД, RUB за» с суммами для «20′ft < 24 t» и «20′ft > 24 t» (кнопка + при необходимости).",
-          "error"
-        );
-        return;
-      }
-    } else {
-      if (railTiersForSave.hq == null) {
-        setStatus(
-          "Укажите сумму ЖД для «40′ HQ» в блоке «Стоимость ЖД, RUB за».",
-          "error"
-        );
-        return;
-      }
-    }
 
     const customsClearanceRaw = String(
       formData.get("customsClearance") || ""
@@ -717,47 +743,82 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    if (!originPorts.length) {
-      setStatus(
-        "Добавьте хотя бы один порт отправления (вручную или через чекбоксы).",
-        "error"
-      );
-      return;
-    }
-
     const shippingLines = getShippingLinesFromInput();
     if (!shippingLines.length) {
       setStatus("Добавьте хотя бы одну морскую линию.", "error");
       return;
     }
-    if (!destinationStations.length) {
-      setStatus(
-        "Добавьте хотя бы одну станцию назначения (вручную или через чекбоксы).",
-        "error"
-      );
-      return;
+
+    const railTiersForSave = aggregateRailRubTiersFromDom();
+    if (containerTypeRaw === "20FT") {
+      for (let ri = 0; ri < railTiersForSave.perRoute.length; ri++) {
+        const pr = railTiersForSave.perRoute[ri];
+        if (pr.railRub20Lt24 == null || pr.railRub20Gt24 == null) {
+          setStatus(
+            "В строке ЖД №" +
+              String(ri + 1) +
+              " укажите суммы для 20′ft < 24 t и 20′ft > 24 t.",
+            "error"
+          );
+          return;
+        }
+      }
+    } else {
+      for (let ri = 0; ri < railTiersForSave.perRoute.length; ri++) {
+        const pr = railTiersForSave.perRoute[ri];
+        if (pr.railRub40Hq == null) {
+          setStatus(
+            "В строке ЖД №" + String(ri + 1) + " укажите сумму для 40′ HQ.",
+            "error"
+          );
+          return;
+        }
+      }
     }
-    if (!warehouseAddresses.length) {
-      setStatus("Добавьте хотя бы один адрес склада выгрузки.", "error");
-      return;
-    }
-    syncAutoRubRowsToWarehouseAddresses();
-    syncSeaUsdRowsToRouteCombinations();
+
     const seaRouteRows = getSeaRouteRows();
     const routeCombos = buildOriginLineCombinations(originPorts, shippingLines);
-    const seaRouteRowsWithKeys = seaRouteRows.map((row, index) => ({
-      origin: routeCombos[index] ? routeCombos[index].origin : "",
-      shippingLine: routeCombos[index] ? routeCombos[index].shippingLine : "",
-      seaUsd: row.seaUsd,
-      sailingDate: row.sailingDate,
-    }));
-    const seaUsds = seaRouteRowsWithKeys.map((row) => row.seaUsd);
     const autoRubs = getAutoRubValues();
     const expectedSeaRows = routeCombos.length;
     if (seaRouteRows.length < expectedSeaRows) {
       setStatus("Заполните фрахт и дату выхода для каждой строки порт + линия.", "error");
       return;
     }
+    if (railTiersForSave.perRoute.length !== seaRouteRows.length) {
+      setStatus(
+        "Число строк ЖД не совпадает с числом морских связок. Обновите маршрут и заполните ЖД по каждой строке.",
+        "error"
+      );
+      return;
+    }
+    if (autoRubs.length !== seaRouteRows.length) {
+      setStatus(
+        "Укажите стоимость авто для каждой строки морского маршрута (блок ниже).",
+        "error"
+      );
+      return;
+    }
+    const seaRouteRowsWithKeys = seaRouteRows.map((row, index) => {
+      const railPart = railTiersForSave.perRoute[index] || {
+        railRub40Hq: null,
+        railRub20Lt24: null,
+        railRub20Gt24: null,
+      };
+      return {
+        origin: routeCombos[index] ? routeCombos[index].origin : "",
+        shippingLine: routeCombos[index] ? routeCombos[index].shippingLine : "",
+        seaUsd: row.seaUsd,
+        sailingDate: row.sailingDate,
+        dvTerminal: row.dvTerminal,
+        destinationStation: row.destinationStation,
+        unloadAddress: row.unloadAddress,
+        railRub20Lt24: railPart.railRub20Lt24,
+        railRub20Gt24: railPart.railRub20Gt24,
+        railRub40Hq: railPart.railRub40Hq,
+        autoRub: autoRubs[index],
+      };
+    });
+    const seaUsds = seaRouteRowsWithKeys.map((row) => row.seaUsd);
     for (let i = 0; i < seaRouteRowsWithKeys.length; i++) {
       const row = seaRouteRowsWithKeys[i];
       if (!Number.isFinite(row.seaUsd) || row.seaUsd < 0) {
@@ -774,20 +835,49 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
         return;
       }
-    }
-    if (autoRubs.length < warehouseAddresses.length) {
-      setStatus("Заполните стоимость авто до каждого склада выгрузки.", "error");
-      return;
-    }
-    for (let i = 0; i < warehouseAddresses.length; i++) {
-      const value = autoRubs[i];
-      if (!Number.isFinite(value) || value < 0) {
+      if (!String(row.dvTerminal || "").trim()) {
         setStatus(
-          "Проверьте стоимость авто до склада выгрузки " + String(i + 1) + ".",
+          "Укажите терминал прибытия на ДВ для строки моря " + String(i + 1) + ".",
           "error"
         );
         return;
       }
+      if (!String(row.destinationStation || "").trim()) {
+        setStatus(
+          "Укажите станцию назначения для строки моря " + String(i + 1) + ".",
+          "error"
+        );
+        return;
+      }
+      if (!String(row.unloadAddress || "").trim()) {
+        setStatus(
+          "Укажите адрес выгрузки (склад) для строки моря " + String(i + 1) + ".",
+          "error"
+        );
+        return;
+      }
+      const ar = autoRubs[i];
+      if (!Number.isFinite(ar) || ar < 0) {
+        setStatus(
+          "Проверьте стоимость авто для строки моря " + String(i + 1) + ".",
+          "error"
+        );
+        return;
+      }
+    }
+    if (!destinationStations.length) {
+      setStatus(
+        "Добавьте хотя бы одну станцию назначения в строках моря (или через быстрый выбор).",
+        "error"
+      );
+      return;
+    }
+    if (!warehouseAddresses.length) {
+      setStatus(
+        "Добавьте хотя бы один адрес выгрузки в строках моря выше.",
+        "error"
+      );
+      return;
     }
 
     const cargoSecurityRaw = String(
@@ -953,7 +1043,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     monthSelect.value = String(now.getMonth() + 1);
     yearInput.value = String(FIXED_YEAR);
     syncSecurityCostVisibility();
-    resetRailRubRows();
     syncShippingLineQuickPicksToInput();
     syncRailTerminalQuickPicksToInput();
     syncBookingAgentInputToQuickPicks();
@@ -1144,17 +1233,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncShippingLineQuickPicksToInput();
   });
 
-  shippingLineQuickPicks.addEventListener("change", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) {
-      return;
-    }
-    if (target.name !== "shippingLineQuickOptions") {
-      return;
-    }
-    syncShippingLineQuickPicksToInput();
-  });
-
   shippingLineInput.addEventListener("input", () => {
     syncShippingLineInputToQuickPicks();
   });
@@ -1174,23 +1252,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncStationQuickPicksToInput();
   });
 
-  originQuickPicks.addEventListener("change", (event) => {
+  /** Чекбоксы быстрого выбора: надёжно обновляем строки «Название порта» и «Название линии». */
+  form.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
       return;
     }
-    if (target.name !== "originQuickPorts") {
+    if (target.name === "originQuickPorts") {
+      syncOriginQuickPicksToInput();
+      syncSeaUsdRowsToRouteCombinations();
       return;
     }
-    syncOriginQuickPicksToInput();
-    syncSeaUsdRowsToRouteCombinations();
+    if (target.name === "shippingLineQuickOptions") {
+      syncShippingLineQuickPicksToInput();
+    }
   });
 
   newPortOptionInput.addEventListener("input", () => {
-    const primary = originPortsWrap.querySelector('input[name="originPorts"]');
-    if (primary instanceof HTMLInputElement) {
-      primary.value = newPortOptionInput.value;
-    }
+    const v = newPortOptionInput instanceof HTMLInputElement ? newPortOptionInput.value : "";
+    originPortsWrap.querySelectorAll('input[name="originPorts"]').forEach((node) => {
+      if (node instanceof HTMLInputElement) {
+        node.value = v;
+      }
+    });
     syncSeaUsdRowsToRouteCombinations();
   });
 
@@ -1285,6 +1369,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   destinationSelect.addEventListener("change", () => {
     filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
     syncStationQuickPicksToInput();
+    syncSeaUsdRowsToRouteCombinations();
+  });
+
+  seaUsdWrap.addEventListener("change", onSeaUsdWrapDelegatedChange);
+  seaUsdWrap.addEventListener("input", (event) => {
+    const t = event.target;
+    if (!(t instanceof HTMLInputElement)) {
+      return;
+    }
+    if (
+      t.classList.contains("sea-route-dv-terminal") ||
+      t.classList.contains("sea-route-station") ||
+      t.classList.contains("sea-route-unload")
+    ) {
+      mirrorLegacyHiddenFromSeaRows();
+      syncRailAutoSectionsFromSea();
+    }
   });
   const securityCostWrap = document.getElementById("security-cost-wrap");
   const securityCostRubInput = document.getElementById("securityCostRub");
@@ -1307,7 +1408,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   syncSecurityCostVisibility();
 
-  addRailRubRowBtn.addEventListener("click", () => {
+  addRailRubRowBtn?.addEventListener("click", () => {
     appendRailRubRow("40HQ", "");
   });
 
@@ -1326,7 +1427,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateRailRubRemoveButtons();
   });
 
-  addWarehouseAddressBtn.addEventListener("click", () => {
+  addWarehouseAddressBtn?.addEventListener("click", () => {
     appendWarehouseAddressRow("");
     refreshWarehouseAddressRowLabels();
     syncAutoRubRowsToWarehouseAddresses();
@@ -4550,6 +4651,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       unique.push(display);
     }
 
+    [
+      ...seaUsdWrap.querySelectorAll(".sea-route-station"),
+    ].forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      addStationCandidate(input.value);
+    });
+
     const inputs = [
       ...destinationStationsWrap.querySelectorAll(
         'input[name="destinationStations"]'
@@ -4557,7 +4667,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     ];
     inputs.forEach((input) => {
       const raw = input instanceof HTMLInputElement ? input.value : "";
-      addStationCandidate(raw);
+      String(raw || "")
+        .split(",")
+        .forEach((chunk) => addStationCandidate(chunk));
     });
 
     stationQuickPicks
@@ -4575,13 +4687,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   function getWarehouseAddresses() {
     const seenKeys = new Set();
     const unique = [];
-    [
-      ...warehouseAddressesWrap.querySelectorAll('input[name="warehouseAddress"]'),
-    ].forEach((input) => {
-      const display =
-        input instanceof HTMLInputElement
-          ? String(input.value || "").trim().replace(/\s+/g, " ")
-          : "";
+    function addWarehouseCandidate(raw) {
+      const display = String(raw || "").trim().replace(/\s+/g, " ");
       if (!display) {
         return;
       }
@@ -4591,6 +4698,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       seenKeys.add(key);
       unique.push(display);
+    }
+    [
+      ...seaUsdWrap.querySelectorAll(".sea-route-unload"),
+    ].forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      addWarehouseCandidate(input.value);
+    });
+    [
+      ...warehouseAddressesWrap.querySelectorAll('input[name="warehouseAddress"]'),
+    ].forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      addWarehouseCandidate(input.value);
     });
     return unique;
   }
@@ -4736,14 +4859,238 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function getAutoRubValues() {
     return [
-      ...warehouseAddressesWrap.querySelectorAll(
-        ".warehouse-address-row input[name=\"autoRub\"]"
-      ),
+      ...autoDeliveryRowsWrap.querySelectorAll('input[name="autoRub"]'),
     ].map((input) => {
       const raw =
         input instanceof HTMLInputElement ? String(input.value || "").trim() : "";
       return raw === "" ? Number.NaN : Number(raw);
     });
+  }
+
+  function refreshDvTermInputFromBoxes(detailsInner, textInput) {
+    const vals = [
+      ...detailsInner.querySelectorAll(".sea-row-dv-term-cb:checked"),
+    ]
+      .map((n) => (n instanceof HTMLInputElement ? n.value.trim() : ""))
+      .filter(Boolean);
+    textInput.value = vals.join(", ");
+  }
+
+  function refreshStInputFromBoxes(detailsInner, textInput) {
+    const vals = [
+      ...detailsInner.querySelectorAll(".sea-row-station-cb:checked"),
+    ]
+      .map((n) => (n instanceof HTMLInputElement ? n.value.trim() : ""))
+      .filter(Boolean);
+    textInput.value = vals.join(", ");
+  }
+
+  function mirrorLegacyHiddenFromSeaRows() {
+    const dvl = [...seaUsdWrap.querySelectorAll(".sea-route-dv-terminal")].map((el) =>
+      el instanceof HTMLInputElement ? el.value.trim() : ""
+    );
+    railTerminalInput.value = dvl.filter(Boolean).join(", ");
+    const stl = [...seaUsdWrap.querySelectorAll(".sea-route-station")].map((el) =>
+      el instanceof HTMLInputElement ? el.value.trim() : ""
+    );
+    const hid = destinationStationsWrap.querySelector('input[name="destinationStations"]');
+    if (hid instanceof HTMLInputElement) {
+      const u = [];
+      const s = new Set();
+      stl.filter(Boolean).forEach((txt) => {
+        const key = txt.toLocaleLowerCase("ru-RU");
+        if (!s.has(key)) {
+          s.add(key);
+          u.push(txt);
+        }
+      });
+      hid.value = u.join(", ");
+    }
+  }
+
+  function snapshotSeaRailAmountsForRebuild() {
+    /** @type {Record<string,{lt:string,gt:string,hq:string}>} */
+    const out = {};
+    railRubRowsWrap.querySelectorAll("[data-sea-rail-route]").forEach((blk) => {
+      const ix = blk.getAttribute("data-sea-rail-route") || "";
+      const ltInp = blk.querySelector('input[data-rail-slot="lt"]');
+      const gtInp = blk.querySelector('input[data-rail-slot="gt"]');
+      const hqInp = blk.querySelector('input[data-rail-slot="hq"]');
+      out[ix] = {
+        lt: ltInp instanceof HTMLInputElement ? ltInp.value : "",
+        gt: gtInp instanceof HTMLInputElement ? gtInp.value : "",
+        hq: hqInp instanceof HTMLInputElement ? hqInp.value : "",
+      };
+    });
+    return out;
+  }
+
+  function rebuildRailRubFromSeaRoutes() {
+    const prevSnap = snapshotSeaRailAmountsForRebuild();
+    const containerSel = document.getElementById("containerType");
+    const ct =
+      containerSel instanceof HTMLSelectElement
+        ? String(containerSel.value || "").trim()
+        : "40HQ";
+    railRubRowsWrap.innerHTML = "";
+    [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((seaBlk, i) => {
+      const ixStr = String(i);
+      const line = seaBlk.dataset.routeLine || "—";
+      const origin = seaBlk.dataset.routeOrigin || "—";
+      const dvEl = seaBlk.querySelector(".sea-route-dv-terminal");
+      const stEl = seaBlk.querySelector(".sea-route-station");
+      const dv = dvEl instanceof HTMLInputElement ? String(dvEl.value || "").trim() : "";
+      const st = stEl instanceof HTMLInputElement ? String(stEl.value || "").trim() : "";
+      const wrap = document.createElement("div");
+      wrap.className = "rail-sea-route-bundle";
+      wrap.dataset.seaRailRoute = ixStr;
+      const hdr = document.createElement("div");
+      hdr.className = "rail-sea-route-hdr helper-text cost-follow-hint";
+      hdr.textContent =
+        "ЖД: " +
+        origin +
+        " · " +
+        line +
+        " · " +
+        ct +
+        " · ДВ «" +
+        (dv || "—") +
+        "» → станция «" +
+        (st || "—") +
+        "»";
+      wrap.appendChild(hdr);
+      const p = prevSnap[ixStr] || { lt: "", gt: "", hq: "" };
+      if (ct === "40HQ") {
+        const l = document.createElement("label");
+        l.textContent = "ЖД сумма для этой связки, RUB *";
+        const inp = document.createElement("input");
+        inp.type = "number";
+        inp.min = "0";
+        inp.step = "1";
+        inp.required = true;
+        inp.dataset.railSlot = "hq";
+        inp.className = "rail-rub-amount-input";
+        inp.placeholder = "Сумма";
+        inp.value = p.hq;
+        wrap.appendChild(l);
+        wrap.appendChild(inp);
+      } else {
+        [["lt", "20′ ft < 24 t, RUB *"], ["gt", "20′ ft > 24 t, RUB *"]].forEach(
+          ([slot, cap]) => {
+            const l = document.createElement("label");
+            l.textContent = cap;
+            const inp = document.createElement("input");
+            inp.type = "number";
+            inp.min = "0";
+            inp.step = "1";
+            inp.required = true;
+            inp.dataset.railSlot = slot === "lt" ? "lt" : "gt";
+            inp.className = "rail-rub-amount-input";
+            inp.placeholder = "Сумма";
+            inp.value = slot === "lt" ? p.lt : p.gt;
+            wrap.appendChild(l);
+            wrap.appendChild(inp);
+          }
+        );
+      }
+      railRubRowsWrap.appendChild(wrap);
+    });
+  }
+
+  function snapshotAutoAmountsForRebuild() {
+    /** @type {Record<string, string>} */
+    const out = {};
+    autoDeliveryRowsWrap.querySelectorAll("[data-sea-auto-route]").forEach((rowEl) => {
+      const ix = rowEl.getAttribute("data-sea-auto-route") || "";
+      const inp = rowEl.querySelector('input[name="autoRub"]');
+      out[ix] = inp instanceof HTMLInputElement ? inp.value : "";
+    });
+    return out;
+  }
+
+  function rebuildAutoDeliveryFromSeaRoutes() {
+    const prevA = snapshotAutoAmountsForRebuild();
+    const containerSel = document.getElementById("containerType");
+    const ct =
+      containerSel instanceof HTMLSelectElement
+        ? String(containerSel.value || "").trim()
+        : "40HQ";
+    autoDeliveryRowsWrap.innerHTML = "";
+    warehouseAddressesWrap.innerHTML = "";
+    const addrSeen = new Set();
+    [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((seaBlk, i) => {
+      const ixStr = String(i);
+      const line = seaBlk.dataset.routeLine || "—";
+      const stEl = seaBlk.querySelector(".sea-route-station");
+      const adEl = seaBlk.querySelector(".sea-route-unload");
+      const st =
+        stEl instanceof HTMLInputElement ? String(stEl.value || "").trim() : "";
+      const addr =
+        adEl instanceof HTMLInputElement ? String(adEl.value || "").trim() : "";
+      const rowWrap = document.createElement("div");
+      rowWrap.className = "auto-delivery-route-bundle";
+      rowWrap.dataset.seaAutoRoute = ixStr;
+      const hdr = document.createElement("div");
+      hdr.className = "auto-delivery-route-hdr helper-text cost-follow-hint";
+      hdr.textContent =
+        "Авто: " + line + " · " + ct + " · «" + (st || "—") + "» · «" + (addr || "—") + "»";
+      const lab = document.createElement("label");
+      lab.textContent = "Авто доставка до адреса, RUB *";
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.name = "autoRub";
+      inp.min = "0";
+      inp.step = "1";
+      inp.required = true;
+      inp.className = "rail-rub-amount-input";
+      inp.placeholder = "Например, 28000";
+      inp.value = prevA[ixStr] || "";
+      rowWrap.appendChild(hdr);
+      rowWrap.appendChild(lab);
+      rowWrap.appendChild(inp);
+      autoDeliveryRowsWrap.appendChild(rowWrap);
+      const keyAddr = addr.toLocaleLowerCase("ru-RU");
+      if (addr && !addrSeen.has(keyAddr)) {
+        addrSeen.add(keyAddr);
+        const wh = document.createElement("input");
+        wh.type = "hidden";
+        wh.name = "warehouseAddress";
+        wh.value = addr;
+        warehouseAddressesWrap.appendChild(wh);
+      }
+    });
+  }
+
+  function syncRailAutoSectionsFromSea() {
+    mirrorLegacyHiddenFromSeaRows();
+    rebuildRailRubFromSeaRoutes();
+    rebuildAutoDeliveryFromSeaRoutes();
+  }
+
+  function onSeaUsdWrapDelegatedChange(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+    if (target.classList.contains("sea-row-dv-term-cb")) {
+      const inner = target.closest(".sea-row-dv-details-inner");
+      const bundle = target.closest(".sea-route-block");
+      const ti = bundle?.querySelector(".sea-route-dv-terminal");
+      if (inner instanceof HTMLElement && ti instanceof HTMLInputElement) {
+        refreshDvTermInputFromBoxes(inner, ti);
+      }
+      syncRailAutoSectionsFromSea();
+      return;
+    }
+    if (target.classList.contains("sea-row-station-cb")) {
+      const inner = target.closest(".sea-row-st-details-inner");
+      const bundle = target.closest(".sea-route-block");
+      const ti = bundle?.querySelector(".sea-route-station");
+      if (inner instanceof HTMLElement && ti instanceof HTMLInputElement) {
+        refreshStInputFromBoxes(inner, ti);
+      }
+      syncRailAutoSectionsFromSea();
+    }
   }
 
   function getSeaUsdValues() {
@@ -4755,24 +5102,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function getSeaRouteRows() {
-    const seaInputs = [...seaUsdWrap.querySelectorAll('input[name="seaUsd"]')];
-    const dateInputs = [...seaUsdWrap.querySelectorAll('input[name="seaSailingDate"]')];
-    const routeRows = [];
-    for (let i = 0; i < seaInputs.length; i++) {
+    return [...seaUsdWrap.querySelectorAll(".sea-route-block")].map((bundle) => {
+      const seaInp = bundle.querySelector('input[name="seaUsd"]');
+      const dateInp = bundle.querySelector('input[name="seaSailingDate"]');
+      const dvInp = bundle.querySelector(".sea-route-dv-terminal");
+      const stInp = bundle.querySelector(".sea-route-station");
+      const unlInp = bundle.querySelector(".sea-route-unload");
       const seaRaw =
-        seaInputs[i] instanceof HTMLInputElement
-          ? String(seaInputs[i].value || "").trim()
-          : "";
+        seaInp instanceof HTMLInputElement ? String(seaInp.value || "").trim() : "";
       const dateRaw =
-        dateInputs[i] instanceof HTMLInputElement
-          ? String(dateInputs[i].value || "").trim()
-          : "";
-      routeRows.push({
+        dateInp instanceof HTMLInputElement ? String(dateInp.value || "").trim() : "";
+      return {
         seaUsd: seaRaw === "" ? Number.NaN : Number(seaRaw),
         sailingDate: dateRaw,
-      });
-    }
-    return routeRows;
+        dvTerminal:
+          dvInp instanceof HTMLInputElement ? String(dvInp.value || "").trim() : "",
+        destinationStation:
+          stInp instanceof HTMLInputElement ? String(stInp.value || "").trim() : "",
+        unloadAddress:
+          unlInp instanceof HTMLInputElement ? String(unlInp.value || "").trim() : "",
+      };
+    });
   }
 
   function syncSeaUsdRowsToRouteCombinations() {
@@ -4789,28 +5139,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
       });
     });
-    const prevSeaValues = [...seaUsdWrap.querySelectorAll('input[name="seaUsd"]')].map((input) =>
-      input instanceof HTMLInputElement ? String(input.value || "").trim() : ""
-    );
-    const prevDateValues = [
-      ...seaUsdWrap.querySelectorAll('input[name="seaSailingDate"]'),
-    ].map((input) =>
-      input instanceof HTMLInputElement ? String(input.value || "").trim() : ""
-    );
+    const prevBundles = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
+    const prevSeaValues = prevBundles.map((b) => {
+      const el = b.querySelector('input[name="seaUsd"]');
+      return el instanceof HTMLInputElement ? el.value.trim() : "";
+    });
+    const prevDateValues = prevBundles.map((b) => {
+      const el = b.querySelector('input[name="seaSailingDate"]');
+      return el instanceof HTMLInputElement ? el.value.trim() : "";
+    });
+    const prevDv = prevBundles.map((b) => {
+      const el = b.querySelector(".sea-route-dv-terminal");
+      return el instanceof HTMLInputElement ? el.value.trim() : "";
+    });
+    const prevSt = prevBundles.map((b) => {
+      const el = b.querySelector(".sea-route-station");
+      return el instanceof HTMLInputElement ? el.value.trim() : "";
+    });
+    const prevUnl = prevBundles.map((b) => {
+      const el = b.querySelector(".sea-route-unload");
+      return el instanceof HTMLInputElement ? el.value.trim() : "";
+    });
+    const destNow = String(destinationSelect.value || "MOSCOW");
     seaUsdWrap.innerHTML = "";
     for (let i = 0; i < combos.length; i++) {
       const idx = i + 1;
       const combo = combos[i];
       const portLabel = combo.origin || "—";
       const lineLabel = combo.shippingLine || "—";
-      const row = document.createElement("div");
-      row.className = "sea-usd-row sea-usd-row--grid";
-
+      const bundle = document.createElement("div");
+      bundle.className = "sea-route-block";
+      bundle.dataset.routeOrigin = combo.origin || "";
+      bundle.dataset.routeLine = combo.shippingLine || "";
+      const grid = document.createElement("div");
+      grid.className = "sea-usd-row sea-usd-row--grid sea-usd-route-primary-grid";
       const label = document.createElement("label");
       label.htmlFor = "seaUsd-" + String(idx);
-      label.textContent =
-        "Фрахт USD · " + portLabel + " × " + lineLabel + " *";
-
+      label.textContent = "Фрахт USD · " + portLabel + " × " + lineLabel + " *";
       const input = document.createElement("input");
       input.id = "seaUsd-" + String(idx);
       input.name = "seaUsd";
@@ -4820,25 +5185,135 @@ document.addEventListener("DOMContentLoaded", async () => {
       input.required = true;
       input.placeholder = "Например, 1450";
       input.value = prevSeaValues[i] || "";
-
       const dateLabel = document.createElement("label");
       dateLabel.htmlFor = "seaSailingDate-" + String(idx);
       dateLabel.textContent = "Дата выхода *";
-
       const dateInput = document.createElement("input");
       dateInput.id = "seaSailingDate-" + String(idx);
       dateInput.name = "seaSailingDate";
       dateInput.type = "date";
       dateInput.required = true;
       dateInput.value = prevDateValues[i] || "";
+      grid.appendChild(label);
+      grid.appendChild(input);
+      grid.appendChild(dateLabel);
+      grid.appendChild(dateInput);
+      bundle.appendChild(grid);
 
-      row.appendChild(label);
-      row.appendChild(input);
-      row.appendChild(dateLabel);
-      row.appendChild(dateInput);
-      seaUsdWrap.appendChild(row);
+      const detDv = document.createElement("details");
+      detDv.className = "origin-quick-picks-details sea-row-dv-details";
+      const sumDv = document.createElement("summary");
+      sumDv.className = "origin-quick-picks-summary";
+      sumDv.textContent = "Быстрый выбор терминала прибытия на ДВ";
+      const panDv = document.createElement("div");
+      panDv.className = "origin-quick-picks-panel sea-row-dv-details-inner";
+      [...railTerminalQuickPicks.querySelectorAll("label")].forEach((mlab) => {
+        const cloned = mlab.cloneNode(true);
+        const cb = cloned.querySelector("input");
+        if (!(cb instanceof HTMLInputElement)) {
+          return;
+        }
+        cb.removeAttribute("name");
+        cb.classList.add("sea-row-dv-term-cb");
+        cb.checked = false;
+        panDv.appendChild(cloned);
+      });
+      detDv.appendChild(sumDv);
+      detDv.appendChild(panDv);
+
+      const termIn = document.createElement("input");
+      termIn.className = "sea-route-dv-terminal";
+      termIn.type = "text";
+      termIn.setAttribute("list", "terminal-suggestions");
+      termIn.placeholder = "Терминал ДВ для этой связки моря";
+      termIn.required = true;
+      termIn.value = prevDv[i] || "";
+      [...panDv.querySelectorAll(".sea-row-dv-term-cb")].forEach((cb) => {
+        if (!(cb instanceof HTMLInputElement)) {
+          return;
+        }
+        const parts = termIn.value
+          .split(/[,/]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        cb.checked = parts.some(
+          (tok) =>
+            normalizeQuickOptionToken(tok) ===
+            normalizeQuickOptionToken(cb.value)
+        );
+      });
+
+      bundle.appendChild(detDv);
+      bundle.appendChild(termIn);
+
+      const detSt = document.createElement("details");
+      detSt.className = "origin-quick-picks-details sea-row-st-details";
+      const sumSt = document.createElement("summary");
+      sumSt.className = "origin-quick-picks-summary";
+      sumSt.textContent = "Быстрый выбор станции назначения";
+      const panSt = document.createElement("div");
+      panSt.className = "origin-quick-picks-panel sea-row-st-details-inner";
+      [...stationQuickPicks.querySelectorAll("label")].forEach((mlab) => {
+        const qi = mlab.querySelector("input");
+        const qdest =
+          qi instanceof HTMLInputElement ? String(qi.dataset.destination || "") : "";
+        if (qdest && qdest !== destNow) {
+          return;
+        }
+        const cloned = mlab.cloneNode(true);
+        const cb = cloned.querySelector("input");
+        if (!(cb instanceof HTMLInputElement)) {
+          return;
+        }
+        cb.removeAttribute("name");
+        cb.classList.add("sea-row-station-cb");
+        cb.checked = false;
+        panSt.appendChild(cloned);
+      });
+      detSt.appendChild(sumSt);
+      detSt.appendChild(panSt);
+
+      const stIn = document.createElement("input");
+      stIn.className = "sea-route-station";
+      stIn.type = "text";
+      stIn.setAttribute("list", "station-suggestions");
+      stIn.placeholder = "Станция назначения";
+      stIn.required = true;
+      stIn.value = prevSt[i] || "";
+      const stPieces = prevSt[i]
+        ? prevSt[i].split(/[,/]/).map((s) => s.trim()).filter(Boolean)
+        : [];
+      [...panSt.querySelectorAll(".sea-row-station-cb")].forEach((cb) => {
+        if (!(cb instanceof HTMLInputElement)) {
+          return;
+        }
+        cb.checked = stPieces.some(
+          (tok) =>
+            normalizeQuickOptionToken(tok) ===
+            normalizeQuickOptionToken(cb.value)
+        );
+      });
+
+      bundle.appendChild(detSt);
+      bundle.appendChild(stIn);
+
+      const ulab = document.createElement("label");
+      ulab.textContent = "Адрес выгрузки на складе *";
+      ulab.className = "sea-route-unload-label";
+      const unl = document.createElement("input");
+      unl.className = "sea-route-unload";
+      unl.type = "text";
+      unl.required = true;
+      unl.placeholder =
+        "Например, МО, Подольск, Домодедовское ш., 12";
+      unl.value = prevUnl[i] || "";
+      bundle.appendChild(ulab);
+      bundle.appendChild(unl);
+
+      seaUsdWrap.appendChild(bundle);
     }
     syncSailingDateOriginOptions();
+    syncRailAutoSectionsFromSea();
   }
 
   function syncAutoRubRowsToWarehouseAddresses() {
@@ -5082,7 +5557,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   function syncShippingLineQuickPicksToInput() {
     const selectedLines = getSelectedShippingLines();
     const joined = selectedLines.join(", ");
-    shippingLineInput.value = joined;
+    if (shippingLineInput instanceof HTMLInputElement) {
+      shippingLineInput.value = joined;
+    }
     syncBookingAgentShippingLineDatalist();
     syncSeaUsdRowsToRouteCombinations();
   }
@@ -5346,12 +5823,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       )
       .filter(Boolean);
     const joined = selectedPorts.join(", ");
-    const firstPortInput = originPortsWrap.querySelector('input[name="originPorts"]');
-    if (!(firstPortInput instanceof HTMLInputElement)) {
-      return;
+    if (newPortOptionInput instanceof HTMLInputElement) {
+      newPortOptionInput.value = joined;
     }
-    firstPortInput.value = joined;
-    newPortOptionInput.value = joined;
+    originPortsWrap.querySelectorAll('input[name="originPorts"]').forEach((node) => {
+      if (node instanceof HTMLInputElement) {
+        node.value = joined;
+      }
+    });
   }
 
   function enableDatalistOpenOnFocus(inputEl) {
