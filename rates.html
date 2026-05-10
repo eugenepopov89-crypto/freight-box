@@ -202,20 +202,36 @@
                   <div class="field-group-sub booking-after-lines">
                     <div>
                       <label for="bookingAgent">
-                        Букирующий агент (при наличии) *
+                        Букирующий агент при наличии *
                         <span class="field-label-hint">
-                          Обязательное поле; если агента нет — укажите
-                          <strong>НЕТ</strong>. Ниже — добавление в подсказки и быстрый выбор.
+                          Если букирующего агента нет — укажите
+                          <strong>НЕТ</strong>. Несколько агентов — знак «+». В справочник и подсказки — кнопка справа.
                         </span>
                       </label>
-                  <div class="booking-agent-main-field booking-agent-main-field--lead">
-                    <input
-                      id="bookingAgent"
-                      name="bookingAgent"
-                      list="booking-agent-suggestions"
-                      required
-                      autocomplete="organization"
-                    />
+                  <input
+                    type="hidden"
+                    id="booking-agent-submit-value"
+                    name="bookingAgent"
+                    value=""
+                  />
+                  <div id="booking-agent-value-rows" class="booking-agent-value-rows booking-agent-main-field booking-agent-main-field--lead">
+                    <div class="booking-agent-slot-row quick-add-row" data-booking-agent-row>
+                      <input
+                        id="bookingAgent"
+                        class="booking-agent-slot-input"
+                        list="booking-agent-suggestions"
+                        autocomplete="organization"
+                        placeholder="Название агента"
+                      />
+                      <button
+                        type="button"
+                        id="add-booking-agent-slot-btn"
+                        class="btn-mini-control"
+                        aria-label="Добавить ещё одного букирующего агента"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                   <datalist id="booking-agent-suggestions"></datalist>
                   <div class="quick-add-row booking-agent-list-add-row">
@@ -258,18 +274,7 @@
                     />
                     <datalist id="booking-agent-route-line-suggestions"></datalist>
                   </div>
-                </div>
-
-                  <div class="quick-add-row destination-station-list-add-row">
-                    <input
-                      id="new-station-option"
-                      list="station-suggestions"
-                      placeholder="Добавить станцию в подсказки"
-                      aria-label="Новая станция для списка подсказок"
-                    />
-                    <button type="button" id="add-station-option" class="btn-mini-control">
-                      В список подсказок
-                    </button>
+                    </div>
                   </div>
 
                   <div class="cost-follow cost-follow--sea">
@@ -1245,7 +1250,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778408400000"></script>
+    <script src="rates.js?v=1778500000000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
