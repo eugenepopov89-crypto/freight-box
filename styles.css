@@ -2606,6 +2606,79 @@ footer {
   box-sizing: border-box;
 }
 
+.rail-rub-dynamic-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rail-rub-section-title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #334155;
+  margin-bottom: 2px;
+}
+
+.rail-rub-multi-hint {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.rail-rub-rows-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rail-rub-tier-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 180px) 34px;
+  gap: 8px;
+  align-items: end;
+}
+
+.rail-rub-tier-field {
+  display: block;
+  margin: 0;
+  min-width: 0;
+}
+
+.rail-rub-tier-select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.rail-rub-amount-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.rail-rub-add-row {
+  margin-top: 4px;
+}
+
+@media (max-width: 520px) {
+  .rail-rub-tier-row-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rail-rub-tier-row-grid .btn-remove-date {
+    justify-self: start;
+  }
+}
+
 .origin-quick-picks {
   margin-top: 8px;
   padding: 8px;
