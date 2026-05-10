@@ -1324,6 +1324,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  originQuickPicks.addEventListener("change", (event) => {
+    const t = event.target;
+    if (!(t instanceof HTMLInputElement) || t.name !== "originQuickPorts") {
+      return;
+    }
+    syncOriginQuickPicksToInput();
+    syncSeaUsdRowsToRouteCombinations();
+  });
+
+  shippingLineQuickPicks.addEventListener("change", (event) => {
+    const t = event.target;
+    if (!(t instanceof HTMLInputElement) || t.name !== "shippingLineQuickOptions") {
+      return;
+    }
+    syncShippingLineQuickPicksToInput();
+  });
+
   newPortOptionInput.addEventListener("input", () => {
     const v = newPortOptionInput instanceof HTMLInputElement ? newPortOptionInput.value : "";
     originPortsWrap.querySelectorAll('input[name="originPorts"]').forEach((node) => {
@@ -4756,10 +4773,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function getShippingLinesFromInput() {
-    return String(shippingLineInput.value || "")
+    /** Подмешиваем чекбоксы быстрого выбора: поле `#shippingLine` может не успеть обновиться в том же кадре события. */
+    const unique = [];
+    const seenNorm = new Set();
+    function addLine(raw) {
+      const line = String(raw || "")
+        .trim()
+        .replace(/\s+/g, " ");
+      if (!line) {
+        return;
+      }
+      const key = normalizeQuickOptionToken(line);
+      if (seenNorm.has(key)) {
+        return;
+      }
+      seenNorm.add(key);
+      unique.push(line);
+    }
+    String(shippingLineInput.value || "")
       .split(",")
       .map((item) => item.trim().replace(/\s+/g, " "))
-      .filter(Boolean);
+      .filter(Boolean)
+      .forEach(addLine);
+    getSelectedShippingLines().forEach(addLine);
+    return unique;
   }
 
   function buildOriginLineCombinations(origins, lines) {
@@ -5441,6 +5478,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       ctSel.value =
         ps === "20LT24" || ps === "20GT24" || ps === "40HQ" ? ps : "40HQ";
 
+      const portLabelEl = document.createElement("div");
+      portLabelEl.className = "sea-grid-lab sea-grid-lab--port";
+      portLabelEl.textContent = "Порт отправления *";
+      const portRo = document.createElement("span");
+      portRo.className = "sea-route-port-display";
+      portRo.textContent = portLabel || "—";
+
       const lineLabelEl = document.createElement("div");
       lineLabelEl.className = "sea-grid-lab sea-grid-lab--line";
       lineLabelEl.textContent = "Морская линия *";
@@ -5449,6 +5493,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       lineRo.id = "sea-route-line-ro-" + String(idx);
       lineRo.textContent = lineLabel || "—";
       lineRo.title = portLabel ? portLabel + " → " + String(lineLabel || "") : String(lineLabel || "");
+      portRo.title = lineRo.title || String(portLabel || "");
 
       const frLabel = document.createElement("label");
       frLabel.className = "sea-grid-lab sea-grid-lab--usd";
@@ -5545,6 +5590,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       grid.appendChild(ctLabel);
       grid.appendChild(ctSel);
+      grid.appendChild(portLabelEl);
+      grid.appendChild(portRo);
       grid.appendChild(lineLabelEl);
       grid.appendChild(lineRo);
       grid.appendChild(frLabel);
