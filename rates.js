@@ -207,7 +207,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const linesClearAllBtn = document.getElementById("lines-clear-all");
   const addShippingLineOptionBtn = document.getElementById("add-shipping-line-option");
   const addBookingAgentOptionBtn = document.getElementById("add-booking-agent-option");
-  const newBookingAgentOptionInput = document.getElementById("new-booking-agent-option");
   const bookingAgentQuickPicks = document.getElementById(
     "booking-agent-quick-picks"
   );
@@ -456,7 +455,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     !linesClearAllBtn ||
     !addShippingLineOptionBtn ||
     !addBookingAgentOptionBtn ||
-    !newBookingAgentOptionInput ||
     !bookingAgentQuickPicks ||
     !agentsSelectAllBtn ||
     !agentsClearAllBtn ||
@@ -1239,10 +1237,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   addBookingAgentOptionBtn.addEventListener("click", async () => {
-    const newValue = String(newBookingAgentOptionInput.value || "")
-      .trim()
-      .replace(/\s+/g, " ");
+    let newValue = "";
+    const slots = getBookingAgentSlotInputs();
+    for (let si = 0; si < slots.length; si++) {
+      const v = String(slots[si].value || "").trim().replace(/\s+/g, " ");
+      if (v) {
+        newValue = v;
+        break;
+      }
+    }
     if (!newValue) {
+      setStatus(
+        "Введите название букирующего агента в поле выше, затем добавьте его в список подсказок.",
+        "error"
+      );
       return;
     }
 
@@ -1256,7 +1264,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       refreshAutocompleteLists([]);
     }
     distributeAgentNamesAcrossSlots([newValue]);
-    newBookingAgentOptionInput.value = "";
     syncBookingAgentLineVisibility();
     syncBookingAgentInputToQuickPicks();
     const hasPb = Boolean(pocketBaseAuthHeaders().Authorization);
@@ -4748,7 +4755,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const slotInputs = getBookingAgentSlotInputs();
     const seen = new Set();
-    [...slotInputs, newBookingAgentOptionInput].forEach((input) => {
+    [...slotInputs].forEach((input) => {
       if (!(input instanceof HTMLInputElement)) {
         return;
       }
