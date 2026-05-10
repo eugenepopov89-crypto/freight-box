@@ -2555,28 +2555,9 @@ footer {
   padding: 8px;
 }
 
-.origin-ports-route-wrap {
-  margin-top: 4px;
-}
-
-.origin-ports-route-wrap--after-picks {
-  margin-top: 0;
-}
-
-.origin-quick-picks-details + #origin-ports-wrap,
-.origin-quick-picks-details + .shipping-line-main-field,
 .origin-quick-picks-details + .booking-agent-line-follow,
 .origin-quick-picks-details + #destination-stations-wrap {
   margin-top: 0;
-}
-
-.shipping-line-main-field {
-  margin-top: 0;
-}
-
-.shipping-line-main-field input {
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .field-label-hint {
