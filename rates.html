@@ -596,11 +596,12 @@
           </summary>
           <div class="contractor-pdf-import-body">
             <p class="rates-filter-explainer">
-              Тот же сценарий, что и ручной ввод: без входа в PocketBase ставки попадают в таблицу реестра и сохраняются в
-              <strong>localStorage этого браузера</strong> (если вы открываете проект по ссылке — данные остаются на этом
-              устройстве). При входе в PocketBase сохранение снова идёт на сервер. Прикрепите файл КП Green Sea / ВСК
-              (порты × USD 20′/40′; раздел 2 — ЖД; раздел 6 — авто). Нажмите «Разобрать», затем «Обновить реестр».
-              Импорт текста из PDF выполняется через pdf.js с CDN — нужен интернет.
+              <strong>Раздел 1:</strong> порты (кроме Busan), 20′DC и 40′HC → морской фрахт по типам контейнера.
+              <strong>Раздел 2:</strong> строка «МОСКВА», первые три суммы в ₽ в блоке «Стоимость транспортировки»
+              (без охраны: 20′ &lt;24 т, 20′ &gt;24 т, 40′) → три столбца ЖД реестра для каждого порта. Остальное для Москвы:
+              терминал ВСК, станции Электроугли / Селятино / Белый Раст, склад Москва МО, таможня в порту назначения,
+              линия Green sea, выходы — «Уточнять дополнительно». Сохранение: localStorage без входа или PocketBase при входе.
+              Для PDF нужен интернет (pdf.js с CDN).
             </p>
             <div class="contractor-pdf-import-row">
               <label>
@@ -1322,7 +1323,7 @@
     </footer>
 
     <script src="rates.js?v=1778941020000"></script>
-    <script src="contractor-greensea-import.js?v=1778941020000"></script>
+    <script src="contractor-greensea-import.js?v=1778941040000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
