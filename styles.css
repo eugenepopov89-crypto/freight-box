@@ -2362,7 +2362,28 @@ footer {
 }
 
 .sailing-date-row--with-line {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns:
+    minmax(100px, 1.1fr)
+    minmax(90px, 1fr)
+    minmax(132px, auto)
+    auto
+    auto;
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  .sailing-date-row--with-line {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sailing-date-row--with-line .btn-copy-extra-sailing,
+  .sailing-date-row--with-line .btn-remove-date {
+    justify-self: start;
+  }
+}
+
+.btn-copy-extra-sailing {
+  white-space: nowrap;
 }
 
 .origin-port-row {
@@ -2427,6 +2448,38 @@ footer {
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid rgba(26, 26, 26, 0.12);
+}
+
+.extra-sailing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.extra-sailing-title {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
+.extra-sailing-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(26, 26, 26, 0.08);
+}
+
+.extra-sailing-hint {
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+
+.sailing-dates-footer-add {
+  margin-top: 10px;
+}
+
+.extra-sailing-panel .sailing-dates-wrap {
+  overflow: visible;
 }
 
 .cost-follow--rail {
