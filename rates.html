@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778369202302" />
+    <link rel="stylesheet" href="styles.css?v=1778369202450" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -53,16 +53,22 @@
               <div class="field-group field-group-align-start">
                 <div>
                   <label>Порты отправления (China) *</label>
-                  <div id="origin-ports-wrap" class="sailing-dates-wrap">
-                    <div class="origin-port-row">
-                      <input
-                        name="originPorts"
-                        list="china-port-suggestions"
-                        placeholder="Например, SHANGHAI"
-                      />
-                    </div>
+                  <div class="quick-add-row origin-port-list-add-row">
+                    <input
+                      id="new-port-option"
+                      list="china-port-suggestions"
+                      placeholder="Название порта"
+                      aria-label="Новый порт для списка подсказок"
+                    />
+                    <button type="button" id="add-port-option" class="btn-mini-control">
+                      Добавить новый порт в список
+                    </button>
                   </div>
-                  <div class="origin-quick-picks origin-quick-picks--uniform">
+                  <details class="origin-quick-picks-details">
+                    <summary class="origin-quick-picks-summary">
+                      Быстрый выбор портов
+                    </summary>
+                    <div class="origin-quick-picks-panel">
                     <div class="origin-quick-pick-controls">
                       <button type="button" id="ports-select-all" class="btn-mini-control">
                         Выбрать все
@@ -71,17 +77,7 @@
                         Очистить
                       </button>
                     </div>
-                    <div class="quick-add-row">
-                      <input
-                        id="new-port-option"
-                        list="china-port-suggestions"
-                        placeholder="Добавить новый порт в список"
-                      />
-                      <button type="button" id="add-port-option" class="btn-mini-control">
-                        Добавить в список
-                      </button>
-                    </div>
-                    <div class="origin-quick-pick-grid" id="origin-quick-picks">
+                    <div class="origin-quick-pick-grid origin-quick-pick-grid--ports" id="origin-quick-picks">
                       <label><input type="checkbox" name="originQuickPorts" value="SHANGHAI" /> SHANGHAI</label>
                       <label><input type="checkbox" name="originQuickPorts" value="QINGDAO" /> QINGDAO</label>
                       <label><input type="checkbox" name="originQuickPorts" value="NINGBO" /> NINGBO</label>
@@ -102,6 +98,16 @@
                       <label><input type="checkbox" name="originQuickPorts" value="YINGKOU" /> YINGKOU</label>
                       <label><input type="checkbox" name="originQuickPorts" value="WEIHAI" /> WEIHAI</label>
                       <label><input type="checkbox" name="originQuickPorts" value="TAICANG" /> TAICANG</label>
+                    </div>
+                    </div>
+                  </details>
+                  <div id="origin-ports-wrap" class="sailing-dates-wrap origin-ports-route-wrap origin-ports-route-wrap--after-picks">
+                    <div class="origin-port-row">
+                      <input
+                        name="originPorts"
+                        list="china-port-suggestions"
+                        placeholder="Например, SHANGHAI"
+                      />
                     </div>
                   </div>
                   <datalist id="china-port-suggestions">
@@ -140,58 +146,66 @@
               <div class="field-group field-group--full">
                 <div>
                   <label for="shippingLine">Морская линия *</label>
-                  <input
-                    id="shippingLine"
-                    name="shippingLine"
-                    list="shipping-line-suggestions"
-                    required
-                    placeholder="Например, FESCO / Maersk / ONE"
-                  />
-                  <datalist id="shipping-line-suggestions"></datalist>
-                  <div class="origin-quick-picks origin-quick-picks--uniform">
-                    <div class="quick-add-row">
-                      <input
-                        id="new-shipping-line-option"
-                        list="shipping-line-suggestions"
-                        placeholder="Добавить новую морскую линию в список"
-                      />
-                      <button type="button" id="add-shipping-line-option" class="btn-mini-control">
-                        Добавить в список
-                      </button>
-                    </div>
-                    <div class="origin-quick-pick-controls">
-                      <button type="button" id="lines-select-all" class="btn-mini-control">
-                        Выбрать все
-                      </button>
-                      <button type="button" id="lines-clear-all" class="btn-mini-control">
-                        Очистить
-                      </button>
-                    </div>
-                    <div class="origin-quick-pick-grid" id="shipping-line-quick-picks">
-                      <label>ТК <input type="checkbox" name="shippingLineQuickOptions" value="ТК" /></label>
-                      <label>FESCO <input type="checkbox" name="shippingLineQuickOptions" value="FESCO" /></label>
-                      <label>ТРАНЗИТ <input type="checkbox" name="shippingLineQuickOptions" value="ТРАНЗИТ" /></label>
-                      <label>SINOKOR <input type="checkbox" name="shippingLineQuickOptions" value="SINOKOR" /></label>
-                      <label>TORGMOLL <input type="checkbox" name="shippingLineQuickOptions" value="TORGMOLL" /></label>
-                      <label>SCO <input type="checkbox" name="shippingLineQuickOptions" value="SCO" /></label>
-                      <label>NNS <input type="checkbox" name="shippingLineQuickOptions" value="NNS" /></label>
-                      <label>XHL <input type="checkbox" name="shippingLineQuickOptions" value="XHL" /></label>
-                      <label>NECO <input type="checkbox" name="shippingLineQuickOptions" value="NECO" /></label>
-                      <label>XUAXIN <input type="checkbox" name="shippingLineQuickOptions" value="XUAXIN" /></label>
-                      <label>DONGYOUNG <input type="checkbox" name="shippingLineQuickOptions" value="DONGYOUNG" /></label>
-                      <label>PANDA <input type="checkbox" name="shippingLineQuickOptions" value="PANDA" /></label>
-                      <label>FAST SHIPPING <input type="checkbox" name="shippingLineQuickOptions" value="FAST SHIPPING" /></label>
-                      <label>STF <input type="checkbox" name="shippingLineQuickOptions" value="STF" /></label>
-                      <label>ТЛК-ВОСТОК <input type="checkbox" name="shippingLineQuickOptions" value="ТЛК-ВОСТОК" /></label>
-                      <label>РТГ <input type="checkbox" name="shippingLineQuickOptions" value="РТГ" /></label>
-                      <label>MHL <input type="checkbox" name="shippingLineQuickOptions" value="MHL" /></label>
-                      <label>XLY <input type="checkbox" name="shippingLineQuickOptions" value="XLY" /></label>
-                      <label>APF <input type="checkbox" name="shippingLineQuickOptions" value="APF" /></label>
-                      <label>SAFETRANS <input type="checkbox" name="shippingLineQuickOptions" value="SAFETRANS" /></label>
-                      <label>CK-LINE <input type="checkbox" name="shippingLineQuickOptions" value="CK-LINE" /></label>
-                      <label>SDS-SHIPPING <input type="checkbox" name="shippingLineQuickOptions" value="SDS-SHIPPING" /></label>
-                    </div>
+                  <div class="quick-add-row shipping-line-list-add-row">
+                    <input
+                      id="new-shipping-line-option"
+                      list="shipping-line-suggestions"
+                      placeholder="Название линии"
+                      aria-label="Новая морская линия для списка подсказок"
+                    />
+                    <button type="button" id="add-shipping-line-option" class="btn-mini-control">
+                      Добавить новую морскую линию в список
+                    </button>
                   </div>
+                  <details class="origin-quick-picks-details">
+                    <summary class="origin-quick-picks-summary">
+                      Быстрый выбор морских линий
+                    </summary>
+                    <div class="origin-quick-picks-panel">
+                      <div class="origin-quick-pick-controls">
+                        <button type="button" id="lines-select-all" class="btn-mini-control">
+                          Выбрать все
+                        </button>
+                        <button type="button" id="lines-clear-all" class="btn-mini-control">
+                          Очистить
+                        </button>
+                      </div>
+                      <div class="origin-quick-pick-grid" id="shipping-line-quick-picks">
+                        <label>ТК <input type="checkbox" name="shippingLineQuickOptions" value="ТК" /></label>
+                        <label>FESCO <input type="checkbox" name="shippingLineQuickOptions" value="FESCO" /></label>
+                        <label>ТРАНЗИТ <input type="checkbox" name="shippingLineQuickOptions" value="ТРАНЗИТ" /></label>
+                        <label>SINOKOR <input type="checkbox" name="shippingLineQuickOptions" value="SINOKOR" /></label>
+                        <label>TORGMOLL <input type="checkbox" name="shippingLineQuickOptions" value="TORGMOLL" /></label>
+                        <label>SCO <input type="checkbox" name="shippingLineQuickOptions" value="SCO" /></label>
+                        <label>NNS <input type="checkbox" name="shippingLineQuickOptions" value="NNS" /></label>
+                        <label>XHL <input type="checkbox" name="shippingLineQuickOptions" value="XHL" /></label>
+                        <label>NECO <input type="checkbox" name="shippingLineQuickOptions" value="NECO" /></label>
+                        <label>XUAXIN <input type="checkbox" name="shippingLineQuickOptions" value="XUAXIN" /></label>
+                        <label>DONGYOUNG <input type="checkbox" name="shippingLineQuickOptions" value="DONGYOUNG" /></label>
+                        <label>PANDA <input type="checkbox" name="shippingLineQuickOptions" value="PANDA" /></label>
+                        <label>FAST SHIPPING <input type="checkbox" name="shippingLineQuickOptions" value="FAST SHIPPING" /></label>
+                        <label>STF <input type="checkbox" name="shippingLineQuickOptions" value="STF" /></label>
+                        <label>ТЛК-ВОСТОК <input type="checkbox" name="shippingLineQuickOptions" value="ТЛК-ВОСТОК" /></label>
+                        <label>РТГ <input type="checkbox" name="shippingLineQuickOptions" value="РТГ" /></label>
+                        <label>MHL <input type="checkbox" name="shippingLineQuickOptions" value="MHL" /></label>
+                        <label>XLY <input type="checkbox" name="shippingLineQuickOptions" value="XLY" /></label>
+                        <label>APF <input type="checkbox" name="shippingLineQuickOptions" value="APF" /></label>
+                        <label>SAFETRANS <input type="checkbox" name="shippingLineQuickOptions" value="SAFETRANS" /></label>
+                        <label>CK-LINE <input type="checkbox" name="shippingLineQuickOptions" value="CK-LINE" /></label>
+                        <label>SDS-SHIPPING <input type="checkbox" name="shippingLineQuickOptions" value="SDS-SHIPPING" /></label>
+                      </div>
+                    </div>
+                  </details>
+                  <div class="shipping-line-main-field">
+                    <input
+                      id="shippingLine"
+                      name="shippingLine"
+                      list="shipping-line-suggestions"
+                      required
+                      placeholder="Например, FESCO / Maersk / ONE"
+                    />
+                  </div>
+                  <datalist id="shipping-line-suggestions"></datalist>
 
                   <div class="cost-follow cost-follow--sea">
                     <p class="cost-follow-hint cost-follow-hint--lead">
