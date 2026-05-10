@@ -2520,6 +2520,50 @@ footer {
   background: rgba(255, 255, 255, 0.55);
 }
 
+.origin-quick-picks-details {
+  margin-top: 0;
+  margin-bottom: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.8);
+  overflow: hidden;
+}
+
+.origin-quick-picks-summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+  user-select: none;
+  list-style-position: outside;
+}
+
+.origin-quick-picks-details[open] .origin-quick-picks-summary {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.origin-quick-picks-panel {
+  padding: 8px;
+}
+
+.origin-ports-route-wrap {
+  margin-top: 4px;
+}
+
+.origin-ports-route-wrap--after-picks {
+  margin-top: 10px;
+}
+
+.shipping-line-main-field {
+  margin-top: 10px;
+}
+
+.shipping-line-main-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .origin-quick-picks {
   margin-top: 8px;
   padding: 8px;
