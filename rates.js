@@ -1363,6 +1363,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  /**
+   * У части браузеров чекбокс внутри <details> даёт input, а change на form ведёт себя нестабильно.
+   * Дублируем синхронизацию по input (как у полей терминалов/станций в строках моря).
+   */
+  form.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+    if (target.type !== "checkbox") {
+      return;
+    }
+    if (target.name === "originQuickPorts") {
+      syncOriginQuickPicksToInput();
+      syncSeaUsdRowsToRouteCombinations();
+      return;
+    }
+    if (target.name === "shippingLineQuickOptions") {
+      syncShippingLineQuickPicksToInput();
+    }
+  });
+
   originQuickPicks.addEventListener("change", (event) => {
     const t = event.target;
     if (!(t instanceof HTMLInputElement) || t.name !== "originQuickPorts") {
@@ -5139,25 +5161,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function syncQuickPickSelectionsToInputRows() {
-    // Дублируем первую выбранную опцию в первую строку ввода,
-    // чтобы любые проверки/интеграции, читающие только input-строки,
-    // тоже считали поля заполненными.
-    const selectedPorts = [
-      ...originQuickPicks.querySelectorAll('input[name="originQuickPorts"]:checked'),
-    ]
-      .map((node) => (node instanceof HTMLInputElement ? node.value.trim().toUpperCase() : ""))
-      .filter(Boolean);
+    // Порты: как при клике по чекбоксам — все скрытые name=originPorts и поле «Название порта».
+    syncOriginQuickPicksToInput();
     const selectedStations = [
       ...stationQuickPicks.querySelectorAll('input[name="destinationQuickStations"]:checked'),
     ]
       .map((node) => (node instanceof HTMLInputElement ? node.value.trim().replace(/\s+/g, " ") : ""))
       .filter(Boolean);
-
-    const firstPortInput = originPortsWrap.querySelector('input[name="originPorts"]');
-    if (firstPortInput instanceof HTMLInputElement) {
-      firstPortInput.value = selectedPorts.join(", ");
-    }
-    newPortOptionInput.value = selectedPorts.join(", ");
 
     const firstStationInput = destinationStationsWrap.querySelector(
       'input[name="destinationStations"]'
