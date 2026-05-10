@@ -587,12 +587,17 @@
                 normalizeShippingLineToken(row.shippingLine) ===
                   normalizeShippingLineToken(line)
             ) || null;
-          const seaUsdFallback = Number(
-            seaUsds[originIndex * shippingLines.length + lineIndex]
-          );
-          const seaUsdValue = routeRow
-            ? Number(routeRow.seaUsd)
-            : seaUsdFallback;
+          const bundleIdx = originIndex * shippingLines.length + lineIndex;
+          const fromSlot = Number(seaUsds[bundleIdx]);
+          const fromRow = routeRow ? Number(routeRow.seaUsd) : Number.NaN;
+          const fromRate = Number(rate.seaUsd);
+          const seaUsdValue = Number.isFinite(fromSlot)
+            ? fromSlot
+            : Number.isFinite(fromRow)
+              ? fromRow
+              : Number.isFinite(fromRate)
+                ? fromRate
+                : Number.NaN;
           const sailingDate = routeRow
             ? String(routeRow.sailingDate || "")
             : "";
