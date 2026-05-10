@@ -370,13 +370,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   })();
   /** Тот же секрет, что TRACKING_SECRET у сервера (опционально). */
   const TRACKING_WEBHOOK_SECRET = "";
-  const containerTypeSelect = document.getElementById("containerType");
-  const railRubDefaultWrap = document.getElementById("rail-rub-default-wrap");
-  const railRubDefaultInput = document.getElementById("railRub");
   const seaUsdWrap = document.getElementById("sea-usd-wrap");
-  const railRub20Wrap = document.getElementById("rail-rub-20-wrap");
-  const railRub20Lt24Input = document.getElementById("railRub20Lt24");
-  const railRub20Gt24Input = document.getElementById("railRub20Gt24");
+  const railRubRowsWrap = document.getElementById("rail-rub-rows-wrap");
+  const addRailRubRowBtn = document.getElementById("add-rail-rub-row-btn");
   const salesManagerCards = {
     vlad: {
       fullName: "Влад Давидович",
@@ -465,9 +461,112 @@ document.addEventListener("DOMContentLoaded", async () => {
     !addSailingDateBtn ||
     !monthSelect ||
     !yearInput ||
-    !periodEl
+    !periodEl ||
+    !railRubRowsWrap ||
+    !addRailRubRowBtn
   ) {
     return;
+  }
+
+  function updateRailRubRemoveButtons() {
+    const rows = railRubRowsWrap.querySelectorAll("[data-rail-rub-row]");
+    rows.forEach((row) => {
+      const btn = row.querySelector('[data-action="remove-rail-rub-row"]');
+      if (btn instanceof HTMLButtonElement) {
+        btn.hidden = rows.length <= 1;
+      }
+    });
+  }
+
+  function appendRailRubRow(tierPref, amountStr) {
+    const row = document.createElement("div");
+    row.className = "rail-rub-tier-row";
+    row.setAttribute("data-rail-rub-row", "");
+    const grid = document.createElement("div");
+    grid.className = "rail-rub-tier-row-grid";
+    const label = document.createElement("label");
+    label.className = "rail-rub-tier-field";
+    const select = document.createElement("select");
+    select.className = "rail-rub-tier-select";
+    select.name = "railRubTier";
+    select.setAttribute(
+      "aria-label",
+      "Стоимость ЖД в RUB за выбранный тип контейнера / вес"
+    );
+    const tierOptions = [
+      ["20LT24", "20′ft < 24 t"],
+      ["20GT24", "20′ft > 24 t"],
+      ["40HQ", "40′ HQ"],
+    ];
+    tierOptions.forEach(([val, text]) => {
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = text;
+      select.appendChild(opt);
+    });
+    const pref = String(tierPref || "40HQ");
+    if (tierOptions.some(([v]) => v === pref)) {
+      select.value = pref;
+    }
+    label.appendChild(select);
+    const input = document.createElement("input");
+    input.type = "number";
+    input.name = "railRubAmount";
+    input.min = "0";
+    input.step = "1";
+    input.className = "rail-rub-amount-input";
+    input.placeholder = "Сумма, RUB";
+    input.setAttribute("aria-label", "Сумма ЖД, RUB");
+    if (amountStr != null && String(amountStr).trim() !== "") {
+      input.value = String(amountStr).trim();
+    }
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "btn-remove-date";
+    rm.dataset.action = "remove-rail-rub-row";
+    rm.setAttribute("aria-label", "Удалить строку");
+    rm.textContent = "−";
+    grid.appendChild(label);
+    grid.appendChild(input);
+    grid.appendChild(rm);
+    row.appendChild(grid);
+    railRubRowsWrap.appendChild(row);
+    updateRailRubRemoveButtons();
+  }
+
+  function resetRailRubRows() {
+    railRubRowsWrap.innerHTML = "";
+    appendRailRubRow("40HQ", "");
+  }
+
+  function aggregateRailRubTiersFromDom() {
+    let lt24 = null;
+    let gt24 = null;
+    let hq = null;
+    railRubRowsWrap.querySelectorAll("[data-rail-rub-row]").forEach((row) => {
+      const sel = row.querySelector('select[name="railRubTier"]');
+      const inp = row.querySelector('input[name="railRubAmount"]');
+      if (!(sel instanceof HTMLSelectElement) || !(inp instanceof HTMLInputElement)) {
+        return;
+      }
+      const raw = String(inp.value || "").trim();
+      if (raw === "") {
+        return;
+      }
+      const n = rateNumericOrNaN(raw);
+      if (!Number.isFinite(n) || n < 0) {
+        return;
+      }
+      const t = sel.value;
+      if (t === "20LT24") {
+        lt24 = n;
+      } else if (t === "20GT24") {
+        gt24 = n;
+      } else if (t === "40HQ") {
+        hq = n;
+      }
+    });
+    return { lt24, gt24, hq };
   }
 
   loadSavedOptions(AGENTS_KEY, "booking-agent-suggestions");
@@ -500,10 +599,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   syncSeaUsdRowsToRouteCombinations();
   syncOriginQuickPicksToInput();
   syncShippingLineInputToQuickPicks();
-    syncRailTerminalInputToQuickPicks();
-    syncBookingAgentInputToQuickPicks();
-    syncBookingAgentLineVisibility();
-  syncRailRubVisibility();
+  syncRailTerminalInputToQuickPicks();
+  syncBookingAgentInputToQuickPicks();
+  syncBookingAgentLineVisibility();
+  resetRailRubRows();
   enableDatalistOpenOnFocus(shippingLineInput);
   enableDatalistOpenOnFocus(railTerminalInput);
   enableDatalistOpenOnFocus(bookingAgentInput);
@@ -577,20 +676,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const containerTypeRaw = String(formData.get("containerType") || "").trim();
+    const railTiersForSave = aggregateRailRubTiersFromDom();
     if (containerTypeRaw === "20FT") {
-      const railLt24Raw = String(formData.get("railRub20Lt24") || "").trim();
-      const railGt24Raw = String(formData.get("railRub20Gt24") || "").trim();
-      if (!railLt24Raw || !railGt24Raw) {
+      if (railTiersForSave.lt24 == null || railTiersForSave.gt24 == null) {
         setStatus(
-          "Для контейнера 20FT заполните оба поля ЖД: для < 24 t и > 24 t.",
+          "Для 20FT добавьте строки «Стоимость ЖД, RUB за» с суммами для «20′ft < 24 t» и «20′ft > 24 t» (кнопка + при необходимости).",
           "error"
         );
         return;
       }
     } else {
-      const railDefaultRaw = String(formData.get("railRub") || "").trim();
-      if (!railDefaultRaw) {
-        setStatus("Заполните поле ЖД терминал отправления–станция назначения, RUB.", "error");
+      if (railTiersForSave.hq == null) {
+        setStatus(
+          "Укажите сумму ЖД для «40′ HQ» в блоке «Стоимость ЖД, RUB за».",
+          "error"
+        );
         return;
       }
     }
@@ -718,15 +818,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       setStatus("Проверьте поле «Вес груза, кг».", "error");
       return;
     }
-    const railRub20Lt24Raw = String(formData.get("railRub20Lt24") || "").trim();
-    const railRub20Gt24Raw = String(formData.get("railRub20Gt24") || "").trim();
-    const railRubDefaultRaw = String(formData.get("railRub") || "").trim();
-    const railRub20Lt24 =
-      railRub20Lt24Raw === "" ? null : Number(railRub20Lt24Raw);
-    const railRub20Gt24 =
-      railRub20Gt24Raw === "" ? null : Number(railRub20Gt24Raw);
+    const railRub20Lt24 = railTiersForSave.lt24;
+    const railRub20Gt24 = railTiersForSave.gt24;
     const railRubDefault =
-      railRubDefaultRaw === "" ? Number.NaN : Number(railRubDefaultRaw);
+      railTiersForSave.hq == null ? Number.NaN : railTiersForSave.hq;
     const effectiveRailRubFor20 =
       cargoWeightKgValue != null && cargoWeightKgValue > 24000
         ? railRub20Gt24
@@ -844,7 +939,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     monthSelect.value = String(now.getMonth() + 1);
     yearInput.value = String(FIXED_YEAR);
     syncSecurityCostVisibility();
-    syncRailRubVisibility();
+    resetRailRubRows();
     syncShippingLineQuickPicksToInput();
     syncRailTerminalQuickPicksToInput();
     syncBookingAgentInputToQuickPicks();
@@ -1167,10 +1262,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
     syncStationQuickPicksToInput();
   });
-  containerTypeSelect?.addEventListener("change", () => {
-    syncRailRubVisibility();
-  });
-
   const securityCostWrap = document.getElementById("security-cost-wrap");
   const securityCostRubInput = document.getElementById("securityCostRub");
 
@@ -1185,34 +1276,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!isYes) {
       securityCostRubInput.value = "";
     }
-  }
-
-  function syncRailRubVisibility() {
-    if (
-      !(containerTypeSelect instanceof HTMLSelectElement) ||
-      !(railRubDefaultWrap instanceof HTMLElement) ||
-      !(railRub20Wrap instanceof HTMLElement) ||
-      !(railRubDefaultInput instanceof HTMLInputElement) ||
-      !(railRub20Lt24Input instanceof HTMLInputElement) ||
-      !(railRub20Gt24Input instanceof HTMLInputElement)
-    ) {
-      return;
-    }
-
-    const is20Ft = String(containerTypeSelect.value || "") === "20FT";
-    railRubDefaultWrap.hidden = is20Ft;
-    railRub20Wrap.hidden = !is20Ft;
-
-    railRubDefaultInput.required = !is20Ft;
-    railRub20Lt24Input.required = is20Ft;
-    railRub20Gt24Input.required = is20Ft;
-
-    if (is20Ft) {
-      railRubDefaultInput.value = "";
-      return;
-    }
-    railRub20Lt24Input.value = "";
-    railRub20Gt24Input.value = "";
   }
 
   form.querySelectorAll('input[name="cargoSecurity"]').forEach((el) => {
@@ -1240,6 +1303,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   addDestinationStationBtn.addEventListener("click", () => {
     appendDestinationStationRow("");
+  });
+
+  addRailRubRowBtn.addEventListener("click", () => {
+    appendRailRubRow("40HQ", "");
+  });
+
+  railRubRowsWrap.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) {
+      return;
+    }
+    if (target.dataset.action !== "remove-rail-rub-row") {
+      return;
+    }
+    if (railRubRowsWrap.querySelectorAll("[data-rail-rub-row]").length <= 1) {
+      return;
+    }
+    target.closest("[data-rail-rub-row]")?.remove();
+    updateRailRubRemoveButtons();
   });
 
   addWarehouseAddressBtn.addEventListener("click", () => {
