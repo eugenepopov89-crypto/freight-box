@@ -2005,38 +2005,61 @@ document.addEventListener("DOMContentLoaded", async () => {
         fullPublicationRefresh(await loadRates());
         return;
       }
-      const next = allRates.filter(
-        (rate) => normalizeRateId(rate.id) !== idNorm
-      );
       const auth = pocketBaseAuthHeaders();
       const pbId = victim._pbId;
+      let usedSoftArchive = false;
+
       if (pbId && auth.Authorization) {
-        const delRes = await fetch(
-          `${API_BASE}/api/collections/rates/records/${encodeURIComponent(
-            String(pbId).trim()
-          )}`,
-          {
-            method: "DELETE",
-            headers: { ...auth },
-          }
-        );
+        const delUrl = `${API_BASE}/api/collections/rates/records/${encodeURIComponent(
+          String(pbId).trim()
+        )}`;
+        const delRes = await fetch(delUrl, {
+          method: "DELETE",
+          headers: { ...auth },
+        });
         if (!delRes.ok) {
-          const errText = await delRes.text().catch(() => "");
-          setStatus(
-            "Не удалось удалить ставку на сервере (код " +
-              String(delRes.status) +
-              (errText ? "): " + errText.slice(0, 120) : ")."),
-            "error"
-          );
-          return;
+          if (delRes.status === 403) {
+            const archRes = await pocketBaseSoftArchiveRate(pbId, victim);
+            if (!archRes.ok) {
+              const errSnippet =
+                archRes.status === 403
+                  ? " недостаточно прав ни на удаление, ни на обновление записи."
+                  : " не удалось пометить ставку как архивную на сервере.";
+              setStatus(
+                "Операция отклонена PocketBase (" +
+                  String(archRes.status || delRes.status) +
+                  "):" +
+                  errSnippet +
+                  " Пусть администратор разрешит в коллекции rates правила для Delete или Update при авторизации.",
+                "error"
+              );
+              return;
+            }
+            usedSoftArchive = true;
+          } else {
+            const errText = await delRes.text().catch(() => "");
+            setStatus(
+              "Не удалось удалить ставку на сервере (код " +
+                String(delRes.status) +
+                (errText ? "): " + errText.slice(0, 220) : ")."),
+              "error"
+            );
+            return;
+          }
         }
       }
-      await saveRates(next);
-      refreshAutocompleteLists(next);
-      refreshYearTabs(next);
+
+      const refreshed = await loadRates();
+      refreshAutocompleteLists(refreshed);
+      refreshYearTabs(refreshed);
       syncFilterTabsActiveStates();
-      fullPublicationRefresh(next);
-      setStatus("Ставка удалена.", "success");
+      fullPublicationRefresh(refreshed);
+      setStatus(
+        usedSoftArchive
+          ? "Ставка снята с публикации (полное удаление записи в базе может быть доступно только суперпользователю PocketBase)."
+          : "Ставка удалена.",
+        "success"
+      );
     }
   });
 
@@ -2625,7 +2648,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const copy = { ...rate };
     delete copy._pbId;
+    delete copy.ratesArchivedAt;
     return copy;
+  }
+
+  /** Скрывает ставку в интерфейсе, когда DELETE в PocketBase запрещён (403). PATCH чаще разрешён для авторизованных. */
+  function isRatesRecordArchived(rate) {
+    const t =
+      rate && rate.ratesArchivedAt != null
+        ? String(rate.ratesArchivedAt).trim()
+        : "";
+    return Boolean(t);
+  }
+
+  async function pocketBaseSoftArchiveRate(pbId, rateSnapshot) {
+    const auth = pocketBaseAuthHeaders();
+    if (!auth.Authorization || !pbId) {
+      return { ok: false, status: 0 };
+    }
+    const data = stripPbMetaForSave(rateSnapshot);
+    data.ratesArchivedAt = new Date().toISOString();
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/collections/rates/records/${encodeURIComponent(
+          String(pbId).trim()
+        )}`,
+        {
+          method: "PATCH",
+          headers: { ...auth, "Content-Type": "application/json" },
+          body: JSON.stringify({ data }),
+        }
+      );
+      return { ok: res.ok, status: res.status };
+    } catch {
+      return { ok: false, status: 0 };
+    }
   }
 
   async function loadRates() {
@@ -2644,9 +2701,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return [];
       }
       const data = await res.json();
-      return (data.items || []).map((record) =>
-        normalizePocketBaseRateRecord(record)
-      );
+      return (data.items || [])
+        .map((record) => normalizePocketBaseRateRecord(record))
+        .filter((rate) => !isRatesRecordArchived(rate));
     } catch (e) {
       return [];
     }
