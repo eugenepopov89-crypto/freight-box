@@ -289,6 +289,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     return dt;
   }
 
+  function normalizeShippingLineToken(value) {
+    return String(value || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLocaleLowerCase("ru-RU");
+  }
+
   function legacyTariffValidityRange(rate) {
     const vy = Number(rate?.validYear);
     const vm = Number(rate?.validMonth);
@@ -307,111 +314,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       from: new Date(vy, vm - 1, 16),
       to: new Date(vy, vm, 0),
     };
-  }
-
-  function tariffValidityBounds(rate) {
-    const fIso = String(rate?.tariffValidFrom || "").trim();
-    const tIso = String(rate?.tariffValidTo || "").trim();
-    if (fIso && tIso) {
-      const from = parseTariffIsoDateLocal(fIso);
-      const to = parseTariffIsoDateLocal(tIso);
-      if (from && to) {
-        return { from, to };
-      }
-    }
-    return legacyTariffValidityRange(rate);
-  }
-
-  function rateOverlapsPublicationMonth(rate, filterYear, filterMonth) {
-    const b = tariffValidityBounds(rate);
-    if (!b) {
-      return false;
-    }
-    const fy = Number(filterYear);
-    const fm = Number(filterMonth);
-    if (!Number.isFinite(fy) || !Number.isFinite(fm) || fm < 1 || fm > 12) {
-      return false;
-    }
-    const monthStart = new Date(fy, fm - 1, 1);
-    const monthEnd = new Date(fy, fm, 0);
-    return b.from <= monthEnd && b.to >= monthStart;
-  }
-
-  function compareRatesForPublication(a, b) {
-    const ba = tariffValidityBounds(a);
-    const bb = tariffValidityBounds(b);
-    const ta = ba ? ba.from.getTime() : 0;
-    const tb = bb ? bb.from.getTime() : 0;
-    if (ta !== tb) {
-      return tb - ta;
-    }
-    return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
-  }
-
-  function formatTariffValidityRangeLabel(rate) {
-    const b = tariffValidityBounds(rate);
-    if (!b) {
-      return "—";
-    }
-    return formatDateDdMmYy(b.from) + " – " + formatDateDdMmYy(b.to);
-  }
-
-  function tariffKeySegmentFromRecord(rate) {
-    const f = String(rate?.tariffValidFrom || "").trim();
-    const t = String(rate?.tariffValidTo || "").trim();
-    if (f && t) {
-      return f + "|" + t;
-    }
-    return (
-      String(rate?.validMonth ?? "") +
-      "|" +
-      String(rate?.validYear ?? "") +
-      "|" +
-      String(rate?.validitySlot || "")
-    );
-  }
-
-  function tariffKeySegmentFromFormData(formData) {
-    const f = String(formData.get("tariffValidFrom") || "").trim();
-    const t = String(formData.get("tariffValidTo") || "").trim();
-    return f + "|" + t;
-  }
-
-  function initTariffValidityDefaults() {
-    const tFrom = document.getElementById("tariffValidFrom");
-    const tTo = document.getElementById("tariffValidTo");
-    if (!(tFrom instanceof HTMLInputElement) || !(tTo instanceof HTMLInputElement)) {
-      return;
-    }
-    const today = new Date();
-    const endMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    if (!String(tFrom.value || "").trim()) {
-      tFrom.value = toIsoDateLocal(today);
-    }
-    if (!String(tTo.value || "").trim()) {
-      tTo.value = toIsoDateLocal(endMonth);
-    }
-  }
-
-  function wireTariffValidityInputs() {
-    const tFrom = document.getElementById("tariffValidFrom");
-    const tTo = document.getElementById("tariffValidTo");
-    if (!(tFrom instanceof HTMLInputElement) || !(tTo instanceof HTMLInputElement)) {
-      return;
-    }
-    const validate = () => {
-      const a = parseTariffIsoDateLocal(tFrom.value);
-      const b = parseTariffIsoDateLocal(tTo.value);
-      tFrom.setCustomValidity("");
-      tTo.setCustomValidity("");
-      if (a && b && a.getTime() > b.getTime()) {
-        tTo.setCustomValidity("Дата «по» не раньше даты «с».");
-      }
-    };
-    ["change", "input"].forEach((ev) => {
-      tFrom.addEventListener(ev, validate);
-      tTo.addEventListener(ev, validate);
-    });
   }
 
   const form = document.getElementById("rates-form");
@@ -448,6 +350,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   /** То же поле, что «Название линии» в быстром добавлении (один input для ввода и списка). */
   const newShippingLineOptionInput = shippingLineInput;
   const shippingLineQuickPicks = document.getElementById("shipping-line-quick-picks");
+  const tariffValidityRowsRoot = document.getElementById("tariff-validity-rows-root");
+  const tariffValidityEmptyHint = document.getElementById("tariff-validity-empty-hint");
   const bookingAgentInput = document.getElementById("bookingAgent");
   const bookingAgentLineWrap = document.getElementById("booking-agent-line-wrap");
   const bookingAgentShippingLineInput = document.getElementById(
@@ -933,7 +837,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
 
   wireTariffValidityInputs();
-  initTariffValidityDefaults();
 
   const now = new Date();
   periodEl.textContent = buildTariffAddedHintText(now);
@@ -954,6 +857,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   syncDeliveryTermsPickupRow();
   syncOriginQuickPicksToInput();
   syncShippingLineInputToQuickPicks();
+  initTariffValidityDefaults();
   syncRailTerminalInputToQuickPicks();
   syncBookingAgentInputToQuickPicks();
   mergeBookingAgentSlotsToHiddenField();
@@ -1059,8 +963,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       ["shippingLine", "Заполните морскую линию."],
       ["bookingAgent", "Заполните букирующего агента (или НЕТ)."],
       ["customsClearance", "Выберите таможенную очистку."],
-      ["tariffValidFrom", "Укажите дату начала срока действия тарифа."],
-      ["tariffValidTo", "Укажите дату окончания срока действия тарифа."],
       ["transitDays", "Заполните транзитный срок (дней)."],
     ];
     for (let i = 0; i < requiredMissingMessages.length; i++) {
@@ -1348,24 +1250,74 @@ document.addEventListener("DOMContentLoaded", async () => {
       deliveryExwFcaUsdSubmit = rawPickupUsd;
     }
 
-    const tariffFromRaw = String(formData.get("tariffValidFrom") || "").trim();
-    const tariffToRaw = String(formData.get("tariffValidTo") || "").trim();
-    if (!tariffFromRaw || !tariffToRaw) {
-      setStatus("Укажите срок действия тарифа: даты «с» и «по».", "error");
-      return;
-    }
-    const tariffFromDate = parseTariffIsoDateLocal(tariffFromRaw);
-    const tariffToDate = parseTariffIsoDateLocal(tariffToRaw);
-    if (!tariffFromDate || !tariffToDate) {
-      setStatus("Проверьте формат дат в сроке действия тарифа.", "error");
-      return;
-    }
-    if (tariffFromDate.getTime() > tariffToDate.getTime()) {
+    const tariffLineWindows = collectTariffLineWindowsFromDom();
+    if (!tariffLineWindows.length && shippingLines.length) {
       setStatus(
-        "В сроке действия тарифа дата «с» не может быть позже даты «по».",
+        "Не удалось сопоставить срок действия тарифа с выбранными морскими линиями — обновите выбор линий.",
         "error"
       );
       return;
+    }
+    if (tariffLineWindows.length !== shippingLines.length) {
+      setStatus(
+        "Число строк срока тарифа не совпадает с числом морских линий. Измените набор линий или обновите страницу.",
+        "error"
+      );
+      return;
+    }
+    const lineTokenSeen = new Set(
+      shippingLines.map((ln) => normalizeShippingLineToken(ln))
+    );
+    let minTariffFrom = null;
+    let maxTariffTo = null;
+    let tariffFromRaw = "";
+    let tariffToRaw = "";
+    for (let ti = 0; ti < tariffLineWindows.length; ti++) {
+      const w = tariffLineWindows[ti];
+      const lineLabel = w.shippingLine || "линия";
+      const tok = normalizeShippingLineToken(lineLabel);
+      if (!lineTokenSeen.has(tok)) {
+        setStatus(
+          "Срок тарифа: строка «" + lineLabel + "» не совпадает с выбранными морскими линиями.",
+          "error"
+        );
+        return;
+      }
+      if (!w.tariffValidFrom || !w.tariffValidTo) {
+        setStatus(
+          "Укажите даты «с» и «по» для морской линии «" + lineLabel + "».",
+          "error"
+        );
+        return;
+      }
+      const tariffFromDate = parseTariffIsoDateLocal(w.tariffValidFrom);
+      const tariffToDate = parseTariffIsoDateLocal(w.tariffValidTo);
+      if (!tariffFromDate || !tariffToDate) {
+        setStatus(
+          "Проверьте формат дат срока тарифа для линии «" + lineLabel + "».",
+          "error"
+        );
+        return;
+      }
+      if (tariffFromDate.getTime() > tariffToDate.getTime()) {
+        setStatus(
+          "Для линии «" +
+            lineLabel +
+            "» дата «с» не может быть позже даты «по».",
+          "error"
+        );
+        return;
+      }
+      if (!minTariffFrom || tariffFromDate < minTariffFrom) {
+        minTariffFrom = tariffFromDate;
+      }
+      if (!maxTariffTo || tariffToDate > maxTariffTo) {
+        maxTariffTo = tariffToDate;
+      }
+    }
+    if (minTariffFrom && maxTariffTo) {
+      tariffFromRaw = toIsoDateLocal(minTariffFrom);
+      tariffToRaw = toIsoDateLocal(maxTariffTo);
     }
 
     const rate = {
@@ -1394,6 +1346,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       customsClearance: customsClearanceRaw,
       tariffValidFrom: tariffFromRaw,
       tariffValidTo: tariffToRaw,
+      tariffLineWindows,
       deliveryTerms: deliveryTermsSubmit,
       deliveryExwFcaUsd: deliveryExwFcaUsdSubmit,
       seaUsd: seaUsds[0],
@@ -1477,9 +1430,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncAutoRubRowsToWarehouseAddresses();
     syncSeaUsdRowsToRouteCombinations();
     syncDeliveryTermsPickupRow();
-    initTariffValidityDefaults();
     syncSecurityCostVisibility();
     syncShippingLineQuickPicksToInput();
+    initTariffValidityDefaults();
     syncRailTerminalQuickPicksToInput();
     resetBookingAgentSlotsToSingleEmpty();
     syncBookingAgentInputToQuickPicks();
@@ -5618,6 +5571,373 @@ document.addEventListener("DOMContentLoaded", async () => {
     return unique;
   }
 
+  /** Черновик дат тарифа при пересборе строк (ключ — normalizeShippingLineToken). */
+  const tariffLineValidityDraft = {};
+
+  function normalizeTariffLineWindowsFromRecord(rate) {
+    const arr = Array.isArray(rate?.tariffLineWindows) ? rate.tariffLineWindows : null;
+    if (arr && arr.length) {
+      const out = [];
+      for (let wi = 0; wi < arr.length; wi++) {
+        const w = arr[wi];
+        const sl = String(w?.shippingLine || "")
+          .trim()
+          .replace(/\s+/g, " ");
+        const f = String(w?.tariffValidFrom || "").trim();
+        const t = String(w?.tariffValidTo || "").trim();
+        if (sl && f && t) {
+          out.push({
+            shippingLine: sl,
+            tariffValidFrom: f,
+            tariffValidTo: t,
+          });
+        }
+      }
+      if (out.length) {
+        return out;
+      }
+    }
+    const lines = getRateShippingLines(rate);
+    const fIso = String(rate?.tariffValidFrom || "").trim();
+    const tIso = String(rate?.tariffValidTo || "").trim();
+    if (lines.length && fIso && tIso) {
+      return lines.map((line) => ({
+        shippingLine: String(line || "").trim(),
+        tariffValidFrom: fIso,
+        tariffValidTo: tIso,
+      }));
+    }
+    return [];
+  }
+
+  function tariffKeySegmentFromWindows(windows) {
+    if (!Array.isArray(windows) || !windows.length) {
+      return "";
+    }
+    const sorted = [...windows].sort((a, b) => {
+      const pa =
+        normalizeShippingLineToken(a.shippingLine) +
+        "\0" +
+        a.tariffValidFrom +
+        "\0" +
+        a.tariffValidTo;
+      const pb =
+        normalizeShippingLineToken(b.shippingLine) +
+        "\0" +
+        b.tariffValidFrom +
+        "\0" +
+        b.tariffValidTo;
+      return pa.localeCompare(pb, "ru", { sensitivity: "base" });
+    });
+    return sorted
+      .map(
+        (w) =>
+          normalizeShippingLineToken(w.shippingLine) +
+          "|" +
+          w.tariffValidFrom +
+          "|" +
+          w.tariffValidTo
+      )
+      .join("||");
+  }
+
+  function tariffValidityBounds(rate) {
+    const wins = normalizeTariffLineWindowsFromRecord(rate);
+    if (wins.length) {
+      let minT = Infinity;
+      let maxT = -Infinity;
+      let minD = null;
+      let maxD = null;
+      for (let i = 0; i < wins.length; i++) {
+        const from = parseTariffIsoDateLocal(wins[i].tariffValidFrom);
+        const to = parseTariffIsoDateLocal(wins[i].tariffValidTo);
+        if (!from || !to) {
+          continue;
+        }
+        const ft = from.getTime();
+        const tt = to.getTime();
+        if (ft < minT) {
+          minT = ft;
+          minD = from;
+        }
+        if (tt > maxT) {
+          maxT = tt;
+          maxD = to;
+        }
+      }
+      if (minD && maxD) {
+        return { from: minD, to: maxD };
+      }
+    }
+    const fIso = String(rate?.tariffValidFrom || "").trim();
+    const tIso = String(rate?.tariffValidTo || "").trim();
+    if (fIso && tIso) {
+      const from = parseTariffIsoDateLocal(fIso);
+      const to = parseTariffIsoDateLocal(tIso);
+      if (from && to) {
+        return { from, to };
+      }
+    }
+    return legacyTariffValidityRange(rate);
+  }
+
+  function rateOverlapsPublicationMonth(rate, filterYear, filterMonth) {
+    const wins = normalizeTariffLineWindowsFromRecord(rate);
+    const fy = Number(filterYear);
+    const fm = Number(filterMonth);
+    if (!Number.isFinite(fy) || !Number.isFinite(fm) || fm < 1 || fm > 12) {
+      return false;
+    }
+    const monthEnd = new Date(fy, fm, 0);
+    const monthStart = new Date(fy, fm - 1, 1);
+    if (wins.length) {
+      for (let i = 0; i < wins.length; i++) {
+        const from = parseTariffIsoDateLocal(wins[i].tariffValidFrom);
+        const to = parseTariffIsoDateLocal(wins[i].tariffValidTo);
+        if (from && to && from <= monthEnd && to >= monthStart) {
+          return true;
+        }
+      }
+      return false;
+    }
+    const b = tariffValidityBounds(rate);
+    if (!b) {
+      return false;
+    }
+    return b.from <= monthEnd && b.to >= monthStart;
+  }
+
+  function compareRatesForPublication(a, b) {
+    const ba = tariffValidityBounds(a);
+    const bb = tariffValidityBounds(b);
+    const ta = ba ? ba.from.getTime() : 0;
+    const tb = bb ? bb.from.getTime() : 0;
+    if (ta !== tb) {
+      return tb - ta;
+    }
+    return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+  }
+
+  function formatTariffValidityRangeLabel(rate) {
+    const b = tariffValidityBounds(rate);
+    if (!b) {
+      return "—";
+    }
+    return formatDateDdMmYy(b.from) + " – " + formatDateDdMmYy(b.to);
+  }
+
+  function tariffKeySegmentFromRecord(rate) {
+    const wins = normalizeTariffLineWindowsFromRecord(rate);
+    if (wins.length) {
+      const seg = tariffKeySegmentFromWindows(wins);
+      if (seg) {
+        return seg;
+      }
+    }
+    const f = String(rate?.tariffValidFrom || "").trim();
+    const t = String(rate?.tariffValidTo || "").trim();
+    if (f && t) {
+      return f + "|" + t;
+    }
+    return (
+      String(rate?.validMonth ?? "") +
+      "|" +
+      String(rate?.validYear ?? "") +
+      "|" +
+      String(rate?.validitySlot || "")
+    );
+  }
+
+  function collectTariffLineWindowsFromDom() {
+    if (!(tariffValidityRowsRoot instanceof HTMLElement)) {
+      return [];
+    }
+    const out = [];
+    tariffValidityRowsRoot.querySelectorAll(".tariff-validity-line-row").forEach(
+      (node) => {
+        if (!(node instanceof HTMLElement)) {
+          return;
+        }
+        const name = String(node.dataset.lineDisplay || "").trim();
+        const fInp = node.querySelector(".tariff-validity-from-input");
+        const tInp = node.querySelector(".tariff-validity-to-input");
+        const f = fInp instanceof HTMLInputElement ? fInp.value.trim() : "";
+        const t = tInp instanceof HTMLInputElement ? tInp.value.trim() : "";
+        if (name) {
+          out.push({
+            shippingLine: name,
+            tariffValidFrom: f,
+            tariffValidTo: t,
+          });
+        }
+      }
+    );
+    return out;
+  }
+
+  function tariffKeySegmentFromFormData(formData) {
+    void formData;
+    return tariffKeySegmentFromWindows(collectTariffLineWindowsFromDom());
+  }
+
+  function escapeTariffAttr(text) {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;");
+  }
+
+  function snapshotTariffValidityDraftFromDom() {
+    if (!(tariffValidityRowsRoot instanceof HTMLElement)) {
+      return;
+    }
+    tariffValidityRowsRoot.querySelectorAll(".tariff-validity-line-row").forEach(
+      (node) => {
+        if (!(node instanceof HTMLElement)) {
+          return;
+        }
+        const token = String(node.dataset.lineToken || "").trim();
+        if (!token) {
+          return;
+        }
+        const fInp = node.querySelector(".tariff-validity-from-input");
+        const tInp = node.querySelector(".tariff-validity-to-input");
+        const f = fInp instanceof HTMLInputElement ? fInp.value.trim() : "";
+        const t = tInp instanceof HTMLInputElement ? tInp.value.trim() : "";
+        if (f || t) {
+          tariffLineValidityDraft[token] = { from: f, to: t };
+        }
+      }
+    );
+  }
+
+  function syncTariffValidityRowsUi() {
+    if (!(tariffValidityRowsRoot instanceof HTMLElement)) {
+      return;
+    }
+    snapshotTariffValidityDraftFromDom();
+    const lines = getShippingLinesFromInput();
+    if (tariffValidityEmptyHint instanceof HTMLElement) {
+      tariffValidityEmptyHint.hidden = lines.length > 0;
+    }
+    if (!lines.length) {
+      tariffValidityRowsRoot.innerHTML = "";
+      return;
+    }
+    const today = new Date();
+    const defaultFrom = toIsoDateLocal(today);
+    const endMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const defaultTo = toIsoDateLocal(endMonth);
+
+    tariffValidityRowsRoot.innerHTML = lines
+      .map((displayRaw) => {
+        const display = String(displayRaw || "").trim().replace(/\s+/g, " ");
+        const token = normalizeShippingLineToken(display);
+        const escTok = escapeTariffAttr(token);
+        const escDisp = escapeTariffAttr(display);
+        return (
+          '<div class="tariff-validity-line-row" data-line-token="' +
+          escTok +
+          '" data-line-display="' +
+          escDisp +
+          '">' +
+          '<div class="tariff-validity-line-meta">' +
+          '<span class="tariff-validity-line-badge">' +
+          escDisp +
+          "</span></div>" +
+          '<div class="tariff-validity-range-row tariff-validity-range-row--lined">' +
+          '<div class="tariff-validity-field">' +
+          '<span class="tariff-validity-sub tariff-validity-sub--muted">С даты</span>' +
+          '<input type="date" class="tariff-validity-from-input" required />' +
+          "</div>" +
+          '<span class="tariff-validity-dash">—</span>' +
+          '<div class="tariff-validity-field">' +
+          '<span class="tariff-validity-sub tariff-validity-sub--muted">По дату</span>' +
+          '<input type="date" class="tariff-validity-to-input" required />' +
+          "</div></div></div>"
+        );
+      })
+      .join("");
+
+    tariffValidityRowsRoot.querySelectorAll(".tariff-validity-line-row").forEach(
+      (node) => {
+        if (!(node instanceof HTMLElement)) {
+          return;
+        }
+        const token = String(node.dataset.lineToken || "").trim();
+        const draft = token ? tariffLineValidityDraft[token] : undefined;
+        const fInp = node.querySelector(".tariff-validity-from-input");
+        const tInp = node.querySelector(".tariff-validity-to-input");
+        if (!(fInp instanceof HTMLInputElement) || !(tInp instanceof HTMLInputElement)) {
+          return;
+        }
+        const fromDraft = draft?.from ? String(draft.from).trim() : "";
+        const toDraft = draft?.to ? String(draft.to).trim() : "";
+        fInp.value = fromDraft || defaultFrom;
+        tInp.value = toDraft || defaultTo;
+      }
+    );
+  }
+
+  function wireTariffValidityInputs() {
+    if (!(tariffValidityRowsRoot instanceof HTMLElement)) {
+      return;
+    }
+    if (tariffValidityRowsRoot.dataset.tariffValidityWired === "1") {
+      return;
+    }
+    tariffValidityRowsRoot.dataset.tariffValidityWired = "1";
+    const validateRow = (row) => {
+      if (!(row instanceof HTMLElement)) {
+        return;
+      }
+      const fInp = row.querySelector(".tariff-validity-from-input");
+      const tInp = row.querySelector(".tariff-validity-to-input");
+      if (!(fInp instanceof HTMLInputElement) || !(tInp instanceof HTMLInputElement)) {
+        return;
+      }
+      const a = parseTariffIsoDateLocal(fInp.value);
+      const b = parseTariffIsoDateLocal(tInp.value);
+      fInp.setCustomValidity("");
+      tInp.setCustomValidity("");
+      if (a && b && a.getTime() > b.getTime()) {
+        tInp.setCustomValidity("Дата «по» не раньше даты «с».");
+      }
+    };
+    tariffValidityRowsRoot.addEventListener("input", (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement)) {
+        return;
+      }
+      if (
+        !t.classList.contains("tariff-validity-from-input") &&
+        !t.classList.contains("tariff-validity-to-input")
+      ) {
+        return;
+      }
+      const row = t.closest(".tariff-validity-line-row");
+      validateRow(row instanceof HTMLElement ? row : null);
+    });
+    tariffValidityRowsRoot.addEventListener("change", (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement)) {
+        return;
+      }
+      if (
+        !t.classList.contains("tariff-validity-from-input") &&
+        !t.classList.contains("tariff-validity-to-input")
+      ) {
+        return;
+      }
+      const row = t.closest(".tariff-validity-line-row");
+      validateRow(row instanceof HTMLElement ? row : null);
+    });
+  }
+
+  function initTariffValidityDefaults() {
+    syncTariffValidityRowsUi();
+  }
+
   function buildOriginLineCombinations(origins, lines) {
     const combos = [];
     const safeOrigins = origins.length ? origins : [""];
@@ -6720,13 +7040,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       .toUpperCase();
   }
 
-  function normalizeShippingLineToken(value) {
-    return String(value || "")
-      .trim()
-      .replace(/\s+/g, " ")
-      .toLocaleLowerCase("ru-RU");
-  }
-
   function formatShippingLineDisplay(rate) {
     const single = String(rate.shippingLine || "").trim();
     if (single) {
@@ -6912,6 +7225,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     syncBookingAgentShippingLineDatalist();
     syncSeaUsdRowsToRouteCombinations();
+    syncTariffValidityRowsUi();
   }
 
   function syncShippingLineInputToQuickPicks() {
@@ -6933,6 +7247,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     syncBookingAgentShippingLineDatalist();
     syncSeaUsdRowsToRouteCombinations();
+    syncTariffValidityRowsUi();
   }
 
   function isBookingAgentProvided(value) {
