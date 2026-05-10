@@ -2496,21 +2496,36 @@ footer {
 }
 
 .sea-route-block {
+  box-sizing: border-box;
   min-width: 0;
   overflow-x: auto;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 3px solid rgba(51, 65, 85, 0.85);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.sea-route-block > .sea-usd-row.sea-usd-route-primary-grid {
+  margin-bottom: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sea-route-quick-picks-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   align-items: flex-start;
 }
 
 .sea-route-quick-picks-row .origin-quick-picks-details {
   flex: 1 1 240px;
   min-width: 0;
+  border-color: rgba(148, 163, 184, 0.5);
 }
 
 .sea-usd-row.sea-usd-route-primary-grid {
