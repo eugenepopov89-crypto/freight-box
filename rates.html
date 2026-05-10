@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778940300000" />
+    <link rel="stylesheet" href="styles.css?v=1778940400000" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -50,7 +50,9 @@
             <div class="form-block">
               <h2 class="form-block-heading">Маршрут</h2>
 
-              <div class="field-group field-group-align-start">
+              <div
+                class="field-group field-group--full field-group--single-stack routes-field-delivery-only"
+              >
                 <div>
                   <label for="deliveryTerms">Условия поставки *</label>
                   <select id="deliveryTerms" name="deliveryTerms" required>
@@ -58,87 +60,6 @@
                     <option value="EXW">EXW</option>
                     <option value="FCA">FCA</option>
                   </select>
-                </div>
-                <div>
-                  <label>Порты отправления (China) *</label>
-                  <div class="quick-add-row origin-port-list-add-row">
-                    <input
-                      id="new-port-option"
-                      list="china-port-suggestions"
-                      placeholder="Название порта"
-                      aria-label="Порты отправления и новый порт для списка подсказок"
-                    />
-                    <button type="button" id="add-port-option" class="btn-mini-control">
-                      Добавить новый порт в список
-                    </button>
-                  </div>
-                  <details class="origin-quick-picks-details">
-                    <summary class="origin-quick-picks-summary">
-                      Быстрый выбор портов
-                    </summary>
-                    <div class="origin-quick-picks-panel">
-                    <div class="origin-quick-pick-controls">
-                      <button type="button" id="ports-select-all" class="btn-mini-control">
-                        Выбрать все
-                      </button>
-                      <button type="button" id="ports-clear-all" class="btn-mini-control">
-                        Очистить
-                      </button>
-                    </div>
-                    <div class="origin-quick-pick-grid origin-quick-pick-grid--ports" id="origin-quick-picks">
-                      <label><input type="checkbox" name="originQuickPorts" value="SHANGHAI" /> SHANGHAI</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="QINGDAO" /> QINGDAO</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="NINGBO" /> NINGBO</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="SHENZHEN" /> SHENZHEN</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="GUANGZHOU" /> GUANGZHOU</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="XIAMEN" /> XIAMEN</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="TIANJIN" /> TIANJIN</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="DALIAN" /> DALIAN</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="LIANYUNGANG" /> LIANYUNGANG</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="YANTIAN" /> YANTIAN</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="NANSHA" /> NANSHA</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="FUZHOU" /> FUZHOU</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="ZHONGSHAN" /> ZHONGSHAN</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="ZHANJIANG" /> ZHANJIANG</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="WENZHOU" /> WENZHOU</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="RIZHAO" /> RIZHAO</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="QINZHOU" /> QINZHOU</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="YINGKOU" /> YINGKOU</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="WEIHAI" /> WEIHAI</label>
-                      <label><input type="checkbox" name="originQuickPorts" value="TAICANG" /> TAICANG</label>
-                    </div>
-                    </div>
-                  </details>
-                  <div id="origin-ports-wrap" class="origin-ports-submit-inputs" hidden>
-                    <input
-                      type="hidden"
-                      id="origin-ports-primary"
-                      name="originPorts"
-                      value=""
-                    />
-                  </div>
-                  <datalist id="china-port-suggestions">
-                    <option value="SHANGHAI"></option>
-                    <option value="QINGDAO"></option>
-                    <option value="NINGBO"></option>
-                    <option value="SHENZHEN"></option>
-                    <option value="GUANGZHOU"></option>
-                    <option value="XIAMEN"></option>
-                    <option value="TIANJIN"></option>
-                    <option value="DALIAN"></option>
-                    <option value="LIANYUNGANG"></option>
-                    <option value="YANTIAN"></option>
-                    <option value="NANSHA"></option>
-                    <option value="FUZHOU"></option>
-                    <option value="ZHONGSHAN"></option>
-                    <option value="ZHANJIANG"></option>
-                    <option value="WENZHOU"></option>
-                    <option value="RIZHAO"></option>
-                    <option value="QINZHOU"></option>
-                    <option value="YINGKOU"></option>
-                    <option value="WEIHAI"></option>
-                    <option value="TAICANG"></option>
-                  </datalist>
                 </div>
                 <input type="hidden" id="destination" name="destination" value="MOSCOW" />
               </div>
@@ -199,6 +120,88 @@
                     </div>
                   </details>
                   <datalist id="shipping-line-suggestions"></datalist>
+
+                  <div class="route-block-origin-ports">
+                    <label>Порты отправления (China) *</label>
+                    <div class="quick-add-row origin-port-list-add-row">
+                      <input
+                        id="new-port-option"
+                        list="china-port-suggestions"
+                        placeholder="Название порта"
+                        aria-label="Порты отправления и новый порт для списка подсказок"
+                      />
+                      <button type="button" id="add-port-option" class="btn-mini-control">
+                        Добавить новый порт в список
+                      </button>
+                    </div>
+                    <details class="origin-quick-picks-details">
+                      <summary class="origin-quick-picks-summary">
+                        Быстрый выбор портов
+                      </summary>
+                      <div class="origin-quick-picks-panel">
+                        <div class="origin-quick-pick-controls">
+                          <button type="button" id="ports-select-all" class="btn-mini-control">
+                            Выбрать все
+                          </button>
+                          <button type="button" id="ports-clear-all" class="btn-mini-control">
+                            Очистить
+                          </button>
+                        </div>
+                        <div class="origin-quick-pick-grid origin-quick-pick-grid--ports" id="origin-quick-picks">
+                          <label><input type="checkbox" name="originQuickPorts" value="SHANGHAI" /> SHANGHAI</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="QINGDAO" /> QINGDAO</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="NINGBO" /> NINGBO</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="SHENZHEN" /> SHENZHEN</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="GUANGZHOU" /> GUANGZHOU</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="XIAMEN" /> XIAMEN</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="TIANJIN" /> TIANJIN</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="DALIAN" /> DALIAN</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="LIANYUNGANG" /> LIANYUNGANG</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="YANTIAN" /> YANTIAN</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="NANSHA" /> NANSHA</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="FUZHOU" /> FUZHOU</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="ZHONGSHAN" /> ZHONGSHAN</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="ZHANJIANG" /> ZHANJIANG</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="WENZHOU" /> WENZHOU</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="RIZHAO" /> RIZHAO</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="QINZHOU" /> QINZHOU</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="YINGKOU" /> YINGKOU</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="WEIHAI" /> WEIHAI</label>
+                          <label><input type="checkbox" name="originQuickPorts" value="TAICANG" /> TAICANG</label>
+                        </div>
+                      </div>
+                    </details>
+                    <div id="origin-ports-wrap" class="origin-ports-submit-inputs" hidden>
+                      <input
+                        type="hidden"
+                        id="origin-ports-primary"
+                        name="originPorts"
+                        value=""
+                      />
+                    </div>
+                    <datalist id="china-port-suggestions">
+                      <option value="SHANGHAI"></option>
+                      <option value="QINGDAO"></option>
+                      <option value="NINGBO"></option>
+                      <option value="SHENZHEN"></option>
+                      <option value="GUANGZHOU"></option>
+                      <option value="XIAMEN"></option>
+                      <option value="TIANJIN"></option>
+                      <option value="DALIAN"></option>
+                      <option value="LIANYUNGANG"></option>
+                      <option value="YANTIAN"></option>
+                      <option value="NANSHA"></option>
+                      <option value="FUZHOU"></option>
+                      <option value="ZHONGSHAN"></option>
+                      <option value="ZHANJIANG"></option>
+                      <option value="WENZHOU"></option>
+                      <option value="RIZHAO"></option>
+                      <option value="QINZHOU"></option>
+                      <option value="YINGKOU"></option>
+                      <option value="WEIHAI"></option>
+                      <option value="TAICANG"></option>
+                    </datalist>
+                  </div>
 
                   <div class="field-group-sub booking-after-lines">
                     <div>
