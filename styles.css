@@ -505,6 +505,31 @@ main {
   margin-bottom: 18px;
 }
 
+.rates-registry-live-trigger {
+  cursor: pointer;
+  padding: 0.35rem 0.65rem;
+  margin: -0.35rem -0.65rem;
+  border-radius: 12px;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+  outline: none;
+}
+
+.rates-registry-live-trigger:hover {
+  background: rgba(11, 114, 133, 0.08);
+}
+
+.rates-registry-live-trigger:focus-visible {
+  box-shadow: 0 0 0 2px rgba(11, 114, 133, 0.45);
+}
+
+.rates-registry-live-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.35;
+  max-width: 28rem;
+}
+
 .section-header-actions {
   display: flex;
   gap: 8px;
@@ -1899,9 +1924,22 @@ footer {
   min-width: 980px;
 }
 
-/* Полная таблица КП (как реестр по направлениям, без нескольких колонок) */
+/* Полная таблица КП: фиксированная сетка, заголовки не наезжают друг на друга */
 .sales-kp-print-sheet .kp-price-table.kp-price-table--directions {
-  min-width: 1320px;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sales-kp-print-sheet .kp-china-dv-lead {
+  font-size: clamp(1rem, 2.8vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.4;
+  max-width: 100%;
+  margin: 0 0 10px;
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 .sales-kp-print-sheet .kp-price-table th {
@@ -1912,10 +1950,19 @@ footer {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   text-align: left;
-  padding: 8px 7px;
+  vertical-align: bottom;
+  line-height: 1.2;
+  padding: 8px 6px;
   border-right: 1px solid rgba(255,255,255,0.12);
   word-break: break-word;
   overflow-wrap: anywhere;
+  hyphens: auto;
+  min-width: 0;
+}
+
+.sales-kp-print-sheet .kp-price-table.kp-price-table--directions td,
+.sales-kp-print-sheet .kp-price-table.kp-price-table--directions th {
+  min-width: 0;
 }
 
 .sales-kp-print-sheet .kp-price-table td {
@@ -1925,6 +1972,9 @@ footer {
   color: #0d1f3c;
   word-break: break-word;
   overflow-wrap: anywhere;
+  hyphens: auto;
+  vertical-align: top;
+  min-width: 0;
 }
 
 .sales-kp-print-sheet .kp-price-table td:last-child,
@@ -2449,6 +2499,31 @@ footer {
   max-width: 100%;
 }
 
+.delivery-exw-fca-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(248, 250, 252, 0.95);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.delivery-exw-fca-row label {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.delivery-exw-fca-row input {
+  max-width: 12rem;
+  min-width: 0;
+}
+
 .cost-follow-hint--lead {
   margin-bottom: 10px;
   font-weight: 500;
@@ -2469,6 +2544,58 @@ footer {
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid rgba(26, 26, 26, 0.12);
+}
+
+.tariff-validity-block {
+  margin-top: 18px;
+  padding: 14px 14px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(11, 114, 133, 0.28);
+  background: rgba(227, 250, 252, 0.45);
+  max-width: 100%;
+}
+
+.tariff-validity-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #0b7285;
+}
+
+.tariff-validity-hint {
+  margin: 0.35rem 0 0.65rem;
+}
+
+.tariff-validity-range-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+}
+
+.tariff-validity-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tariff-validity-sub {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.tariff-validity-field input[type="date"] {
+  min-width: 10.5rem;
+  max-width: 100%;
+}
+
+.tariff-validity-dash {
+  align-self: center;
+  padding-bottom: 0.35rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .extra-sailing-toolbar {
@@ -2588,6 +2715,51 @@ footer {
   max-width: 100%;
 }
 
+.sea-route-maritime-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.sea-route-maritime-segment {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.sea-route-maritime-segment:not([data-maritime-primary="true"]) {
+  padding-top: 6px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.55);
+}
+
+.sea-maritime-segment-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.sea-maritime-stack-footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 2px;
+}
+
+.btn-add-sea-maritime-segment {
+  min-width: 2.25rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.sea-sailing-date--from-primary {
+  opacity: 0.92;
+  cursor: not-allowed;
+  background: rgba(241, 245, 249, 0.95);
+}
+
+.sea-route-block > .sea-route-maritime-stack,
 .sea-route-block > .sea-usd-row.sea-usd-route-maritime-grid,
 .sea-route-block > .sea-usd-row.sea-usd-route-land-grid {
   margin-bottom: 0;
