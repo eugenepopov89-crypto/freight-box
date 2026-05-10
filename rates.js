@@ -222,6 +222,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const chinaPortSuggestions = document.getElementById("china-port-suggestions");
   const sailingDatesWrap = document.getElementById("sailing-dates-wrap");
   const addSailingDateBtn = document.getElementById("add-sailing-date-btn");
+  const extraSailingToggle = document.getElementById("extra-sailing-toggle");
+  const extraSailingPanel = document.getElementById("extra-sailing-panel");
   const monthSelect = document.getElementById("validMonth");
   const yearInput = document.getElementById("validYear");
   const periodEl = document.getElementById("current-period");
@@ -641,9 +643,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   sortCheckboxOptions(stationQuickPicks, "destinationQuickStations");
   sortCheckboxOptions(shippingLineQuickPicks, "shippingLineQuickOptions");
   filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
-  refreshWarehouseAddressRowLabels();
-  syncAutoRubRowsToWarehouseAddresses();
-  syncSeaUsdRowsToRouteCombinations();
+    refreshWarehouseAddressRowLabels();
+    syncAutoRubRowsToWarehouseAddresses();
+    syncSeaUsdRowsToRouteCombinations();
   syncOriginQuickPicksToInput();
   syncShippingLineInputToQuickPicks();
   syncRailTerminalInputToQuickPicks();
@@ -1032,7 +1034,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       transitDays: Number(formData.get("transitDays")),
       nextSailingDates: [
         ...new Set(
-          seaRouteRowsWithKeys.map((row) => row.sailingDate).filter(Boolean)
+          [
+            ...seaRouteRowsWithKeys.map((row) => row.sailingDate),
+            ...getSailingDates(),
+          ]
+            .map((item) =>
+              typeof item === "string" ? item.trim() : String(item || "").trim()
+            )
+            .filter(Boolean)
         ),
       ],
       manager: String(formData.get("manager") || "").trim(),
@@ -1528,13 +1537,50 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncAutoRubRowsToWarehouseAddresses();
   });
 
-  addSailingDateBtn.addEventListener("click", () => {
-    appendSailingDateRow("");
+  addSailingDateBtn?.addEventListener("click", () => {
+    appendSailingDateRow("", null);
+  });
+
+  extraSailingToggle?.addEventListener("click", () => {
+    if (!(extraSailingPanel instanceof HTMLElement)) {
+      return;
+    }
+    const show = extraSailingPanel.hidden;
+    extraSailingPanel.hidden = !show;
+    mergeExtraSailingRowsFromSeaBlocks();
+    if (extraSailingToggle instanceof HTMLButtonElement) {
+      extraSailingToggle.textContent = show ? "Скрыть" : "Показать";
+      extraSailingToggle.setAttribute(
+        "aria-expanded",
+        show ? "true" : "false"
+      );
+    }
   });
 
   sailingDatesWrap.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLButtonElement)) {
+      return;
+    }
+    if (target.dataset.action === "copy-extra-sailing-row") {
+      const row = target.closest(".sailing-date-row");
+      const sel =
+        row instanceof HTMLElement
+          ? row.querySelector('select[name="nextSailingDateOrigin"]')
+          : null;
+      const li =
+        row instanceof HTMLElement
+          ? row.querySelector('input[name="nextSailingDateLine"]')
+          : null;
+      const origin =
+        sel instanceof HTMLSelectElement
+          ? String(sel.value || "").trim().toUpperCase()
+          : "";
+      const line =
+        li instanceof HTMLInputElement
+          ? String(li.value || "").trim().replace(/\s+/g, " ")
+          : "";
+      appendSailingDateRow("", { origin, line });
       return;
     }
     if (target.dataset.action !== "remove-date") {
@@ -5611,6 +5657,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     syncSailingDateOriginOptions();
     syncRailAutoSectionsFromSea();
+    mergeExtraSailingRowsFromSeaBlocks();
   }
 
   function syncAutoRubRowsToWarehouseAddresses() {
@@ -6164,58 +6211,174 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  function appendSailingDateRow(defaultValue) {
+  function sailingExtraRoutesPairKey(origin, line) {
+    const o = normalizeOriginPortToken(origin);
+    const l = normalizeShippingLineToken(line);
+    if (!o || !l) {
+      return "";
+    }
+    return o + "\0" + l;
+  }
+
+  function getUniqueSeaRoutePortLinePairs() {
+    /** Без повторов: несколько блоков моря с тем же портом и линией (20′ / 40′) дают одну строку здесь. */
+    const pairs = [];
+    const seen = new Set();
+    [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((blk) => {
+      const origin = normalizeOriginPortToken(String(blk.dataset.routeOrigin || ""));
+      const line = String(blk.dataset.routeLine || "").trim().replace(/\s+/g, " ");
+      if (!origin || !line) {
+        return;
+      }
+      const k = sailingExtraRoutesPairKey(origin, line);
+      if (!k || seen.has(k)) {
+        return;
+      }
+      seen.add(k);
+      pairs.push({ origin, line });
+    });
+    return pairs;
+  }
+
+  function getExtraSailingOriginChoices() {
+    const uniq = [];
+    const seenNorm = new Set();
+    function push(raw) {
+      const o = normalizeOriginPortToken(raw);
+      if (!o || seenNorm.has(o)) {
+        return;
+      }
+      seenNorm.add(o);
+      uniq.push(o);
+    }
+    getOriginPorts().forEach(push);
+    getUniqueSeaRoutePortLinePairs().forEach((pair) => push(pair.origin));
+    uniq.sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+    return uniq;
+  }
+
+  function mergeExtraSailingRowsFromSeaBlocks() {
+    if (!sailingDatesWrap || !seaUsdWrap) {
+      return;
+    }
+    const pairs = getUniqueSeaRoutePortLinePairs();
+    const rows = [...sailingDatesWrap.querySelectorAll(".sailing-date-row")];
+    const covered = new Set();
+    rows.forEach((rowEl) => {
+      const sel = rowEl.querySelector('select[name="nextSailingDateOrigin"]');
+      const li = rowEl.querySelector('input[name="nextSailingDateLine"]');
+      const o =
+        sel instanceof HTMLSelectElement
+          ? normalizeOriginPortToken(sel.value || "")
+          : "";
+      const l =
+        li instanceof HTMLInputElement
+          ? String(li.value || "").trim().replace(/\s+/g, " ")
+          : "";
+      const k = sailingExtraRoutesPairKey(o, l);
+      if (k) {
+        covered.add(k);
+      }
+    });
+    pairs.forEach((pair) => {
+      const k = sailingExtraRoutesPairKey(pair.origin, pair.line);
+      if (!k || covered.has(k)) {
+        return;
+      }
+      appendSailingDateRow("", { origin: pair.origin, line: pair.line });
+      covered.add(k);
+    });
+  }
+
+  function appendSailingDateRow(dateValue, preset = null) {
+    const p =
+      preset && typeof preset === "object" ? preset : {};
+    const dateRaw =
+      typeof dateValue === "string" ? dateValue : String(dateValue || "");
     const row = document.createElement("div");
     row.className = "sailing-date-row sailing-date-row--with-line";
 
     const originSelect = document.createElement("select");
     originSelect.name = "nextSailingDateOrigin";
+    originSelect.setAttribute("aria-label", "Порт отправления");
 
     const originPlaceholder = document.createElement("option");
     originPlaceholder.value = "";
-    originPlaceholder.textContent = "Порт отправления (из маршрута)";
+    originPlaceholder.textContent = "Порт отправления (из блоков связки)";
     originSelect.appendChild(originPlaceholder);
-
-    const input = document.createElement("input");
-    input.type = "date";
-    input.name = "nextSailingDates";
-    input.required = true;
-    input.value = defaultValue || "";
 
     const lineInput = document.createElement("input");
     lineInput.name = "nextSailingDateLine";
     lineInput.setAttribute("list", "shipping-line-suggestions");
-    lineInput.placeholder = "Линия (при необходимости)";
+    lineInput.placeholder = "Морская линия";
+    lineInput.setAttribute("aria-label", "Морская линия");
+
+    const input = document.createElement("input");
+    input.type = "date";
+    input.name = "nextSailingDates";
+    input.value = dateRaw.trim();
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "btn-copy-extra-sailing btn-mini-control";
+    copyBtn.dataset.action = "copy-extra-sailing-row";
+    copyBtn.textContent = "Копировать";
+    copyBtn.setAttribute(
+      "aria-label",
+      "Копировать строку; дату выхода нужно указать заново"
+    );
 
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "btn-remove-date";
     removeBtn.dataset.action = "remove-date";
     removeBtn.textContent = "−";
-    removeBtn.setAttribute("aria-label", "Удалить дату");
+    removeBtn.setAttribute("aria-label", "Удалить строку");
 
     row.appendChild(originSelect);
     row.appendChild(lineInput);
     row.appendChild(input);
+    row.appendChild(copyBtn);
     row.appendChild(removeBtn);
     sailingDatesWrap.appendChild(row);
+
     syncSailingDateOriginOptions();
+
+    const wantOrigin = normalizeOriginPortToken(String(p.origin || ""));
+    if (wantOrigin) {
+      const hasSame = [...originSelect.options].some(
+        (opt) =>
+          normalizeOriginPortToken(
+            opt instanceof HTMLOptionElement ? opt.value : ""
+          ) === wantOrigin
+      );
+      if (!hasSame) {
+        const opt = document.createElement("option");
+        opt.value = wantOrigin;
+        opt.textContent = wantOrigin;
+        originSelect.appendChild(opt);
+      }
+      originSelect.value = wantOrigin;
+    }
+
+    lineInput.value = String(p.line || "").trim();
   }
 
   function resetSailingDateRows() {
-    sailingDatesWrap.innerHTML =
-      '<div class="sailing-date-row sailing-date-row--with-line"><select name="nextSailingDateOrigin"><option value="">Порт отправления (из маршрута)</option></select><input name="nextSailingDateLine" list="shipping-line-suggestions" placeholder="Линия (при необходимости)" /><input name="nextSailingDates" type="date" required /><button type="button" id="add-sailing-date-btn" class="btn-add-date" aria-label="Добавить дату">+</button></div>';
-    const freshAddBtn = document.getElementById("add-sailing-date-btn");
-    if (freshAddBtn instanceof HTMLButtonElement) {
-      freshAddBtn.addEventListener("click", () => {
-        appendSailingDateRow("");
-      });
+    sailingDatesWrap.innerHTML = "";
+    mergeExtraSailingRowsFromSeaBlocks();
+    if (!(extraSailingPanel instanceof HTMLElement)) {
+      return;
     }
-    syncSailingDateOriginOptions();
+    extraSailingPanel.hidden = true;
+    if (extraSailingToggle instanceof HTMLButtonElement) {
+      extraSailingToggle.textContent = "Показать";
+      extraSailingToggle.setAttribute("aria-expanded", "false");
+    }
   }
 
   function syncSailingDateOriginOptions() {
-    const origins = getOriginPorts();
+    const origins = getExtraSailingOriginChoices();
     const selects = [
       ...sailingDatesWrap.querySelectorAll('select[name="nextSailingDateOrigin"]'),
     ];
@@ -6228,7 +6391,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const placeholder = document.createElement("option");
       placeholder.value = "";
-      placeholder.textContent = "Порт отправления (из маршрута)";
+      placeholder.textContent = "Порт отправления (из блоков связки)";
       selectNode.appendChild(placeholder);
 
       origins.forEach((origin) => {
