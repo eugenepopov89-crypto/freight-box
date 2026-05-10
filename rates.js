@@ -181,9 +181,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const originPortsWrap = document.getElementById("origin-ports-wrap");
   const addOriginPortBtn = document.getElementById("add-origin-port-btn");
   const destinationStationsWrap = document.getElementById("destination-stations-wrap");
-  const addDestinationStationBtn = document.getElementById(
-    "add-destination-station-btn"
-  );
   const warehouseAddressesWrap = document.getElementById("warehouse-addresses-wrap");
   const addWarehouseAddressBtn = document.getElementById("add-warehouse-address-btn");
   const originQuickPicks = document.getElementById("origin-quick-picks");
@@ -195,6 +192,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const addPortOptionBtn = document.getElementById("add-port-option");
   const addStationOptionBtn = document.getElementById("add-station-option");
   const shippingLineInput = document.getElementById("shippingLine");
+  /** То же поле, что «Название линии» в быстром добавлении (один input для ввода и списка). */
+  const newShippingLineOptionInput = shippingLineInput;
   const shippingLineQuickPicks = document.getElementById("shipping-line-quick-picks");
   const bookingAgentInput = document.getElementById("bookingAgent");
   const bookingAgentLineWrap = document.getElementById("booking-agent-line-wrap");
@@ -207,7 +206,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const linesSelectAllBtn = document.getElementById("lines-select-all");
   const linesClearAllBtn = document.getElementById("lines-clear-all");
   const addShippingLineOptionBtn = document.getElementById("add-shipping-line-option");
-  const newShippingLineOptionInput = document.getElementById("new-shipping-line-option");
   const addBookingAgentOptionBtn = document.getElementById("add-booking-agent-option");
   const newBookingAgentOptionInput = document.getElementById("new-booking-agent-option");
   const bookingAgentQuickPicks = document.getElementById(
@@ -430,7 +428,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     !stationSuggestions ||
     !originPortsWrap ||
     !destinationStationsWrap ||
-    !addDestinationStationBtn ||
     !warehouseAddressesWrap ||
     !addWarehouseAddressBtn ||
     !seaUsdWrap ||
@@ -450,7 +447,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     !linesSelectAllBtn ||
     !linesClearAllBtn ||
     !addShippingLineOptionBtn ||
-    !newShippingLineOptionInput ||
     !addBookingAgentOptionBtn ||
     !newBookingAgentOptionInput ||
     !bookingAgentQuickPicks ||
@@ -616,6 +612,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   enableDatalistOpenOnFocus(bookingAgentInput);
   syncBookingAgentShippingLineDatalist();
   enableDatalistOpenOnFocus(bookingAgentShippingLineInput);
+
+  document.getElementById("containerType")?.addEventListener("change", () => {
+    refreshCargoRouteSelectOptions();
+  });
 
   const initialRates = await loadRates();
   await fetchBookingAgentsPb();
@@ -852,6 +852,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       originPorts,
       destination: String(formData.get("destination")),
       railTerminal: String(formData.get("railTerminal") || "").trim(),
+      cargoDepartureTerminal: String(
+        formData.get("cargoDepartureTerminal") || ""
+      ).trim(),
+      cargoDestinationStation: String(
+        formData.get("cargoDestinationStation") || ""
+      ).trim(),
       destinationStation: destinationStations[0] || "",
       destinationStations,
       containerType: containerTypeRaw,
@@ -1018,6 +1024,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     addOptionToDatalist(chinaPortSuggestions, value);
     addCheckboxOption(originQuickPicks, "originQuickPorts", value);
     newPortOptionInput.value = "";
+    syncOriginQuickPicksToInput();
+    syncSeaUsdRowsToRouteCombinations();
   });
 
   addStationOptionBtn.addEventListener("click", () => {
@@ -1036,6 +1044,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
     newStationOptionInput.value = "";
+    syncStationQuickPicksToInput();
   });
 
   addShippingLineOptionBtn.addEventListener("click", () => {
@@ -1177,15 +1186,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncSeaUsdRowsToRouteCombinations();
   });
 
-  originPortsWrap.addEventListener("input", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) {
-      return;
-    }
-    if (target.name !== "originPorts") {
-      return;
+  newPortOptionInput.addEventListener("input", () => {
+    const primary = originPortsWrap.querySelector('input[name="originPorts"]');
+    if (primary instanceof HTMLInputElement) {
+      primary.value = newPortOptionInput.value;
     }
     syncSeaUsdRowsToRouteCombinations();
+  });
+
+  newStationOptionInput.addEventListener("input", () => {
+    const primary = destinationStationsWrap.querySelector(
+      'input[name="destinationStations"]'
+    );
+    if (primary instanceof HTMLInputElement) {
+      primary.value = newStationOptionInput.value;
+    }
+    refreshCargoRouteSelectOptions();
   });
 
   terminalsSelectAllBtn.addEventListener("click", () => {
@@ -1291,28 +1307,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   syncSecurityCostVisibility();
 
-  originPortsWrap.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) {
-      return;
-    }
-    if (target.dataset.action !== "remove-origin-port") {
-      return;
-    }
-    if (originPortsWrap.querySelectorAll(".origin-port-row").length <= 1) {
-      const onlyInput = originPortsWrap.querySelector('input[name="originPorts"]');
-      if (onlyInput instanceof HTMLInputElement) {
-        onlyInput.value = "";
-      }
-      return;
-    }
-    target.closest(".origin-port-row")?.remove();
-  });
-
-  addDestinationStationBtn.addEventListener("click", () => {
-    appendDestinationStationRow("");
-  });
-
   addRailRubRowBtn.addEventListener("click", () => {
     appendRailRubRow("40HQ", "");
   });
@@ -1336,28 +1330,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     appendWarehouseAddressRow("");
     refreshWarehouseAddressRowLabels();
     syncAutoRubRowsToWarehouseAddresses();
-  });
-
-  destinationStationsWrap.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) {
-      return;
-    }
-    if (target.dataset.action !== "remove-destination-station") {
-      return;
-    }
-    if (
-      destinationStationsWrap.querySelectorAll(".destination-station-row").length <= 1
-    ) {
-      const onlyInput = destinationStationsWrap.querySelector(
-        'input[name="destinationStations"]'
-      );
-      if (onlyInput instanceof HTMLInputElement) {
-        onlyInput.value = "";
-      }
-      return;
-    }
-    target.closest(".destination-station-row")?.remove();
   });
 
   warehouseAddressesWrap.addEventListener("click", (event) => {
@@ -4298,7 +4270,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selected = getSelectedBookingAgentsFromQuickPicks();
     const joined = selected.join(", ");
     bookingAgentInput.value = joined;
-    newBookingAgentOptionInput.value = joined;
     syncBookingAgentLineVisibility();
     syncBookingAgentShippingLineDatalist();
   }
@@ -4311,7 +4282,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const joined = selected.join(", ");
     bookingAgentInput.value = joined;
-    newBookingAgentOptionInput.value = joined;
     syncBookingAgentLineVisibility();
     syncBookingAgentShippingLineDatalist();
   }
@@ -4649,40 +4619,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const firstStationInput = destinationStationsWrap.querySelector(
       'input[name="destinationStations"]'
     );
-    if (
-      firstStationInput instanceof HTMLInputElement &&
-      !firstStationInput.value.trim() &&
-      selectedStations.length
-    ) {
-      firstStationInput.value = selectedStations[0];
+    if (firstStationInput instanceof HTMLInputElement) {
+      firstStationInput.value = selectedStations.join(", ");
     }
     newStationOptionInput.value = selectedStations.join(", ");
   }
 
   function appendOriginPortRow(defaultValue) {
-    const row = document.createElement("div");
-    row.className = "origin-port-row";
-
     const input = document.createElement("input");
+    input.type = "hidden";
     input.name = "originPorts";
-    input.setAttribute("list", "china-port-suggestions");
     input.value = defaultValue || "";
-
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "btn-remove-date";
-    removeBtn.dataset.action = "remove-origin-port";
-    removeBtn.textContent = "−";
-    removeBtn.setAttribute("aria-label", "Удалить порт");
-
-    row.appendChild(input);
-    row.appendChild(removeBtn);
-    originPortsWrap.appendChild(row);
+    originPortsWrap.appendChild(input);
   }
 
   function resetOriginPortRows() {
     originPortsWrap.innerHTML =
-      '<div class="origin-port-row"><input name="originPorts" list="china-port-suggestions" /></div>';
+      '<input type="hidden" name="originPorts" id="origin-ports-primary" value="" />';
     [
       ...originQuickPicks.querySelectorAll('input[name="originQuickPorts"]'),
     ].forEach((input) => {
@@ -4694,25 +4647,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function appendDestinationStationRow(defaultValue) {
-    const row = document.createElement("div");
-    row.className = "destination-station-row";
-
     const input = document.createElement("input");
+    input.type = "hidden";
     input.name = "destinationStations";
-    input.setAttribute("list", "station-suggestions");
-    input.placeholder = "Например, Ворсино";
     input.value = defaultValue || "";
-
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "btn-remove-date";
-    removeBtn.dataset.action = "remove-destination-station";
-    removeBtn.textContent = "−";
-    removeBtn.setAttribute("aria-label", "Удалить станцию");
-
-    row.appendChild(input);
-    row.appendChild(removeBtn);
-    destinationStationsWrap.appendChild(row);
+    destinationStationsWrap.appendChild(input);
+    refreshCargoRouteSelectOptions();
   }
 
   function appendWarehouseAddressRow(defaultValue) {
@@ -4751,13 +4691,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function resetDestinationStationRows() {
     destinationStationsWrap.innerHTML =
-      '<div class="destination-station-row"><input name="destinationStations" list="station-suggestions" placeholder="Например, Ворсино" /><button type="button" id="add-destination-station-btn" class="btn-add-date" aria-label="Добавить станцию">+</button></div>';
-    const freshAddBtn = document.getElementById("add-destination-station-btn");
-    if (freshAddBtn instanceof HTMLButtonElement) {
-      freshAddBtn.addEventListener("click", () => {
-        appendDestinationStationRow("");
-      });
-    }
+      '<input type="hidden" name="destinationStations" id="destination-stations-primary" value="" />';
     [
       ...stationQuickPicks.querySelectorAll(
         'input[name="destinationQuickStations"]'
@@ -4768,6 +4702,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
     filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
+    refreshCargoRouteSelectOptions();
   }
 
   function resetWarehouseAddressRows() {
@@ -5148,7 +5083,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selectedLines = getSelectedShippingLines();
     const joined = selectedLines.join(", ");
     shippingLineInput.value = joined;
-    newShippingLineOptionInput.value = joined;
     syncBookingAgentShippingLineDatalist();
     syncSeaUsdRowsToRouteCombinations();
   }
