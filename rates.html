@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778941010000" />
+    <link rel="stylesheet" href="styles.css?v=1778941060000" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -590,52 +590,6 @@
           </form>
         </section>
 
-        <details class="form-card contractor-pdf-import no-print">
-          <summary class="contractor-pdf-import-summary">
-            Обновить ставки Green Sea (PDF → реестр)
-          </summary>
-          <div class="contractor-pdf-import-body">
-            <p class="rates-filter-explainer">
-              <strong>Раздел 1:</strong> порты (кроме Busan), 20′DC и 40′HC → морской фрахт по типам контейнера.
-              <strong>Раздел 2:</strong> строка «МОСКВА», первые три суммы в ₽ в блоке «Стоимость транспортировки»
-              (без охраны: 20′ &lt;24 т, 20′ &gt;24 т, 40′) → три столбца ЖД реестра для каждого порта. Остальное для Москвы:
-              терминал ВСК, станции Электроугли / Селятино / Белый Раст, склад Москва МО, таможня в порту назначения,
-              линия Green sea, выходы — «Уточнять дополнительно». Сохранение: localStorage без входа или PocketBase при входе.
-              Для PDF нужен интернет (pdf.js с CDN).
-            </p>
-            <div class="contractor-pdf-import-row">
-              <label>
-                Файл PDF
-                <input
-                  type="file"
-                  id="contractor-greensea-file"
-                  accept="application/pdf,.pdf"
-                />
-              </label>
-            </div>
-            <div class="contractor-pdf-import-row">
-              <label>
-                Или вставьте текст из PDF (если разбор файла не сработал)
-                <textarea
-                  id="contractor-greensea-text-fallback"
-                  rows="5"
-                  class="contractor-pdf-import-textarea"
-                  placeholder="Вставьте скопированный текст со страниц КП…"
-                ></textarea>
-              </label>
-            </div>
-            <div class="contractor-pdf-import-actions">
-              <button type="button" class="btn-ghost" id="contractor-greensea-parse-btn">
-                Разобрать PDF / текст
-              </button>
-              <button type="button" class="btn-primary" id="contractor-greensea-commit-btn">
-                Обновить реестр
-              </button>
-            </div>
-            <pre class="contractor-pdf-import-preview" id="contractor-greensea-preview" aria-live="polite"></pre>
-          </div>
-        </details>
-
         <section class="rates-table-wrap" aria-label="Список опубликованных ставок">
           <div class="section-header">
             <div
@@ -691,9 +645,6 @@
                 </button>
                 <button type="button" class="rates-tab" data-destination="MINSK">
                   MINSK
-                </button>
-                <button type="button" class="rates-tab" data-destination="RU_REGIONS">
-                  RU region
                 </button>
               </div>
             </div>
@@ -1322,8 +1273,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778941020000"></script>
-    <script src="contractor-greensea-import.js?v=1778941040000"></script>
+    <script src="rates.js?v=1778941060000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
