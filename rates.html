@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778369202670" />
+    <link rel="stylesheet" href="styles.css?v=1778369202685" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -417,40 +417,24 @@
 
                   <div class="cost-follow cost-follow--rail">
                     <p class="cost-follow-hint">ЖД: терминал во Владивостоке → станция назначения</p>
-                    <div id="rail-rub-default-wrap">
-                      <label for="railRub">Стоимость ЖД, RUB *</label>
-                      <input
-                        id="railRub"
-                        name="railRub"
-                        type="number"
-                        step="1"
-                        min="0"
-                        required
-                        placeholder="Например, 235000"
-                      />
-                    </div>
-                    <div class="rail-rub-20-grid field-group field-group--full rail-rub-20-wrap" id="rail-rub-20-wrap" hidden>
-                      <div>
-                        <label for="railRub20Lt24">ЖД 20′ft &lt; 24 t, RUB *</label>
-                        <input
-                          id="railRub20Lt24"
-                          name="railRub20Lt24"
-                          type="number"
-                          step="1"
-                          min="0"
-                          placeholder="Например, 235000"
-                        />
-                      </div>
-                      <div>
-                        <label for="railRub20Gt24">ЖД 20′ft &gt; 24 t, RUB *</label>
-                        <input
-                          id="railRub20Gt24"
-                          name="railRub20Gt24"
-                          type="number"
-                          step="1"
-                          min="0"
-                          placeholder="Например, 255000"
-                        />
+                    <div class="rail-rub-dynamic-block">
+                      <span class="rail-rub-section-title" id="rail-rub-section-label">
+                        Стоимость ЖД, RUB за *
+                      </span>
+                      <p class="rail-rub-multi-hint helper-text">
+                        Для 20FT укажите суммы для «20′ft &lt; 24 t» и «20′ft &gt; 24 t». Для 40HQ — для «40′ HQ».
+                        Несколько строк — кнопка +.
+                      </p>
+                      <div id="rail-rub-rows-wrap" class="rail-rub-rows-stack" aria-labelledby="rail-rub-section-label"></div>
+                      <div class="rail-rub-add-row">
+                        <button
+                          type="button"
+                          id="add-rail-rub-row-btn"
+                          class="btn-add-date"
+                          aria-label="Добавить строку стоимости ЖД"
+                        >
+                          +
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1341,7 +1325,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778369202601"></script>
+    <script src="rates.js?v=1778369202690"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
