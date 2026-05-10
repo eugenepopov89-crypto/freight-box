@@ -146,6 +146,104 @@ document.addEventListener("DOMContentLoaded", async () => {
   migrateLegacyOptionKeys();
 
   const DESTINATIONS = ["MOSCOW", "ST. PETERSBURG", "MINSK"];
+
+  function getStationQuickPicksRootEl() {
+    return document.getElementById("station-quick-picks");
+  }
+
+  function resolveDestinationCityForStationName(stationRaw) {
+    const root = getStationQuickPicksRootEl();
+    if (!(root instanceof HTMLElement)) {
+      return "";
+    }
+    const want = String(stationRaw || "").trim();
+    if (!want) {
+      return "";
+    }
+    const inputs = [
+      ...root.querySelectorAll('input[name="destinationQuickStations"]'),
+    ];
+    for (let i = 0; i < inputs.length; i++) {
+      const inp = inputs[i];
+      if (!(inp instanceof HTMLInputElement)) {
+        continue;
+      }
+      if (
+        String(inp.value || "")
+          .trim()
+          .localeCompare(want, "ru", { sensitivity: "accent" }) === 0
+      ) {
+        const d = String(inp.dataset.destination || "").trim();
+        return DESTINATIONS.includes(d) ? d : "";
+      }
+    }
+    return "";
+  }
+
+  function inferDestinationFromFormStations() {
+    const tokens = [];
+    const pushSplit = (txt) => {
+      String(txt || "")
+        .split(/[,/]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((t) => tokens.push(t));
+    };
+    const seaRoot = document.getElementById("sea-usd-wrap");
+    if (seaRoot instanceof HTMLElement) {
+      seaRoot.querySelectorAll(".sea-route-station").forEach((el) => {
+        if (el instanceof HTMLInputElement) {
+          pushSplit(el.value);
+        }
+      });
+    }
+    const hid = document.getElementById("destination-stations-primary");
+    if (hid instanceof HTMLInputElement) {
+      pushSplit(hid.value);
+    }
+    const cities = new Set();
+    tokens.forEach((tok) => {
+      const c = resolveDestinationCityForStationName(tok);
+      if (c) {
+        cities.add(c);
+      }
+    });
+    if (!tokens.length) {
+      return { ok: false, code: "unknown" };
+    }
+    if (!cities.size) {
+      return { ok: false, code: "unknown" };
+    }
+    if (cities.size > 1) {
+      return { ok: false, code: "conflict" };
+    }
+    return { ok: true, value: [...cities][0] };
+  }
+
+  function applyHiddenDestinationFromStationsForSubmit() {
+    const field = document.getElementById("destination");
+    if (!(field instanceof HTMLInputElement)) {
+      return { ok: false, message: "Внутренняя ошибка формы направления." };
+    }
+    const inf = inferDestinationFromFormStations();
+    if (!inf.ok && inf.code === "conflict") {
+      return {
+        ok: false,
+        message:
+          "Станции назначения из разных групп (Москва, Санкт-Петербург или Минск). Приведите строки к одному финальному региону.",
+      };
+    }
+    if (!inf.ok) {
+      return {
+        ok: false,
+        message:
+          "Не удалось определить направление по станциям: укажите названия из быстрого выбора станций или добавьте станцию с привязкой к региону (Москва / СПб / Минск).",
+      };
+    }
+    field.value = inf.value;
+    return { ok: true };
+  }
+
   const months = [
     "Январь",
     "Февраль",
@@ -161,8 +259,163 @@ document.addEventListener("DOMContentLoaded", async () => {
     "Декабрь",
   ];
 
+  function toIsoDateLocal(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function parseTariffIsoDateLocal(iso) {
+    const s = String(iso || "").trim();
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    if (!m) {
+      return null;
+    }
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    if (!y || mo < 1 || mo > 12 || d < 1 || d > 31) {
+      return null;
+    }
+    const dt = new Date(y, mo - 1, d);
+    if (
+      dt.getFullYear() !== y ||
+      dt.getMonth() !== mo - 1 ||
+      dt.getDate() !== d
+    ) {
+      return null;
+    }
+    return dt;
+  }
+
+  function legacyTariffValidityRange(rate) {
+    const vy = Number(rate?.validYear);
+    const vm = Number(rate?.validMonth);
+    if (!Number.isFinite(vy) || !Number.isFinite(vm) || vm < 1 || vm > 12) {
+      return null;
+    }
+    const slot = String(rate?.validitySlot || "").trim().toUpperCase();
+    const isH1 = slot === "H1" || slot === "";
+    if (isH1) {
+      return {
+        from: new Date(vy, vm - 1, 1),
+        to: new Date(vy, vm - 1, 15),
+      };
+    }
+    return {
+      from: new Date(vy, vm - 1, 16),
+      to: new Date(vy, vm, 0),
+    };
+  }
+
+  function tariffValidityBounds(rate) {
+    const fIso = String(rate?.tariffValidFrom || "").trim();
+    const tIso = String(rate?.tariffValidTo || "").trim();
+    if (fIso && tIso) {
+      const from = parseTariffIsoDateLocal(fIso);
+      const to = parseTariffIsoDateLocal(tIso);
+      if (from && to) {
+        return { from, to };
+      }
+    }
+    return legacyTariffValidityRange(rate);
+  }
+
+  function rateOverlapsPublicationMonth(rate, filterYear, filterMonth) {
+    const b = tariffValidityBounds(rate);
+    if (!b) {
+      return false;
+    }
+    const fy = Number(filterYear);
+    const fm = Number(filterMonth);
+    if (!Number.isFinite(fy) || !Number.isFinite(fm) || fm < 1 || fm > 12) {
+      return false;
+    }
+    const monthStart = new Date(fy, fm - 1, 1);
+    const monthEnd = new Date(fy, fm, 0);
+    return b.from <= monthEnd && b.to >= monthStart;
+  }
+
+  function compareRatesForPublication(a, b) {
+    const ba = tariffValidityBounds(a);
+    const bb = tariffValidityBounds(b);
+    const ta = ba ? ba.from.getTime() : 0;
+    const tb = bb ? bb.from.getTime() : 0;
+    if (ta !== tb) {
+      return tb - ta;
+    }
+    return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+  }
+
+  function formatTariffValidityRangeLabel(rate) {
+    const b = tariffValidityBounds(rate);
+    if (!b) {
+      return "—";
+    }
+    return formatDateDdMmYy(b.from) + " – " + formatDateDdMmYy(b.to);
+  }
+
+  function tariffKeySegmentFromRecord(rate) {
+    const f = String(rate?.tariffValidFrom || "").trim();
+    const t = String(rate?.tariffValidTo || "").trim();
+    if (f && t) {
+      return f + "|" + t;
+    }
+    return (
+      String(rate?.validMonth ?? "") +
+      "|" +
+      String(rate?.validYear ?? "") +
+      "|" +
+      String(rate?.validitySlot || "")
+    );
+  }
+
+  function tariffKeySegmentFromFormData(formData) {
+    const f = String(formData.get("tariffValidFrom") || "").trim();
+    const t = String(formData.get("tariffValidTo") || "").trim();
+    return f + "|" + t;
+  }
+
+  function initTariffValidityDefaults() {
+    const tFrom = document.getElementById("tariffValidFrom");
+    const tTo = document.getElementById("tariffValidTo");
+    if (!(tFrom instanceof HTMLInputElement) || !(tTo instanceof HTMLInputElement)) {
+      return;
+    }
+    const today = new Date();
+    const endMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    if (!String(tFrom.value || "").trim()) {
+      tFrom.value = toIsoDateLocal(today);
+    }
+    if (!String(tTo.value || "").trim()) {
+      tTo.value = toIsoDateLocal(endMonth);
+    }
+  }
+
+  function wireTariffValidityInputs() {
+    const tFrom = document.getElementById("tariffValidFrom");
+    const tTo = document.getElementById("tariffValidTo");
+    if (!(tFrom instanceof HTMLInputElement) || !(tTo instanceof HTMLInputElement)) {
+      return;
+    }
+    const validate = () => {
+      const a = parseTariffIsoDateLocal(tFrom.value);
+      const b = parseTariffIsoDateLocal(tTo.value);
+      tFrom.setCustomValidity("");
+      tTo.setCustomValidity("");
+      if (a && b && a.getTime() > b.getTime()) {
+        tTo.setCustomValidity("Дата «по» не раньше даты «с».");
+      }
+    };
+    ["change", "input"].forEach((ev) => {
+      tFrom.addEventListener(ev, validate);
+      tTo.addEventListener(ev, validate);
+    });
+  }
+
   const form = document.getElementById("rates-form");
-  const destinationSelect = document.getElementById("destination");
+  const destinationField = document.getElementById("destination");
   const statusEl = document.getElementById("rates-status");
   const tbody = document.getElementById("rates-tbody");
   const tabsWrap = document.getElementById("rates-tabs");
@@ -230,8 +483,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const addSailingDateBtn = document.getElementById("add-sailing-date-btn");
   const extraSailingToggle = document.getElementById("extra-sailing-toggle");
   const extraSailingPanel = document.getElementById("extra-sailing-panel");
-  const monthSelect = document.getElementById("validMonth");
-  const yearInput = document.getElementById("validYear");
   const periodEl = document.getElementById("current-period");
   const yearTabsWrap = document.getElementById("rates-year-tabs");
   const monthTabsWrap = document.getElementById("rates-month-tabs");
@@ -418,9 +669,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     return list;
   }
 
+  function normalizeDeliveryTerms(raw) {
+    const s = String(raw ?? "").trim().toUpperCase();
+    return s === "EXW" || s === "FCA" || s === "FOB" ? s : "FOB";
+  }
+
+  function syncDeliveryTermsPickupRow() {
+    const sel = document.getElementById("deliveryTerms");
+    const row = document.getElementById("delivery-exw-fca-row");
+    const inp = document.getElementById("deliveryExwFcaUsd");
+    const lab = document.getElementById("delivery-exw-fca-label");
+    if (
+      !(sel instanceof HTMLSelectElement) ||
+      !(row instanceof HTMLElement) ||
+      !(inp instanceof HTMLInputElement) ||
+      !(lab instanceof HTMLElement)
+    ) {
+      return;
+    }
+    const v = normalizeDeliveryTerms(sel.value);
+    if (v === "FOB") {
+      row.hidden = true;
+      inp.required = false;
+      inp.disabled = true;
+      inp.removeAttribute("aria-required");
+      inp.value = "";
+      return;
+    }
+    row.hidden = false;
+    inp.disabled = false;
+    inp.required = true;
+    inp.setAttribute("aria-required", "true");
+    lab.textContent =
+      v === "EXW" ? "Стоимость EXW, USD *" : "Стоимость FCA, USD *";
+    inp.placeholder =
+      v === "EXW" ? "Например, 850 (EXW)" : "Например, 650 (FCA)";
+  }
+
   if (
     !form ||
-    !destinationSelect ||
+    !(destinationField instanceof HTMLInputElement) ||
     !statusEl ||
     !tbody ||
     !tabsWrap ||
@@ -466,8 +754,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     !chinaPortSuggestions ||
     !sailingDatesWrap ||
     !addSailingDateBtn ||
-    !monthSelect ||
-    !yearInput ||
     !periodEl ||
     !railRubRowsWrap
   ) {
@@ -560,6 +846,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     return n;
   }
 
+  function normalizeContainerSlotValue(raw) {
+    const s = String(raw || "").trim();
+    if (s === "20LT24" || s === "20GT24" || s === "40HQ") {
+      return s;
+    }
+    return "40HQ";
+  }
+
+  function getPrimarySeaContainerSlot(seaBlk) {
+    if (!(seaBlk instanceof HTMLElement)) {
+      return "40HQ";
+    }
+    const primarySeg = seaBlk.querySelector(
+      '.sea-route-maritime-segment[data-maritime-primary="true"]'
+    );
+    const root = primarySeg instanceof HTMLElement ? primarySeg : seaBlk;
+    const slotSel = root.querySelector(".sea-route-container-slot");
+    return normalizeContainerSlotValue(
+      slotSel instanceof HTMLSelectElement ? slotSel.value : ""
+    );
+  }
+
   function aggregateRailRubTiersFromDom() {
     const seaBlocks = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
     const bundles = [
@@ -578,14 +886,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
       const seaBlk = seaBlocks[bundleIndex];
-      const slotSel = seaBlk?.querySelector(".sea-route-container-slot");
-      let slot =
-        slotSel instanceof HTMLSelectElement
-          ? String(slotSel.value || "").trim()
-          : "40HQ";
-      if (slot !== "20LT24" && slot !== "20GT24" && slot !== "40HQ") {
-        slot = "40HQ";
-      }
+      const slot = getPrimarySeaContainerSlot(seaBlk);
       if (slot === "40HQ") {
         const hqVal = readSeaRailNum(blk.querySelector('input[data-rail-slot="hq"]'));
         perRoute.push({
@@ -631,27 +932,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     new Date().getFullYear()
   );
 
-  months.forEach((monthName, index) => {
-    const option = document.createElement("option");
-    option.value = String(index + 1);
-    option.textContent = monthName;
-    monthSelect.appendChild(option);
-  });
+  wireTariffValidityInputs();
+  initTariffValidityDefaults();
 
   const now = new Date();
-  monthSelect.value = String(now.getMonth() + 1);
-  yearInput.value = String(FIXED_YEAR);
-  periodEl.textContent = buildCurrentPeriodText(now);
+  periodEl.textContent = buildTariffAddedHintText(now);
   syncPrintRoute();
   sortDatalistOptions(chinaPortSuggestions);
   sortDatalistOptions(stationSuggestions);
   sortCheckboxOptions(originQuickPicks, "originQuickPorts");
   sortCheckboxOptions(stationQuickPicks, "destinationQuickStations");
   sortCheckboxOptions(shippingLineQuickPicks, "shippingLineQuickOptions");
-  filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
+  filterStationQuickPicksByDestination("");
     refreshWarehouseAddressRowLabels();
     syncAutoRubRowsToWarehouseAddresses();
     syncSeaUsdRowsToRouteCombinations();
+  const deliveryTermsSelect = document.getElementById("deliveryTerms");
+  if (deliveryTermsSelect instanceof HTMLSelectElement) {
+    deliveryTermsSelect.addEventListener("change", syncDeliveryTermsPickupRow);
+  }
+  syncDeliveryTermsPickupRow();
   syncOriginQuickPicksToInput();
   syncShippingLineInputToQuickPicks();
   syncRailTerminalInputToQuickPicks();
@@ -689,6 +989,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("hydratePublicationFiltersFromSharedLink failed:", error);
   }
 
+  const ratesRegistryLiveOpen = document.getElementById(
+    "rates-registry-live-open"
+  );
+  function openRegistryLiveFobWindow() {
+    const url = new URL("registry-live-fob.html", window.location.href).href;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+  ratesRegistryLiveOpen?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openRegistryLiveFobWindow();
+  });
+  ratesRegistryLiveOpen?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openRegistryLiveFobWindow();
+    }
+  });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -716,6 +1035,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncSeaUsdRowsToRouteCombinations();
     mirrorLegacyHiddenFromSeaRows();
 
+    const destApplied = applyHiddenDestinationFromStationsForSubmit();
+    if (!destApplied.ok) {
+      setStatus(destApplied.message || "Проверьте станции назначения.", "error");
+      return;
+    }
+
     const formData = new FormData(form);
     const destinationStations = getDestinationStations();
     const warehouseAddresses = getWarehouseAddresses();
@@ -730,14 +1055,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const requiredMissingMessages = [
-      ["destination", "Выберите финальное направление."],
       ["railTerminal", "Заполните терминал прибытия на Дальнем Востоке."],
       ["shippingLine", "Заполните морскую линию."],
       ["bookingAgent", "Заполните букирующего агента (или НЕТ)."],
       ["customsClearance", "Выберите таможенную очистку."],
-      ["validitySlot", "Выберите период действия."],
-      ["validMonth", "Выберите месяц."],
-      ["validYear", "Выберите год."],
+      ["tariffValidFrom", "Укажите дату начала срока действия тарифа."],
+      ["tariffValidTo", "Укажите дату окончания срока действия тарифа."],
       ["transitDays", "Заполните транзитный срок (дней)."],
     ];
     for (let i = 0; i < requiredMissingMessages.length; i++) {
@@ -799,35 +1122,35 @@ document.addEventListener("DOMContentLoaded", async () => {
     const seaRouteRows = getSeaRouteRows();
     const routeCombos = buildOriginLineCombinations(originPorts, shippingLines);
     const autoRubs = getAutoRubValues();
-    const expectedSeaRows = routeCombos.length;
-    if (seaRouteRows.length < expectedSeaRows) {
+    if (seaRouteRows.length < routeCombos.length) {
       setStatus("Заполните фрахт и дату выхода для каждой строки порт + линия.", "error");
       return;
     }
-    if (railTiersForSave.perRoute.length !== seaRouteRows.length) {
+    if (railTiersForSave.perRoute.length !== routeCombos.length) {
       setStatus(
         "Число строк ЖД не совпадает с числом морских связок. Обновите маршрут и заполните ЖД по каждой строке.",
         "error"
       );
       return;
     }
-    if (autoRubs.length !== seaRouteRows.length) {
+    if (autoRubs.length !== routeCombos.length) {
       setStatus(
-        "Укажите стоимость авто для каждой строки морского маршрута (блок ниже).",
+        "Укажите стоимость авто для каждой блоку порта × линия (блок авто ниже).",
         "error"
       );
       return;
     }
-    const seaRouteRowsWithKeys = seaRouteRows.map((row, index) => {
-      const railPart = railTiersForSave.perRoute[index] || {
+    const seaRouteRowsWithKeys = seaRouteRows.map((row) => {
+      const bi = typeof row.seaBundleBlockIndex === "number" ? row.seaBundleBlockIndex : 0;
+      const railPart = railTiersForSave.perRoute[bi] || {
         slot: "40HQ",
         railRub40Hq: null,
         railRub20Lt24: null,
         railRub20Gt24: null,
       };
       return {
-        origin: routeCombos[index] ? routeCombos[index].origin : "",
-        shippingLine: routeCombos[index] ? routeCombos[index].shippingLine : "",
+        origin: row.origin,
+        shippingLine: row.shippingLine,
         seaUsd: row.seaUsd,
         sailingDate: row.sailingDate,
         dvTerminal: row.dvTerminal,
@@ -837,7 +1160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         railRub20Lt24: railPart.railRub20Lt24,
         railRub20Gt24: railPart.railRub20Gt24,
         railRub40Hq: railPart.railRub40Hq,
-        autoRub: autoRubs[index],
+        autoRub: autoRubs[bi],
       };
     });
     const seaUsds = seaRouteRowsWithKeys.map((row) => row.seaUsd);
@@ -878,10 +1201,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
         return;
       }
-      const ar = autoRubs[i];
+      const bi =
+        typeof row.seaBundleBlockIndex === "number" ? row.seaBundleBlockIndex : 0;
+      const ar = autoRubs[bi];
       if (!Number.isFinite(ar) || ar < 0) {
         setStatus(
-          "Проверьте стоимость авто для строки моря " + String(i + 1) + ".",
+          "Проверьте стоимость авто для блока порта × линия №" +
+            String(bi + 1) +
+            ".",
           "error"
         );
         return;
@@ -1003,6 +1330,44 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    const deliveryTermsSubmit = normalizeDeliveryTerms(
+      String(formData.get("deliveryTerms") || "FOB")
+    );
+    let deliveryExwFcaUsdSubmit = null;
+    if (deliveryTermsSubmit === "EXW" || deliveryTermsSubmit === "FCA") {
+      const rawPickupUsd = rateNumericOrNaN(formData.get("deliveryExwFcaUsd"));
+      if (!Number.isFinite(rawPickupUsd) || rawPickupUsd < 0) {
+        setStatus(
+          deliveryTermsSubmit === "EXW"
+            ? "Укажите стоимость EXW в USD."
+            : "Укажите стоимость FCA в USD.",
+          "error"
+        );
+        return;
+      }
+      deliveryExwFcaUsdSubmit = rawPickupUsd;
+    }
+
+    const tariffFromRaw = String(formData.get("tariffValidFrom") || "").trim();
+    const tariffToRaw = String(formData.get("tariffValidTo") || "").trim();
+    if (!tariffFromRaw || !tariffToRaw) {
+      setStatus("Укажите срок действия тарифа: даты «с» и «по».", "error");
+      return;
+    }
+    const tariffFromDate = parseTariffIsoDateLocal(tariffFromRaw);
+    const tariffToDate = parseTariffIsoDateLocal(tariffToRaw);
+    if (!tariffFromDate || !tariffToDate) {
+      setStatus("Проверьте формат дат в сроке действия тарифа.", "error");
+      return;
+    }
+    if (tariffFromDate.getTime() > tariffToDate.getTime()) {
+      setStatus(
+        "В сроке действия тарифа дата «с» не может быть позже даты «по».",
+        "error"
+      );
+      return;
+    }
+
     const rate = {
       id: buildRateId(formData),
       origin: originPorts[0] || "",
@@ -1027,9 +1392,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       bookingAgent: bookingAgentRaw,
       bookingAgentShippingLine: bookingAgentLineRaw,
       customsClearance: customsClearanceRaw,
-      validitySlot: String(formData.get("validitySlot")),
-      validMonth: Number(formData.get("validMonth")),
-      validYear: Number(formData.get("validYear")),
+      tariffValidFrom: tariffFromRaw,
+      tariffValidTo: tariffToRaw,
+      deliveryTerms: deliveryTermsSubmit,
+      deliveryExwFcaUsd: deliveryExwFcaUsdSubmit,
       seaUsd: seaUsds[0],
       seaUsds,
       seaRouteRows: seaRouteRowsWithKeys,
@@ -1058,12 +1424,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       updatedAt: new Date().toISOString(),
     };
 
-    if (
-      Number.isNaN(rate.validMonth) ||
-      Number.isNaN(rate.validYear) ||
-      Number.isNaN(rate.railRub) ||
-      Number.isNaN(rate.transitDays)
-    ) {
+    if (Number.isNaN(rate.railRub) || Number.isNaN(rate.transitDays)) {
       setStatus("Проверьте числовые поля ставки.", "error");
       return;
     }
@@ -1093,7 +1454,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           normalizeRateId(id) === prevId ? stableKey : id
         );
       }
-      setStatus("Ставка обновлена для выбранного периода.", "success");
+      setStatus("Ставка обновлена.", "success");
     } else {
       rates.push(rate);
       setStatus("Ставка опубликована.", "success");
@@ -1115,8 +1476,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     refreshWarehouseAddressRowLabels();
     syncAutoRubRowsToWarehouseAddresses();
     syncSeaUsdRowsToRouteCombinations();
-    monthSelect.value = String(now.getMonth() + 1);
-    yearInput.value = String(FIXED_YEAR);
+    syncDeliveryTermsPickupRow();
+    initTariffValidityDefaults();
     syncSecurityCostVisibility();
     syncShippingLineQuickPicksToInput();
     syncRailTerminalQuickPicksToInput();
@@ -1204,13 +1565,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     addOptionToDatalist(stationSuggestions, value);
-    addCheckboxOption(
-      stationQuickPicks,
-      "destinationQuickStations",
-      value,
-      String(destinationSelect.value || "MOSCOW")
-    );
-    filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
+    addCheckboxOption(stationQuickPicks, "destinationQuickStations", value, "");
+    filterStationQuickPicksByDestination("");
     newStationOptionInput.value = "";
     syncStationQuickPicksToInput();
   });
@@ -1510,17 +1866,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncBookingAgentQuickPicksToInput();
   });
 
-  destinationSelect.addEventListener("change", () => {
-    filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
-    syncStationQuickPicksToInput();
-    syncSeaUsdRowsToRouteCombinations();
-  });
-
   seaUsdWrap.addEventListener("change", onSeaUsdWrapDelegatedChange);
+  seaUsdWrap.addEventListener("click", handleSeaUsdMaritimeStackClick);
   seaUsdWrap.addEventListener("input", (event) => {
     const t = event.target;
     if (!(t instanceof HTMLInputElement)) {
       return;
+    }
+    if (t.name === "seaSailingDate") {
+      const bundle = t.closest(".sea-route-block");
+      const seg = t.closest(".sea-route-maritime-segment");
+      if (
+        bundle instanceof HTMLElement &&
+        seg instanceof HTMLElement &&
+        seg.getAttribute("data-maritime-primary") === "true"
+      ) {
+        syncSeaSecondarySailingDatesFromPrimary(bundle);
+      }
     }
     if (
       t.classList.contains("sea-route-dv-terminal") ||
@@ -2056,11 +2418,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function buildCurrentPeriodText(date) {
-    const day = date.getDate();
-    const half = day <= 15 ? "1-15" : "15-конец месяца";
-    const monthName = months[date.getMonth()];
-    return "Текущий рабочий период: " + half + " (" + monthName + " " + date.getFullYear() + ")";
+  function getRegisteredUserEmail() {
+    try {
+      const raw = localStorage.getItem("pb_user");
+      if (!raw) {
+        return "";
+      }
+      const rec = JSON.parse(raw);
+      return String(rec.email || rec.username || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function formatDateDdMmYy(date) {
+    const d = String(date.getDate()).padStart(2, "0");
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const y = String(date.getFullYear()).slice(-2);
+    return d + "." + m + "." + y;
+  }
+
+  /** Строка под заголовком формы: email из записи PocketBase при входе + сегодняшняя дата. */
+  function buildTariffAddedHintText(date) {
+    const email = getRegisteredUserEmail();
+    const when = formatDateDdMmYy(date);
+    if (email) {
+      return "Тариф добавлен: " + email + ", " + when;
+    }
+    return "Тариф добавлен: " + when;
   }
 
   function normalizedContainerTypesKey(values) {
@@ -2166,9 +2551,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       cargoSecurityForId,
       String(formData.get("customsClearance") || ""),
       String(formData.get("bookingAgent") || "").trim(),
-      String(formData.get("validMonth")),
-      String(formData.get("validYear")),
-      String(formData.get("validitySlot")),
+      tariffKeySegmentFromFormData(formData),
+      normalizeDeliveryTerms(formData.get("deliveryTerms")),
     ].join("|");
   }
 
@@ -2203,9 +2587,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       cargoSecurityForId,
       String(rate.customsClearance || ""),
       String(rate.bookingAgent || "").trim(),
-      String(rate.validMonth ?? ""),
-      String(rate.validYear ?? ""),
-      String(rate.validitySlot || ""),
+      tariffKeySegmentFromRecord(rate),
+      normalizeDeliveryTerms(rate.deliveryTerms),
     ].join("|");
   }
 
@@ -2932,8 +3315,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return [...allRates].filter(
       (item) =>
         item.destination === destination &&
-        Number(item.validYear) === Number(filterYear) &&
-        Number(item.validMonth) === Number(filterMonth)
+        rateOverlapsPublicationMonth(item, filterYear, filterMonth)
     );
   }
 
@@ -3154,20 +3536,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     filterYear,
     filterMonth
   ) {
-    const sorted = [...allRates].sort((a, b) => {
-      if (a.validYear !== b.validYear) {
-        return b.validYear - a.validYear;
-      }
-      if (a.validMonth !== b.validMonth) {
-        return b.validMonth - a.validMonth;
-      }
-      return b.updatedAt.localeCompare(a.updatedAt);
-    });
+    const sorted = [...allRates].sort(compareRatesForPublication);
     const filteredBase = sorted.filter(
       (item) =>
         item.destination === destination &&
-        Number(item.validYear) === Number(filterYear) &&
-        Number(item.validMonth) === Number(filterMonth)
+        rateOverlapsPublicationMonth(item, filterYear, filterMonth)
     );
     const expandedBase = expandRatesByRouteDimensions(filteredBase);
     return applyPublicationTableFilters(expandedBase);
@@ -3508,9 +3881,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       return Number.NaN;
     }
     const seaRub = seaUsd * rubPerUsd;
+    const dt = normalizeDeliveryTerms(rate.deliveryTerms);
+    let pickupRub = 0;
+    if (dt === "EXW" || dt === "FCA") {
+      const pickupUsd = Number(rate.deliveryExwFcaUsd);
+      if (Number.isFinite(pickupUsd) && pickupUsd >= 0) {
+        pickupRub = pickupUsd * rubPerUsd;
+      }
+    }
     const railOk = Number.isFinite(railRub) && railRub >= 0 ? railRub : 0;
     if (cbSortExcludeLastMile) {
-      return seaRub + railOk;
+      return seaRub + railOk + pickupRub;
     }
     const autoRub = Number(rate.autoRub);
     const autoOk = Number.isFinite(autoRub) && autoRub >= 0 ? autoRub : 0;
@@ -3521,7 +3902,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         securityOk = sc;
       }
     }
-    return seaRub + railOk + autoOk + securityOk;
+    return seaRub + railOk + pickupRub + autoOk + securityOk;
   }
 
   function syncCbrExcludeLastMileButton() {
@@ -3558,8 +3939,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? " Дата в ответе сервера: " + cbrRateLabel + "."
           : "";
       const formula = cbSortExcludeLastMile
-        ? "морской фрахт (USD)×курс + ЖД до станции (без автодоставки «последняя миля», без охраны)."
-        : "морской фрахт (USD)×курс + ЖД + авто до склада + охрана при «Да» и указанной сумме.";
+        ? "(морской фрахт + сумма EXW/FCA в USD при этих условиях)×курс + ЖД до станции (без автодоставки «последняя миля», без охраны)."
+        : "(морской фрахт + сумма EXW/FCA в USD при этих условиях)×курс + ЖД + авто до склада + охрана при «Да» и указанной сумме.";
       cbrSortBanner.textContent =
         "Включена сортировка по сумме в ₽: 1 USD ≈ " +
         formatUsdRubRate(cbrRubPerUsd) +
@@ -3655,109 +4036,269 @@ document.addEventListener("DOMContentLoaded", async () => {
     return String(Math.ceil(n));
   }
 
-  const KP_DIRECTIONS_COL_COUNT = 17;
+  const KP_DIRECTIONS_COL_COUNT_MAX = 19;
 
-  function buildKpDirectionsTheadHtml() {
-    const railLt =
-      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &lt; 24 T, RUB";
-    const railGt =
-      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &gt; 24 T, RUB";
-    const rail40 =
-      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 40' HQ, RUB";
-    return (
-      "<tr>" +
-      '<th scope="col">Отправление</th>' +
-      '<th scope="col">ЖД терминал</th>' +
-      '<th scope="col">Станция назначения</th>' +
-      '<th scope="col">Таможня</th>' +
-      '<th scope="col">Склад выгрузки</th>' +
-      '<th scope="col">Ближайшие выходы</th>' +
-      '<th scope="col">Морская линия</th>' +
-      '<th scope="col">Контейнер</th>' +
-      '<th scope="col">Море, USD</th>' +
-      '<th scope="col">' +
-      railLt +
-      "</th>" +
-      '<th scope="col">' +
-      railGt +
-      "</th>" +
-      '<th scope="col">' +
-      rail40 +
-      "</th>" +
-      '<th scope="col">Авто, RUB</th>' +
-      '<th scope="col" class="kp-col-screen-only">Транзит, дней</th>' +
-      '<th scope="col" class="kp-col-screen-only">Период действия</th>' +
-      '<th scope="col" class="kp-col-screen-only">Комментарий</th>' +
-      "</tr>"
+  function kpStripTagsToPlain(fragment) {
+    return String(fragment || "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\u00a0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function kpTableCellLooksVacant(fragment) {
+    const text = kpStripTagsToPlain(fragment);
+    if (!text || text === "—" || text === "-" || text === "–") {
+      return true;
+    }
+    const n = rateNumericOrNaN(text.replace(/\s/g, ""));
+    return Number.isFinite(n) && n === 0;
+  }
+
+  function gatherKpUniqueShippingLinesForLead(ratesExpanded) {
+    const set = new Set();
+    ratesExpanded.forEach((rate) => {
+      const disp = formatShippingLineDisplay(rate);
+      const t = String(disp || "")
+        .trim()
+        .replace(/\s+/g, " ");
+      if (t && t !== "—") {
+        set.add(t);
+      }
+    });
+    return [...set].sort((a, b) =>
+      a.localeCompare(b, "ru", { sensitivity: "base" })
     );
   }
 
-  function buildKpDirectionsRowHtml(rate) {
-    const periodLabel =
-      months[(rate.validMonth || 1) - 1] +
-      " " +
-      rate.validYear +
-      ", " +
-      (rate.validitySlot === "H1" ? "1-15" : "15-конец");
-    const rail3 = formatRegistryRailTriple(rate, formatKpTariffCeilPlain);
+  function buildKpChinaFarEastLeadText(linesUnique) {
+    if (!linesUnique.length) {
+      return "Доставка грузов из Китая через Дальний Восток пароходами морских линий.";
+    }
+    const noun = linesUnique.length === 1 ? "морской линии" : "морских линий";
     return (
-      "<tr>" +
-      "<td>" +
-      escapeHtml(
-        formatOriginPorts(rate.originPorts || [rate.origin]) + " → VLADIVOSTOK"
-      ) +
-      "</td>" +
-      "<td>" +
-      escapeHtml(rate.railTerminal || "—") +
-      "</td>" +
-      "<td>" +
-      escapeHtml(
-        formatDestinationStations(
-          rate.destinationStations || [rate.destinationStation]
-        )
-      ) +
-      "</td>" +
-      "<td>" +
-      escapeHtml(formatCustomsClearance(rate.customsClearance)) +
-      "</td>" +
-      "<td>" +
-      escapeHtml(formatWarehouseAddresses(rate)) +
-      "</td>" +
-      "<td>" +
-      escapeHtml(formatSailingDates(rate.nextSailingDates || rate.nextSailing)) +
-      "</td>" +
-      "<td>" +
-      escapeHtml(formatShippingLineDisplay(rate)) +
-      "</td>" +
-      "<td>" +
-      escapeHtml(formatContainerTypesDisplay(rate)) +
-      "</td>" +
-      "<td>" +
-      formatKpTariffCeilPlain(rate.seaUsd) +
-      "</td>" +
-      "<td>" +
-      rail3.cell20Lt +
-      "</td>" +
-      "<td>" +
-      rail3.cell20Gt +
-      "</td>" +
-      "<td>" +
-      rail3.cell40 +
-      "</td>" +
-      "<td>" +
-      formatKpTariffCeilPlain(rate.autoRub) +
-      "</td>" +
-      '<td class="kp-col-screen-only">' +
-      formatNumber(rate.transitDays) +
-      "</td>" +
-      '<td class="kp-col-screen-only">' +
-      escapeHtml(periodLabel) +
-      "</td>" +
-      '<td class="kp-col-screen-only">' +
-      escapeHtml(rate.manager || "—") +
-      "</td>" +
-      "</tr>"
+      "Доставка грузов из Китая через Дальний Восток пароходами " +
+      noun +
+      " " +
+      linesUnique.join(", ") +
+      "."
     );
+  }
+
+  function formatDeliveryExwFcaRegistryCell(rate) {
+    const dt = normalizeDeliveryTerms(rate?.deliveryTerms);
+    const n = rateNumericOrNaN(rate?.deliveryExwFcaUsd);
+    if (dt === "FOB") {
+      return "—";
+    }
+    if (!Number.isFinite(n) || n < 0) {
+      return "—";
+    }
+    return dt + ": " + formatNumber(n);
+  }
+
+  function formatDeliveryExwFcaKpCell(rate) {
+    const dt = normalizeDeliveryTerms(rate?.deliveryTerms);
+    const n = rateNumericOrNaN(rate?.deliveryExwFcaUsd);
+    if (dt === "FOB") {
+      return "—";
+    }
+    if (!Number.isFinite(n) || n < 0) {
+      return "—";
+    }
+    return dt + " " + formatKpTariffCeilPlain(n);
+  }
+
+  function buildKpDirectionsTableHtml(expandedRates) {
+    const railLtHead =
+      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &lt; 24 T, RUB";
+    const railGtHead =
+      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &gt; 24 T, RUB";
+    const rail40Head =
+      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 40' HQ, RUB";
+
+    const rail3Memo = new WeakMap();
+    function kpRailTripleForRate(rate) {
+      let cached = rail3Memo.get(rate);
+      if (!cached) {
+        cached = formatRegistryRailTriple(rate, formatKpTariffCeilPlain);
+        rail3Memo.set(rate, cached);
+      }
+      return cached;
+    }
+
+    const colDefs = [
+      {
+        collapse: false,
+        screenOnly: false,
+        head: '<th scope="col">Условия<br />поставки</th>',
+        cell: (rate) =>
+          escapeHtml(normalizeDeliveryTerms(rate?.deliveryTerms)),
+      },
+      {
+        collapse: false,
+        screenOnly: false,
+        head: '<th scope="col">Отправление</th>',
+        cell: (rate) =>
+          escapeHtml(
+            formatOriginPorts(rate.originPorts || [rate.origin]) +
+              " → VLADIVOSTOK"
+          ),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">ЖД терминал</th>',
+        cell: (rate) => escapeHtml(rate.railTerminal || "—"),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">Станция назначения</th>',
+        cell: (rate) =>
+          escapeHtml(
+            formatDestinationStations(
+              rate.destinationStations || [rate.destinationStation]
+            )
+          ),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">Таможня</th>',
+        cell: (rate) =>
+          escapeHtml(formatCustomsClearance(rate.customsClearance)),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">Склад выгрузки</th>',
+        cell: (rate) => escapeHtml(formatWarehouseAddresses(rate)),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">Ближайшие выходы</th>',
+        cell: (rate) =>
+          escapeHtml(
+            formatSailingDates(rate.nextSailingDates || rate.nextSailing)
+          ),
+      },
+      {
+        collapse: false,
+        screenOnly: false,
+        head: '<th scope="col">Морская линия</th>',
+        cell: (rate) => escapeHtml(formatShippingLineDisplay(rate)),
+      },
+      {
+        collapse: false,
+        screenOnly: false,
+        head: '<th scope="col">Контейнер</th>',
+        cell: (rate) =>
+          escapeHtml(formatContainerTypesDisplay(rate)),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head:
+          '<th scope="col" title="Стоимость EXW или FCA (USD) при соответствующих условиях поставки">EXW/FCA,<br />USD</th>',
+        cell: (rate) => escapeHtml(formatDeliveryExwFcaKpCell(rate)),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">Море, USD</th>',
+        cell: (rate) => formatKpTariffCeilPlain(rate.seaUsd),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">' + railLtHead + "</th>",
+        cell: (rate) => kpRailTripleForRate(rate).cell20Lt,
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">' + railGtHead + "</th>",
+        cell: (rate) => kpRailTripleForRate(rate).cell20Gt,
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">' + rail40Head + "</th>",
+        cell: (rate) => kpRailTripleForRate(rate).cell40,
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head: '<th scope="col">Авто, RUB</th>',
+        cell: (rate) => formatKpTariffCeilPlain(rate.autoRub),
+      },
+      {
+        collapse: true,
+        screenOnly: true,
+        head:
+          '<th scope="col" class="kp-col-screen-only">Транзит,<br />дней</th>',
+        cell: (rate) => formatNumber(rate.transitDays),
+      },
+      {
+        collapse: true,
+        screenOnly: false,
+        head:
+          '<th scope="col">Срок действия<br />тарифа</th>',
+        cell: (rate) => escapeHtml(formatTariffValidityRangeLabel(rate)),
+      },
+      {
+        collapse: true,
+        screenOnly: true,
+        head:
+          '<th scope="col" class="kp-col-screen-only">Комментарий</th>',
+        cell: (rate) => escapeHtml(rate.manager || "—"),
+      },
+    ];
+
+    const matrix = expandedRates.map((rate) =>
+      colDefs.map((d) => d.cell(rate))
+    );
+
+    const keep = colDefs.map((d, j) => {
+      if (!d.collapse) {
+        return true;
+      }
+      if (!matrix.length) {
+        return true;
+      }
+      return !matrix.every((row) => kpTableCellLooksVacant(row[j]));
+    });
+
+    const theadHtml =
+      "<tr>" +
+      colDefs
+        .map((d, idx) => (keep[idx] ? d.head : ""))
+        .filter(Boolean)
+        .join("") +
+      "</tr>";
+
+    const visibleCount = keep.filter(Boolean).length;
+
+    const bodyRows = expandedRates.map((rate, ri) => {
+      const frag = matrix[ri];
+      const tds = colDefs
+        .map((d, j) => ({ d, html: frag[j], j }))
+        .filter(({ j }) => keep[j])
+        .map(({ d, html }) => {
+          const cls = d.screenOnly ? ' class="kp-col-screen-only"' : "";
+          return "<td" + cls + ">" + html + "</td>";
+        });
+      return "<tr>" + tds.join("") + "</tr>";
+    });
+
+    return {
+      theadHtml,
+      tbodyHtml: bodyRows.join(""),
+      colCount: visibleCount || KP_DIRECTIONS_COL_COUNT_MAX,
+    };
   }
 
   function getWarehouseAddressesForRate(rate) {
@@ -3879,25 +4420,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderTable(rates, destination, filterYear, filterMonth) {
-    const sorted = [...rates].sort((a, b) => {
-      if (a.validYear !== b.validYear) {
-        return b.validYear - a.validYear;
-      }
-      if (a.validMonth !== b.validMonth) {
-        return b.validMonth - a.validMonth;
-      }
-      return b.updatedAt.localeCompare(a.updatedAt);
-    });
+    const sorted = [...rates].sort(compareRatesForPublication);
     const filteredBase = sorted.filter(
       (item) =>
         item.destination === destination &&
-        Number(item.validYear) === Number(filterYear) &&
-        Number(item.validMonth) === Number(filterMonth)
+        rateOverlapsPublicationMonth(item, filterYear, filterMonth)
     );
 
     if (!filteredBase.length) {
       tbody.innerHTML =
-        '<tr><td colspan="20">В выбранной группе (направление, год, месяц) ставок пока нет.</td></tr>';
+        '<tr><td colspan="21">В выбранной группе (направление и календарный месяц в шапке таблицы; учитывается пересечение со сроком действия тарифа) ставок пока нет.</td></tr>';
       syncCbrSortBanner();
       refreshSalesWorksetTable(rates);
       return;
@@ -3907,7 +4439,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const filtered = applyPublicationTableFilters(expandedBase);
     if (!filtered.length) {
       tbody.innerHTML =
-        '<tr><td colspan="20">Под выбранные порты, типы контейнера, морские линии или букирующих агентов ставок не найдено — измените галочки или «Не фильтровать».</td></tr>';
+        '<tr><td colspan="21">Под выбранные порты, типы контейнера, морские линии или букирующих агентов ставок не найдено — измените галочки или «Не фильтровать».</td></tr>';
       syncCbrSortBanner();
       refreshSalesWorksetTable(rates);
       return;
@@ -3944,12 +4476,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     tbody.innerHTML = displayRows
       .map((rate) => {
-        const periodLabel =
-          months[(rate.validMonth || 1) - 1] +
-          " " +
-          rate.validYear +
-          ", " +
-          (rate.validitySlot === "H1" ? "1-15" : "15-конец");
+        const periodLabel = formatTariffValidityRangeLabel(rate);
         const rail3 = formatRegistryRailTriple(rate);
 
         return (
@@ -3984,6 +4511,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           "</td>" +
           "<td>" +
           escapeHtml(formatContainerTypesDisplay(rate)) +
+          "</td>" +
+          "<td>" +
+          escapeHtml(formatDeliveryExwFcaRegistryCell(rate)) +
           "</td>" +
           '<td class="no-print">' +
           escapeHtml(formatBookingAgentDisplay(rate)) +
@@ -4541,12 +5071,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      const periodLabel =
-        months[(rate.validMonth || 1) - 1] +
-        " " +
-        rate.validYear +
-        ", " +
-        (rate.validitySlot === "H1" ? "1-15" : "15-конец");
+      const periodLabel = formatTariffValidityRangeLabel(rate);
 
       const expandedRates = expandRatesByRouteDimensions([rate]);
       expandedRates.forEach((expandedRate) => {
@@ -4656,17 +5181,28 @@ document.addEventListener("DOMContentLoaded", async () => {
       salesKpDestinationNode.textContent = String(activeDestination || "—");
     }
 
-    if (salesKpTable instanceof HTMLTableElement) {
-      const thead = salesKpTable.querySelector("thead");
-      if (thead) {
-        thead.innerHTML = buildKpDirectionsTheadHtml();
-      }
-    }
+    const kpChinaLeadEl = document.getElementById("sales-kp-china-dv-lead");
 
     if (!Array.isArray(salesWorksetIds) || !salesWorksetIds.length) {
+      if (kpChinaLeadEl instanceof HTMLElement) {
+        kpChinaLeadEl.textContent = buildKpChinaFarEastLeadText([]);
+      }
+      if (salesKpTable instanceof HTMLTableElement) {
+        const thead = salesKpTable.querySelector("thead");
+        if (thead) {
+          thead.innerHTML =
+            "<tr>" +
+            '<th colspan="' +
+            String(KP_DIRECTIONS_COL_COUNT_MAX) +
+            '" class="kp-table-placeholder-msg">' +
+            "Заполняется после «Сформировать таблицу для продаж» или из ссылки КП." +
+            "</th>" +
+            "</tr>";
+        }
+      }
       salesKpTbody.innerHTML =
         '<tr><td colspan="' +
-        KP_DIRECTIONS_COL_COUNT +
+        String(KP_DIRECTIONS_COL_COUNT_MAX) +
         '">Таблица не сформирована. Нажмите «Сформировать таблицу для продаж».</td></tr>';
       return;
     }
@@ -4690,11 +5226,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     const expandedWorksetRates = expandRatesByRouteDimensions(worksetRates);
-    const rows = expandedWorksetRates.map((rate) => buildKpDirectionsRowHtml(rate));
-    salesKpTbody.innerHTML = rows.length
-      ? rows.join("")
+    if (kpChinaLeadEl instanceof HTMLElement) {
+      kpChinaLeadEl.textContent = buildKpChinaFarEastLeadText(
+        gatherKpUniqueShippingLinesForLead(expandedWorksetRates)
+      );
+    }
+
+    const kpDir = buildKpDirectionsTableHtml(expandedWorksetRates);
+    if (salesKpTable instanceof HTMLTableElement) {
+      const thead = salesKpTable.querySelector("thead");
+      if (thead) {
+        thead.innerHTML = kpDir.theadHtml;
+      }
+    }
+    const cc =
+      kpDir.colCount > 0 ? kpDir.colCount : KP_DIRECTIONS_COL_COUNT_MAX;
+    salesKpTbody.innerHTML = kpDir.tbodyHtml.trim()
+      ? kpDir.tbodyHtml
       : '<tr><td colspan="' +
-        KP_DIRECTIONS_COL_COUNT +
+        String(cc) +
         '">Нет актуальных строк для печати КП.</td></tr>';
   }
 
@@ -5263,7 +5813,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         input.checked = false;
       }
     });
-    filterStationQuickPicksByDestination(String(destinationSelect.value || "MOSCOW"));
+    filterStationQuickPicksByDestination("");
     refreshCargoRouteSelectOptions();
   }
 
@@ -5379,14 +5929,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     railRubRowsWrap.innerHTML = "";
     [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((seaBlk, i) => {
       const ixStr = String(i);
-      const slotSel = seaBlk.querySelector(".sea-route-container-slot");
-      let slot =
-        slotSel instanceof HTMLSelectElement
-          ? String(slotSel.value || "").trim()
-          : "40HQ";
-      if (slot !== "20LT24" && slot !== "20GT24" && slot !== "40HQ") {
-        slot = "40HQ";
-      }
+      const slot = getPrimarySeaContainerSlot(seaBlk);
       const line = seaBlk.dataset.routeLine || "—";
       const dvEl = seaBlk.querySelector(".sea-route-dv-terminal");
       const stEl = seaBlk.querySelector(".sea-route-station");
@@ -5475,14 +6018,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((seaBlk, i) => {
       const ixStr = String(i);
       const line = seaBlk.dataset.routeLine || "—";
-      const slotSel = seaBlk.querySelector(".sea-route-container-slot");
-      let slot =
-        slotSel instanceof HTMLSelectElement
-          ? String(slotSel.value || "").trim()
-          : "40HQ";
-      if (slot !== "20LT24" && slot !== "20GT24" && slot !== "40HQ") {
-        slot = "40HQ";
-      }
+      const slot = getPrimarySeaContainerSlot(seaBlk);
       const stEl = seaBlk.querySelector(".sea-route-station");
       const adEl = seaBlk.querySelector(".sea-route-unload");
       const st =
@@ -5540,10 +6076,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   function onSeaUsdWrapDelegatedChange(event) {
     const target = event.target;
     if (target instanceof HTMLSelectElement && target.classList.contains("sea-route-container-slot")) {
-      syncRailAutoSectionsFromSea();
+      const bundle = target.closest(".sea-route-block");
+      const seg = target.closest(".sea-route-maritime-segment");
+      if (
+        seg instanceof HTMLElement &&
+        seg.getAttribute("data-maritime-primary") === "true" &&
+        bundle instanceof HTMLElement
+      ) {
+        syncRailAutoSectionsFromSea();
+      } else if (!seg?.closest(".sea-route-maritime-stack")) {
+        syncRailAutoSectionsFromSea();
+      }
       return;
     }
     if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+    if (target.name === "seaSailingDate") {
+      const bundle = target.closest(".sea-route-block");
+      const seg = target.closest(".sea-route-maritime-segment");
+      if (
+        bundle instanceof HTMLElement &&
+        seg instanceof HTMLElement &&
+        seg.getAttribute("data-maritime-primary") === "true"
+      ) {
+        syncSeaSecondarySailingDatesFromPrimary(bundle);
+      }
       return;
     }
     if (target.classList.contains("sea-row-dv-term-cb")) {
@@ -5575,37 +6133,339 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  function getSeaRouteRows() {
-    return [...seaUsdWrap.querySelectorAll(".sea-route-block")].map((bundle) => {
-      const seaInp = bundle.querySelector('input[name="seaUsd"]');
-      const dateInp = bundle.querySelector('input[name="seaSailingDate"]');
-      const dvInp = bundle.querySelector(".sea-route-dv-terminal");
-      const stInp = bundle.querySelector(".sea-route-station");
-      const unlInp = bundle.querySelector(".sea-route-unload");
-      const ctSel = bundle.querySelector(".sea-route-container-slot");
-      let containerSlot =
-        ctSel instanceof HTMLSelectElement
-          ? String(ctSel.value || "").trim()
-          : "40HQ";
-      if (containerSlot !== "20LT24" && containerSlot !== "20GT24" && containerSlot !== "40HQ") {
-        containerSlot = "40HQ";
+  function snapshotMaritimeSegmentsFromBundle(bundle) {
+    if (!(bundle instanceof HTMLElement)) {
+      return [{ seaUsd: "", sailingDate: "", slot: "40HQ" }];
+    }
+    const stack = bundle.querySelector(".sea-route-maritime-stack");
+    if (stack instanceof HTMLElement) {
+      const segments = [
+        ...stack.querySelectorAll(".sea-route-maritime-segment"),
+      ];
+      if (!segments.length) {
+        return [{ seaUsd: "", sailingDate: "", slot: "40HQ" }];
       }
-      const seaRaw =
-        seaInp instanceof HTMLInputElement ? String(seaInp.value || "").trim() : "";
-      const dateRaw =
-        dateInp instanceof HTMLInputElement ? String(dateInp.value || "").trim() : "";
-      return {
-        seaUsd: seaRaw === "" ? Number.NaN : Number(seaRaw),
-        sailingDate: dateRaw,
-        containerSlot,
-        dvTerminal:
-          dvInp instanceof HTMLInputElement ? String(dvInp.value || "").trim() : "",
-        destinationStation:
-          stInp instanceof HTMLInputElement ? String(stInp.value || "").trim() : "",
-        unloadAddress:
-          unlInp instanceof HTMLInputElement ? String(unlInp.value || "").trim() : "",
-      };
+      return segments.map((seg) => {
+        const seaInp = seg.querySelector('input[name="seaUsd"]');
+        const dateInp = seg.querySelector('input[name="seaSailingDate"]');
+        const ctSel = seg.querySelector(".sea-route-container-slot");
+        return {
+          seaUsd: seaInp instanceof HTMLInputElement ? seaInp.value.trim() : "",
+          sailingDate:
+            dateInp instanceof HTMLInputElement ? dateInp.value.trim() : "",
+          slot: normalizeContainerSlotValue(
+            ctSel instanceof HTMLSelectElement ? ctSel.value : ""
+          ),
+        };
+      });
+    }
+    const seaInp = bundle.querySelector('input[name="seaUsd"]');
+    const dateInp = bundle.querySelector('input[name="seaSailingDate"]');
+    const ctSel = bundle.querySelector(".sea-route-container-slot");
+    return [
+      {
+        seaUsd: seaInp instanceof HTMLInputElement ? seaInp.value.trim() : "",
+        sailingDate:
+          dateInp instanceof HTMLInputElement ? dateInp.value.trim() : "",
+        slot: normalizeContainerSlotValue(
+          ctSel instanceof HTMLSelectElement ? ctSel.value : ""
+        ),
+      },
+    ];
+  }
+
+  function syncSeaSecondarySailingDatesFromPrimary(bundle) {
+    if (!(bundle instanceof HTMLElement)) {
+      return;
+    }
+    const primary = bundle.querySelector(
+      '.sea-route-maritime-segment[data-maritime-primary="true"]'
+    );
+    const prDate = primary?.querySelector('input[name="seaSailingDate"]');
+    if (!(prDate instanceof HTMLInputElement)) {
+      return;
+    }
+    const v = prDate.value;
+    bundle
+      .querySelectorAll(
+        '.sea-route-maritime-segment:not([data-maritime-primary="true"]) input[name="seaSailingDate"]'
+      )
+      .forEach((node) => {
+        if (node instanceof HTMLInputElement) {
+          node.value = v;
+        }
+      });
+  }
+
+  function createSeaMaritimeSegment(
+    bundleIdx1,
+    segIdx0,
+    portLabel,
+    lineLabel,
+    snap,
+    isPrimary
+  ) {
+    const idSuf = String(bundleIdx1) + "-" + String(segIdx0);
+    const wrap = document.createElement("div");
+    wrap.className = "sea-route-maritime-segment";
+    if (isPrimary) {
+      wrap.setAttribute("data-maritime-primary", "true");
+    } else {
+      const bar = document.createElement("div");
+      bar.className = "sea-maritime-segment-toolbar";
+      const rmBtn = document.createElement("button");
+      rmBtn.type = "button";
+      rmBtn.className = "btn-remove-sea-maritime-segment btn-mini-control";
+      rmBtn.dataset.action = "remove-sea-maritime-segment";
+      rmBtn.textContent = "−";
+      rmBtn.setAttribute(
+        "aria-label",
+        "Убрать дополнительную строку моря"
+      );
+      bar.appendChild(rmBtn);
+      wrap.appendChild(bar);
+    }
+
+    const maritimeGrid = document.createElement("div");
+    maritimeGrid.className =
+      "sea-usd-row sea-usd-row--grid sea-usd-route-maritime-grid";
+
+    const ctLabel = document.createElement("label");
+    ctLabel.className = "sea-grid-lab sea-grid-lab--ct";
+    ctLabel.htmlFor = "seaRouteCt-" + idSuf;
+    ctLabel.textContent = "Тип контейнера *";
+    const ctSel = document.createElement("select");
+    ctSel.className = "sea-route-container-slot";
+    ctSel.id = "seaRouteCt-" + idSuf;
+    ctSel.required = true;
+    [
+      ["20LT24", "20′ ft < 24 t, RUB *"],
+      ["20GT24", "20′ ft > 24 t, RUB *"],
+      ["40HQ", "40′ HQ *"],
+    ].forEach(([val, text]) => {
+      const o = document.createElement("option");
+      o.value = val;
+      o.textContent = text;
+      ctSel.appendChild(o);
     });
+    ctSel.value = normalizeContainerSlotValue(snap.slot);
+
+    const portLabelEl = document.createElement("div");
+    portLabelEl.className = "sea-grid-lab sea-grid-lab--port";
+    portLabelEl.textContent = "Порт отправления *";
+    const portRo = document.createElement("span");
+    portRo.className = "sea-route-port-display";
+    portRo.textContent = portLabel || "—";
+
+    const lineLabelEl = document.createElement("div");
+    lineLabelEl.className = "sea-grid-lab sea-grid-lab--line";
+    lineLabelEl.textContent = "Морская линия *";
+    const lineRo = document.createElement("span");
+    lineRo.className = "sea-route-line-display";
+    if (isPrimary) {
+      lineRo.id = "sea-route-line-ro-" + String(bundleIdx1);
+    }
+    lineRo.textContent = lineLabel || "—";
+    lineRo.title = portLabel
+      ? portLabel + " → " + String(lineLabel || "")
+      : String(lineLabel || "");
+    portRo.title = lineRo.title || String(portLabel || "");
+
+    const frLabel = document.createElement("label");
+    frLabel.className = "sea-grid-lab sea-grid-lab--usd";
+    frLabel.htmlFor = "seaUsd-" + idSuf;
+    frLabel.textContent = "Фрахт USD *";
+    frLabel.title = portLabel + " × " + lineLabel;
+
+    const input = document.createElement("input");
+    input.id = "seaUsd-" + idSuf;
+    input.name = "seaUsd";
+    input.type = "number";
+    input.step = "0.01";
+    input.min = "0";
+    input.required = true;
+    input.placeholder = "Например, 1450";
+    input.value = snap.seaUsd || "";
+
+    const dateLabel = document.createElement("label");
+    dateLabel.className = "sea-grid-lab sea-grid-lab--date";
+    dateLabel.htmlFor = "seaSailingDate-" + idSuf;
+    dateLabel.textContent = "Дата выхода *";
+    const dateInput = document.createElement("input");
+    dateInput.id = "seaSailingDate-" + idSuf;
+    dateInput.name = "seaSailingDate";
+    dateInput.type = "date";
+    dateInput.required = true;
+    dateInput.value = snap.sailingDate || "";
+    if (!isPrimary) {
+      dateInput.readOnly = true;
+      dateInput.tabIndex = -1;
+      dateInput.classList.add("sea-sailing-date--from-primary");
+      dateInput.title =
+        "Совпадает с датой выхода в первой строке этого блока";
+    }
+
+    maritimeGrid.appendChild(ctLabel);
+    maritimeGrid.appendChild(ctSel);
+    maritimeGrid.appendChild(portLabelEl);
+    maritimeGrid.appendChild(portRo);
+    maritimeGrid.appendChild(lineLabelEl);
+    maritimeGrid.appendChild(lineRo);
+    maritimeGrid.appendChild(frLabel);
+    maritimeGrid.appendChild(input);
+    maritimeGrid.appendChild(dateLabel);
+    maritimeGrid.appendChild(dateInput);
+
+    wrap.appendChild(maritimeGrid);
+    return wrap;
+  }
+
+  function ensureSeaMaritimeStackFooter(stack) {
+    let foot = stack.querySelector(".sea-maritime-stack-footer");
+    if (foot instanceof HTMLElement) {
+      return foot;
+    }
+    foot = document.createElement("div");
+    foot.className = "sea-maritime-stack-footer";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-add-sea-maritime-segment btn-mini-control";
+    btn.dataset.action = "add-sea-maritime-segment";
+    btn.textContent = "+";
+    btn.title =
+      "Добавить ещё тип контейнера и фрахт для этой связки порта и линии";
+    btn.setAttribute(
+      "aria-label",
+      "Добавить строку: тип контейнера и фрахт"
+    );
+    foot.appendChild(btn);
+    stack.appendChild(foot);
+    return foot;
+  }
+
+  function handleSeaUsdMaritimeStackClick(event) {
+    const t = event.target;
+    if (!(t instanceof Element)) {
+      return;
+    }
+    const addBtn = t.closest("[data-action='add-sea-maritime-segment']");
+    if (addBtn instanceof HTMLButtonElement) {
+      const stack = addBtn.closest(".sea-route-maritime-stack");
+      const bundle = addBtn.closest(".sea-route-block");
+      if (!(stack instanceof HTMLElement) || !(bundle instanceof HTMLElement)) {
+        return;
+      }
+      const blocks = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
+      const idx = blocks.indexOf(bundle) + 1;
+      const segs = stack.querySelectorAll(".sea-route-maritime-segment");
+      const segIdx = segs.length;
+      const portLabel = bundle.dataset.routeOrigin
+        ? String(bundle.dataset.routeOrigin).trim().toUpperCase()
+        : "—";
+      const lineLabel = String(bundle.dataset.routeLine || "").trim() || "—";
+      const primary = stack.querySelector(
+        '.sea-route-maritime-segment[data-maritime-primary="true"]'
+      );
+      const pDate = primary?.querySelector('input[name="seaSailingDate"]');
+      const dateVal = pDate instanceof HTMLInputElement ? pDate.value : "";
+      const snap = {
+        seaUsd: "",
+        sailingDate: dateVal,
+        slot: "40HQ",
+      };
+      const el = createSeaMaritimeSegment(
+        idx,
+        segIdx,
+        portLabel,
+        lineLabel,
+        snap,
+        false
+      );
+      const footer = stack.querySelector(".sea-maritime-stack-footer");
+      if (footer instanceof HTMLElement) {
+        stack.insertBefore(el, footer);
+      } else {
+        stack.appendChild(el);
+      }
+      syncSeaSecondarySailingDatesFromPrimary(bundle);
+      return;
+    }
+    const rmBtn = t.closest("[data-action='remove-sea-maritime-segment']");
+    if (rmBtn instanceof HTMLButtonElement) {
+      const seg = rmBtn.closest(".sea-route-maritime-segment");
+      if (
+        !(seg instanceof HTMLElement) ||
+        seg.getAttribute("data-maritime-primary") === "true"
+      ) {
+        return;
+      }
+      seg.remove();
+    }
+  }
+
+  function getSeaRouteRows() {
+    const rows = [];
+    [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach(
+      (bundle, blockIndex) => {
+        const origin = String(bundle.dataset.routeOrigin || "")
+          .trim()
+          .toUpperCase();
+        const shippingLine = String(bundle.dataset.routeLine || "").trim();
+        const dvInp = bundle.querySelector(".sea-route-dv-terminal");
+        const stInp = bundle.querySelector(".sea-route-station");
+        const unlInp = bundle.querySelector(".sea-route-unload");
+        const dvTerminal =
+          dvInp instanceof HTMLInputElement
+            ? String(dvInp.value || "").trim()
+            : "";
+        const destinationStation =
+          stInp instanceof HTMLInputElement
+            ? String(stInp.value || "").trim()
+            : "";
+        const unloadAddress =
+          unlInp instanceof HTMLInputElement
+            ? String(unlInp.value || "").trim()
+            : "";
+        const stack = bundle.querySelector(".sea-route-maritime-stack");
+        const segments =
+          stack instanceof HTMLElement
+            ? [...stack.querySelectorAll(".sea-route-maritime-segment")]
+            : [];
+        const pushSegment = (segEl) => {
+          const seaInp = segEl.querySelector('input[name="seaUsd"]');
+          const dateInp = segEl.querySelector('input[name="seaSailingDate"]');
+          const ctSel = segEl.querySelector(".sea-route-container-slot");
+          let containerSlot = normalizeContainerSlotValue(
+            ctSel instanceof HTMLSelectElement ? ctSel.value : ""
+          );
+          const seaRaw =
+            seaInp instanceof HTMLInputElement
+              ? String(seaInp.value || "").trim()
+              : "";
+          const dateRaw =
+            dateInp instanceof HTMLInputElement
+              ? String(dateInp.value || "").trim()
+              : "";
+          rows.push({
+            seaUsd: seaRaw === "" ? Number.NaN : Number(seaRaw),
+            sailingDate: dateRaw,
+            containerSlot,
+            dvTerminal,
+            destinationStation,
+            unloadAddress,
+            origin,
+            shippingLine,
+            seaBundleBlockIndex: blockIndex,
+          });
+        };
+        if (segments.length) {
+          segments.forEach(pushSegment);
+          return;
+        }
+        pushSegment(bundle);
+      }
+    );
+    return rows;
   }
 
   function syncSeaUsdRowsToRouteCombinations() {
@@ -5623,14 +6483,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
     const prevBundles = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
-    const prevSeaValues = prevBundles.map((b) => {
-      const el = b.querySelector('input[name="seaUsd"]');
-      return el instanceof HTMLInputElement ? el.value.trim() : "";
-    });
-    const prevDateValues = prevBundles.map((b) => {
-      const el = b.querySelector('input[name="seaSailingDate"]');
-      return el instanceof HTMLInputElement ? el.value.trim() : "";
-    });
+    const prevMaritimeSnapshots = prevBundles.map((b) =>
+      snapshotMaritimeSegmentsFromBundle(b)
+    );
     const prevDv = prevBundles.map((b) => {
       const el = b.querySelector(".sea-route-dv-terminal");
       return el instanceof HTMLInputElement ? el.value.trim() : "";
@@ -5643,11 +6498,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       const el = b.querySelector(".sea-route-unload");
       return el instanceof HTMLInputElement ? el.value.trim() : "";
     });
-    const prevSlot = prevBundles.map((b) => {
-      const el = b.querySelector(".sea-route-container-slot");
-      return el instanceof HTMLSelectElement ? el.value.trim() : "";
-    });
-    const destNow = String(destinationSelect.value || "MOSCOW");
     seaUsdWrap.innerHTML = "";
     for (let i = 0; i < combos.length; i++) {
       const idx = i + 1;
@@ -5688,12 +6538,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       const panSt = document.createElement("div");
       panSt.className = "origin-quick-picks-panel sea-row-st-details-inner";
       [...stationQuickPicks.querySelectorAll("label")].forEach((mlab) => {
-        const qi = mlab.querySelector("input");
-        const qdest =
-          qi instanceof HTMLInputElement ? String(qi.dataset.destination || "") : "";
-        if (qdest && qdest !== destNow) {
-          return;
-        }
         const cloned = mlab.cloneNode(true);
         const cb = cloned.querySelector("input");
         if (!(cb instanceof HTMLInputElement)) {
@@ -5712,76 +6556,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       quickBar.appendChild(detDv);
       quickBar.appendChild(detSt);
 
-      const maritimeGrid = document.createElement("div");
-      maritimeGrid.className =
-        "sea-usd-row sea-usd-row--grid sea-usd-route-maritime-grid";
-      const landGrid = document.createElement("div");
-      landGrid.className = "sea-usd-row sea-usd-row--grid sea-usd-route-land-grid";
-      const ctLabel = document.createElement("label");
-      ctLabel.className = "sea-grid-lab sea-grid-lab--ct";
-      ctLabel.htmlFor = "seaRouteCt-" + String(idx);
-      ctLabel.textContent = "Тип контейнера *";
-      const ctSel = document.createElement("select");
-      ctSel.className = "sea-route-container-slot";
-      ctSel.id = "seaRouteCt-" + String(idx);
-      ctSel.required = true;
-      [
-        ["20LT24", "20′ ft < 24 t, RUB *"],
-        ["20GT24", "20′ ft > 24 t, RUB *"],
-        ["40HQ", "40′ HQ *"],
-      ].forEach(([val, text]) => {
-        const o = document.createElement("option");
-        o.value = val;
-        o.textContent = text;
-        ctSel.appendChild(o);
+      const maritimeStack = document.createElement("div");
+      maritimeStack.className = "sea-route-maritime-stack";
+      const snaps =
+        i < prevMaritimeSnapshots.length && prevMaritimeSnapshots[i].length
+          ? prevMaritimeSnapshots[i]
+          : [{ seaUsd: "", sailingDate: "", slot: "40HQ" }];
+      snaps.forEach((snap, sj) => {
+        maritimeStack.appendChild(
+          createSeaMaritimeSegment(
+            idx,
+            sj,
+            portLabel,
+            lineLabel,
+            snap,
+            sj === 0
+          )
+        );
       });
-      const ps = prevSlot[i] || "";
-      ctSel.value =
-        ps === "20LT24" || ps === "20GT24" || ps === "40HQ" ? ps : "40HQ";
+      ensureSeaMaritimeStackFooter(maritimeStack);
 
-      const portLabelEl = document.createElement("div");
-      portLabelEl.className = "sea-grid-lab sea-grid-lab--port";
-      portLabelEl.textContent = "Порт отправления *";
-      const portRo = document.createElement("span");
-      portRo.className = "sea-route-port-display";
-      portRo.textContent = portLabel || "—";
-
-      const lineLabelEl = document.createElement("div");
-      lineLabelEl.className = "sea-grid-lab sea-grid-lab--line";
-      lineLabelEl.textContent = "Морская линия *";
-      const lineRo = document.createElement("span");
-      lineRo.className = "sea-route-line-display";
-      lineRo.id = "sea-route-line-ro-" + String(idx);
-      lineRo.textContent = lineLabel || "—";
-      lineRo.title = portLabel ? portLabel + " → " + String(lineLabel || "") : String(lineLabel || "");
-      portRo.title = lineRo.title || String(portLabel || "");
-
-      const frLabel = document.createElement("label");
-      frLabel.className = "sea-grid-lab sea-grid-lab--usd";
-      frLabel.htmlFor = "seaUsd-" + String(idx);
-      frLabel.textContent = "Фрахт USD *";
-      frLabel.title = portLabel + " × " + lineLabel;
-
-      const input = document.createElement("input");
-      input.id = "seaUsd-" + String(idx);
-      input.name = "seaUsd";
-      input.type = "number";
-      input.step = "0.01";
-      input.min = "0";
-      input.required = true;
-      input.placeholder = "Например, 1450";
-      input.value = prevSeaValues[i] || "";
-
-      const dateLabel = document.createElement("label");
-      dateLabel.className = "sea-grid-lab sea-grid-lab--date";
-      dateLabel.htmlFor = "seaSailingDate-" + String(idx);
-      dateLabel.textContent = "Дата выхода *";
-      const dateInput = document.createElement("input");
-      dateInput.id = "seaSailingDate-" + String(idx);
-      dateInput.name = "seaSailingDate";
-      dateInput.type = "date";
-      dateInput.required = true;
-      dateInput.value = prevDateValues[i] || "";
+      const landGrid = document.createElement("div");
+      landGrid.className =
+        "sea-usd-row sea-usd-row--grid sea-usd-route-land-grid";
 
       const dvLab = document.createElement("label");
       dvLab.className = "sea-grid-lab sea-grid-lab--dv";
@@ -5838,7 +6635,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       const ulab = document.createElement("label");
-      ulab.className = "sea-grid-lab sea-grid-lab--unload sea-route-unload-label";
+      ulab.className =
+        "sea-grid-lab sea-grid-lab--unload sea-route-unload-label";
       ulab.htmlFor = "sea-route-unl-" + String(idx);
       ulab.textContent = "Адрес выгрузки *";
       const unl = document.createElement("input");
@@ -5849,17 +6647,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       unl.placeholder = "МО, Подольск, …";
       unl.value = prevUnl[i] || "";
 
-      maritimeGrid.appendChild(ctLabel);
-      maritimeGrid.appendChild(ctSel);
-      maritimeGrid.appendChild(portLabelEl);
-      maritimeGrid.appendChild(portRo);
-      maritimeGrid.appendChild(lineLabelEl);
-      maritimeGrid.appendChild(lineRo);
-      maritimeGrid.appendChild(frLabel);
-      maritimeGrid.appendChild(input);
-      maritimeGrid.appendChild(dateLabel);
-      maritimeGrid.appendChild(dateInput);
-
       landGrid.appendChild(dvLab);
       landGrid.appendChild(termIn);
       landGrid.appendChild(stLab);
@@ -5867,7 +6654,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       landGrid.appendChild(ulab);
       landGrid.appendChild(unl);
 
-      bundle.appendChild(maritimeGrid);
+      bundle.appendChild(maritimeStack);
+      syncSeaSecondarySailingDatesFromPrimary(bundle);
       bundle.appendChild(landGrid);
       bundle.appendChild(quickBar);
 
@@ -6420,13 +7208,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const labels = [
       ...stationQuickPicks.querySelectorAll("label"),
     ];
+    const destTrim = String(destination || "").trim();
+    const showAll = !destTrim;
     labels.forEach((label) => {
       const input = label.querySelector('input[name="destinationQuickStations"]');
       if (!(input instanceof HTMLInputElement)) {
         return;
       }
-      const stationDestination = String(input.dataset.destination || "");
-      const visible = !stationDestination || stationDestination === destination;
+      const stationDestination = String(input.dataset.destination || "").trim();
+      const visible =
+        showAll ||
+        !stationDestination ||
+        stationDestination === destTrim;
       label.style.display = visible ? "inline-flex" : "none";
       if (!visible) {
         input.checked = false;
@@ -6657,8 +7450,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       .join("");
   }
 
-  function refreshYearTabs() {
-    const years = [FIXED_YEAR];
+  function refreshYearTabs(allRates) {
+    const list = Array.isArray(allRates) ? allRates : [];
+    const ys = new Set();
+    list.forEach((r) => {
+      const b = tariffValidityBounds(r);
+      if (!b) {
+        return;
+      }
+      let y = b.from.getFullYear();
+      const yEnd = b.to.getFullYear();
+      while (y <= yEnd) {
+        ys.add(y);
+        y++;
+      }
+    });
+    if (!ys.size) {
+      ys.add(FIXED_YEAR);
+    }
+    const years = [...ys].sort((a, b) => b - a);
     yearTabsWrap.innerHTML = years
       .map(
         (y) =>
@@ -6669,7 +7479,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           "</button>"
       )
       .join("");
-    activeYear = FIXED_YEAR;
+    if (!years.some((y) => Number(y) === Number(activeYear))) {
+      activeYear = years[0];
+    }
   }
 
   function syncFilterTabsActiveStates() {
