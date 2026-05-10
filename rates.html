@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778369202650" />
+    <link rel="stylesheet" href="styles.css?v=1778369202660" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -261,9 +261,19 @@
                     Букирующий агент (при наличии) *
                     <span class="field-label-hint">
                       Обязательное поле; если агента нет — укажите
-                      <strong>НЕТ</strong> (быстрый выбор или поле ниже).
+                      <strong>НЕТ</strong>. Ниже — добавление в подсказки и быстрый выбор.
                     </span>
                   </label>
+                  <div class="booking-agent-main-field booking-agent-main-field--lead">
+                    <input
+                      id="bookingAgent"
+                      name="bookingAgent"
+                      list="booking-agent-suggestions"
+                      required
+                      autocomplete="organization"
+                    />
+                  </div>
+                  <datalist id="booking-agent-suggestions"></datalist>
                   <div class="quick-add-row booking-agent-list-add-row">
                     <input
                       id="new-booking-agent-option"
@@ -294,16 +304,6 @@
                       ></div>
                     </div>
                   </details>
-                  <div class="booking-agent-main-field">
-                    <input
-                      id="bookingAgent"
-                      name="bookingAgent"
-                      list="booking-agent-suggestions"
-                      required
-                      autocomplete="organization"
-                    />
-                  </div>
-                  <datalist id="booking-agent-suggestions"></datalist>
                   <div id="booking-agent-line-wrap" class="booking-agent-line-follow" hidden>
                     <input
                       id="bookingAgentShippingLine"
