@@ -1,0 +1,266 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Martian+Mono:wght@300;400;500&display=swap');
+
+/* ── Сброс цветовой схемы ───────────────────────────── */
+:root {
+  --clr-accent: #0a0a0a;
+  --clr-accent-light: #f5f5f5;
+  --clr-border: #e0e0e0;
+  --clr-text: #0a0a0a;
+  --clr-text-muted: #888;
+  --clr-bg: #ffffff;
+}
+
+body {
+  font-family: 'Martian Mono', monospace !important;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+}
+
+/* ── Шапка ──────────────────────────────────────────── */
+.shell.nav {
+  background: #ffffff !important;
+  border-bottom: 1px solid var(--clr-border) !important;
+  box-shadow: none !important;
+  padding: 14px 24px !important;
+}
+
+.site-title,
+.site-title a {
+  font-family: 'Bebas Neue', sans-serif !important;
+  font-size: 1.8rem !important;
+  letter-spacing: 0.08em !important;
+  color: #0a0a0a !important;
+  text-decoration: none !important;
+}
+
+.site-tagline {
+  font-size: 0.52rem !important;
+  letter-spacing: 0.2em !important;
+  color: var(--clr-text-muted) !important;
+  text-transform: uppercase !important;
+  font-family: 'Martian Mono', monospace !important;
+}
+
+/* ── Навигационные кнопки ───────────────────────────── */
+.shell.nav button,
+.shell.nav .btn,
+#logout-btn {
+  font-family: 'Martian Mono', monospace !important;
+  font-size: 0.6rem !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  background: transparent !important;
+  color: var(--clr-text) !important;
+  border: 0.5px solid var(--clr-border) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  padding: 6px 14px !important;
+}
+
+#logout-btn:hover {
+  background: var(--clr-text) !important;
+  color: #fff !important;
+}
+
+/* ── Заголовки блоков формы ─────────────────────────── */
+.form-block-heading {
+  font-family: 'Martian Mono', monospace !important;
+  font-size: 0.55rem !important;
+  letter-spacing: 0.22em !important;
+  text-transform: uppercase !important;
+  background: none !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--clr-border) !important;
+  box-shadow: none !important;
+  color: var(--clr-text-muted) !important;
+  padding: 8px 0 8px 0 !important;
+  margin: 0 0 16px 0 !important;
+  border-radius: 0 !important;
+}
+
+/* ── Поля ввода ─────────────────────────────────────── */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="email"],
+select,
+textarea {
+  font-family: 'Martian Mono', monospace !important;
+  font-size: 0.72rem !important;
+  border: none !important;
+  border-bottom: 1px solid var(--clr-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 8px 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  letter-spacing: 0.04em !important;
+  color: var(--clr-text) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-bottom-color: var(--clr-text) !important;
+  box-shadow: none !important;
+}
+
+select {
+  padding: 8px 4px !important;
+}
+
+/* ── Кнопки ─────────────────────────────────────────── */
+button,
+.btn,
+.btn-primary,
+.btn-secondary,
+[class*="btn-"] {
+  font-family: 'Martian Mono', monospace !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+
+.btn-primary,
+button[type="submit"],
+#save-rate-btn {
+  background: var(--clr-text) !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 10px 20px !important;
+}
+
+.btn-primary:hover,
+button[type="submit"]:hover,
+#save-rate-btn:hover {
+  opacity: 0.75 !important;
+}
+
+/* ── Блоки формы ────────────────────────────────────── */
+.form-block {
+  margin-bottom: 28px !important;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+/* ── Блок стоимости (cost-follow) ───────────────────── */
+.cost-follow {
+  background: var(--clr-accent-light) !important;
+  border-left: 2px solid var(--clr-text) !important;
+  border-radius: 0 !important;
+  padding: 12px 16px !important;
+  margin-top: 12px !important;
+}
+
+/* ── Таблица реестра ────────────────────────────────── */
+table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  font-size: 0.62rem !important;
+  font-family: 'Martian Mono', monospace !important;
+  letter-spacing: 0.04em !important;
+}
+
+thead th {
+  font-size: 0.5rem !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--clr-text-muted) !important;
+  font-weight: 400 !important;
+  padding: 8px 10px !important;
+  border-bottom: 1px solid var(--clr-border) !important;
+  background: none !important;
+}
+
+tbody td {
+  padding: 10px 10px !important;
+  border-bottom: 0.5px solid var(--clr-border) !important;
+  border-top: none !important;
+  background: none !important;
+  vertical-align: middle !important;
+}
+
+tbody tr:hover td {
+  background: var(--clr-accent-light) !important;
+}
+
+/* ── Таб-фильтры (MOSCOW, СПБ и т.д.) ──────────────── */
+.tab-pill,
+[class*="tab-btn"],
+.destination-tab,
+.month-tab,
+.year-tab {
+  font-family: 'Martian Mono', monospace !important;
+  font-size: 0.55rem !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  border-radius: 2px !important;
+  background: transparent !important;
+  color: var(--clr-text-muted) !important;
+  border: 0.5px solid var(--clr-border) !important;
+  box-shadow: none !important;
+  padding: 5px 12px !important;
+}
+
+.tab-pill.active,
+[class*="tab-btn"].active,
+.destination-tab.active,
+.month-tab.active,
+.year-tab.active {
+  background: var(--clr-text) !important;
+  color: #fff !important;
+  border-color: var(--clr-text) !important;
+}
+
+/* ── Аккордеоны / быстрый выбор ─────────────────────── */
+details summary,
+.quick-pick-toggle,
+[class*="quick-pick"] summary {
+  font-family: 'Martian Mono', monospace !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: var(--clr-text-muted) !important;
+  background: var(--clr-accent-light) !important;
+  border: 0.5px solid var(--clr-border) !important;
+  border-radius: 2px !important;
+  padding: 8px 14px !important;
+  cursor: pointer !important;
+}
+
+/* ── Убираем teal/бирюзовые акценты ─────────────────── */
+* {
+  --primary-color: #0a0a0a !important;
+  --color-teal: #0a0a0a !important;
+  --color-accent: #0a0a0a !important;
+}
+
+a { color: var(--clr-text) !important; }
+
+/* ── Убираем все тени и градиенты ───────────────────── */
+.form-block,
+.card,
+.panel,
+[class*="card"],
+[class*="panel"] {
+  box-shadow: none !important;
+}
+
+/* ── Уведомление о сохранении ───────────────────────── */
+.save-status,
+[class*="status-banner"],
+[class*="alert"] {
+  font-family: 'Martian Mono', monospace !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.1em !important;
+  border-radius: 2px !important;
+  border-left: 2px solid var(--clr-text) !important;
+  background: var(--clr-accent-light) !important;
+  color: var(--clr-text) !important;
+}
