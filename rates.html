@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778369202660" />
+    <link rel="stylesheet" href="styles.css?v=1778369202670" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -357,6 +357,46 @@
               <div class="field-group field-group--full">
                 <div>
                   <label>Станции назначения (Москва / СПб / Минск) *</label>
+                  <div class="quick-add-row destination-station-list-add-row">
+                    <input
+                      id="new-station-option"
+                      list="station-suggestions"
+                      placeholder="Название станции"
+                      aria-label="Новая станция для списка подсказок"
+                    />
+                    <button type="button" id="add-station-option" class="btn-mini-control">
+                      Добавить новую станцию в список
+                    </button>
+                  </div>
+                  <details class="origin-quick-picks-details">
+                    <summary class="origin-quick-picks-summary">
+                      Быстрый выбор станций
+                    </summary>
+                    <div class="origin-quick-picks-panel">
+                      <div class="origin-quick-pick-controls">
+                        <button type="button" id="stations-select-all" class="btn-mini-control">
+                          Выбрать все
+                        </button>
+                        <button type="button" id="stations-clear-all" class="btn-mini-control">
+                          Очистить
+                        </button>
+                      </div>
+                      <div class="origin-quick-pick-grid" id="station-quick-picks">
+                        <label><input type="checkbox" name="destinationQuickStations" value="Ворсино" data-destination="MOSCOW" /> Ворсино</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Селятино" data-destination="MOSCOW" /> Селятино</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Ховрино" data-destination="MOSCOW" /> Ховрино</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Белый Раст" data-destination="MOSCOW" /> Белый Раст</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Электроугли" data-destination="MOSCOW" /> Электроугли</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Шушары" data-destination="ST. PETERSBURG" /> Шушары</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Автово" data-destination="ST. PETERSBURG" /> Автово</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Предпортовая" data-destination="ST. PETERSBURG" /> Предпортовая</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Купчинская" data-destination="ST. PETERSBURG" /> Купчинская</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Колядичи" data-destination="MINSK" /> Колядичи</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Минск-Северный" data-destination="MINSK" /> Минск-Северный</label>
+                        <label><input type="checkbox" name="destinationQuickStations" value="Степянка" data-destination="MINSK" /> Степянка</label>
+                      </div>
+                    </div>
+                  </details>
                   <div id="destination-stations-wrap" class="sailing-dates-wrap destination-stations-wrap-inner">
                     <div class="destination-station-row">
                       <input
@@ -414,47 +454,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <div class="quick-add-row destination-station-list-add-row">
-                    <input
-                      id="new-station-option"
-                      list="station-suggestions"
-                      placeholder="Название станции"
-                      aria-label="Новая станция для списка подсказок"
-                    />
-                    <button type="button" id="add-station-option" class="btn-mini-control">
-                      Добавить новую станцию в список
-                    </button>
-                  </div>
-                  <details class="origin-quick-picks-details">
-                    <summary class="origin-quick-picks-summary">
-                      Быстрый выбор станций
-                    </summary>
-                    <div class="origin-quick-picks-panel">
-                      <div class="origin-quick-pick-controls">
-                        <button type="button" id="stations-select-all" class="btn-mini-control">
-                          Выбрать все
-                        </button>
-                        <button type="button" id="stations-clear-all" class="btn-mini-control">
-                          Очистить
-                        </button>
-                      </div>
-                      <div class="origin-quick-pick-grid" id="station-quick-picks">
-                        <label><input type="checkbox" name="destinationQuickStations" value="Ворсино" data-destination="MOSCOW" /> Ворсино</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Селятино" data-destination="MOSCOW" /> Селятино</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Ховрино" data-destination="MOSCOW" /> Ховрино</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Белый Раст" data-destination="MOSCOW" /> Белый Раст</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Электроугли" data-destination="MOSCOW" /> Электроугли</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Шушары" data-destination="ST. PETERSBURG" /> Шушары</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Автово" data-destination="ST. PETERSBURG" /> Автово</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Предпортовая" data-destination="ST. PETERSBURG" /> Предпортовая</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Купчинская" data-destination="ST. PETERSBURG" /> Купчинская</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Колядичи" data-destination="MINSK" /> Колядичи</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Минск-Северный" data-destination="MINSK" /> Минск-Северный</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Степянка" data-destination="MINSK" /> Степянка</label>
-                      </div>
-                    </div>
-                  </details>
                   <datalist id="station-suggestions">
                     <option value="Ворсино"></option>
                     <option value="Селятино"></option>
