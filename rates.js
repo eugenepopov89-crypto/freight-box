@@ -5395,10 +5395,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       'input[name="destinationStations"]'
     );
     if (!(firstStationInput instanceof HTMLInputElement)) {
+      refreshCargoRouteSelectOptions();
       return;
     }
     firstStationInput.value = joined;
     newStationOptionInput.value = joined;
+    refreshCargoRouteSelectOptions();
   }
 
   function syncOriginQuickPicksToInput() {
