@@ -5365,59 +5365,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       bundle.className = "sea-route-block";
       bundle.dataset.routeOrigin = combo.origin || "";
       bundle.dataset.routeLine = combo.shippingLine || "";
-      const grid = document.createElement("div");
-      grid.className = "sea-usd-row sea-usd-row--grid sea-usd-route-primary-grid";
-      const ctLabel = document.createElement("label");
-      ctLabel.className = "sea-grid-lab sea-grid-lab--ct";
-      ctLabel.htmlFor = "seaRouteCt-" + String(idx);
-      ctLabel.textContent = "Тип / тариф ЖД *";
-      const ctSel = document.createElement("select");
-      ctSel.className = "sea-route-container-slot";
-      ctSel.id = "seaRouteCt-" + String(idx);
-      ctSel.required = true;
-      [
-        ["20LT24", "20′ ft < 24 t, RUB *"],
-        ["20GT24", "20′ ft > 24 t, RUB *"],
-        ["40HQ", "40′ HQ *"],
-      ].forEach(([val, text]) => {
-        const o = document.createElement("option");
-        o.value = val;
-        o.textContent = text;
-        ctSel.appendChild(o);
-      });
-      const ps = prevSlot[i] || "";
-      ctSel.value =
-        ps === "20LT24" || ps === "20GT24" || ps === "40HQ" ? ps : "40HQ";
-      const label = document.createElement("label");
-      label.className = "sea-grid-lab sea-grid-lab--usd";
-      label.htmlFor = "seaUsd-" + String(idx);
-      label.textContent = "Фрахт USD · " + portLabel + " × " + lineLabel + " *";
-      const input = document.createElement("input");
-      input.id = "seaUsd-" + String(idx);
-      input.name = "seaUsd";
-      input.type = "number";
-      input.step = "0.01";
-      input.min = "0";
-      input.required = true;
-      input.placeholder = "Например, 1450";
-      input.value = prevSeaValues[i] || "";
-      const dateLabel = document.createElement("label");
-      dateLabel.className = "sea-grid-lab sea-grid-lab--date";
-      dateLabel.htmlFor = "seaSailingDate-" + String(idx);
-      dateLabel.textContent = "Дата выхода *";
-      const dateInput = document.createElement("input");
-      dateInput.id = "seaSailingDate-" + String(idx);
-      dateInput.name = "seaSailingDate";
-      dateInput.type = "date";
-      dateInput.required = true;
-      dateInput.value = prevDateValues[i] || "";
-      grid.appendChild(ctLabel);
-      grid.appendChild(ctSel);
-      grid.appendChild(label);
-      grid.appendChild(input);
-      grid.appendChild(dateLabel);
-      grid.appendChild(dateInput);
-      bundle.appendChild(grid);
 
       const detDv = document.createElement("details");
       detDv.className = "origin-quick-picks-details sea-row-dv-details";
@@ -5439,31 +5386,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
       detDv.appendChild(sumDv);
       detDv.appendChild(panDv);
-
-      const termIn = document.createElement("input");
-      termIn.className = "sea-route-dv-terminal";
-      termIn.type = "text";
-      termIn.setAttribute("list", "terminal-suggestions");
-      termIn.placeholder = "Терминал ДВ для этой связки моря";
-      termIn.required = true;
-      termIn.value = prevDv[i] || "";
-      [...panDv.querySelectorAll(".sea-row-dv-term-cb")].forEach((cb) => {
-        if (!(cb instanceof HTMLInputElement)) {
-          return;
-        }
-        const parts = termIn.value
-          .split(/[,/]/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-        cb.checked = parts.some(
-          (tok) =>
-            normalizeQuickOptionToken(tok) ===
-            normalizeQuickOptionToken(cb.value)
-        );
-      });
-
-      bundle.appendChild(detDv);
-      bundle.appendChild(termIn);
 
       const detSt = document.createElement("details");
       detSt.className = "origin-quick-picks-details sea-row-st-details";
@@ -5492,13 +5414,112 @@ document.addEventListener("DOMContentLoaded", async () => {
       detSt.appendChild(sumSt);
       detSt.appendChild(panSt);
 
+      const quickBar = document.createElement("div");
+      quickBar.className = "sea-route-quick-picks-row";
+      quickBar.appendChild(detDv);
+      quickBar.appendChild(detSt);
+      bundle.appendChild(quickBar);
+
+      const grid = document.createElement("div");
+      grid.className = "sea-usd-row sea-usd-row--grid sea-usd-route-primary-grid";
+      const ctLabel = document.createElement("label");
+      ctLabel.className = "sea-grid-lab sea-grid-lab--ct";
+      ctLabel.htmlFor = "seaRouteCt-" + String(idx);
+      ctLabel.textContent = "Тип / тариф ЖД *";
+      const ctSel = document.createElement("select");
+      ctSel.className = "sea-route-container-slot";
+      ctSel.id = "seaRouteCt-" + String(idx);
+      ctSel.required = true;
+      [
+        ["20LT24", "20′ ft < 24 t, RUB *"],
+        ["20GT24", "20′ ft > 24 t, RUB *"],
+        ["40HQ", "40′ HQ *"],
+      ].forEach(([val, text]) => {
+        const o = document.createElement("option");
+        o.value = val;
+        o.textContent = text;
+        ctSel.appendChild(o);
+      });
+      const ps = prevSlot[i] || "";
+      ctSel.value =
+        ps === "20LT24" || ps === "20GT24" || ps === "40HQ" ? ps : "40HQ";
+
+      const lineLabelEl = document.createElement("div");
+      lineLabelEl.className = "sea-grid-lab sea-grid-lab--line";
+      lineLabelEl.textContent = "Морская линия *";
+      const lineRo = document.createElement("span");
+      lineRo.className = "sea-route-line-display";
+      lineRo.id = "sea-route-line-ro-" + String(idx);
+      lineRo.textContent = lineLabel || "—";
+      lineRo.title = portLabel ? portLabel + " → " + String(lineLabel || "") : String(lineLabel || "");
+
+      const frLabel = document.createElement("label");
+      frLabel.className = "sea-grid-lab sea-grid-lab--usd";
+      frLabel.htmlFor = "seaUsd-" + String(idx);
+      frLabel.textContent = "Фрахт USD *";
+      frLabel.title = portLabel + " × " + lineLabel;
+
+      const input = document.createElement("input");
+      input.id = "seaUsd-" + String(idx);
+      input.name = "seaUsd";
+      input.type = "number";
+      input.step = "0.01";
+      input.min = "0";
+      input.required = true;
+      input.placeholder = "Например, 1450";
+      input.value = prevSeaValues[i] || "";
+
+      const dateLabel = document.createElement("label");
+      dateLabel.className = "sea-grid-lab sea-grid-lab--date";
+      dateLabel.htmlFor = "seaSailingDate-" + String(idx);
+      dateLabel.textContent = "Дата выхода *";
+      const dateInput = document.createElement("input");
+      dateInput.id = "seaSailingDate-" + String(idx);
+      dateInput.name = "seaSailingDate";
+      dateInput.type = "date";
+      dateInput.required = true;
+      dateInput.value = prevDateValues[i] || "";
+
+      const dvLab = document.createElement("label");
+      dvLab.className = "sea-grid-lab sea-grid-lab--dv";
+      dvLab.textContent = "Терминал прибытия на ДВ *";
+      const termIn = document.createElement("input");
+      termIn.id = "sea-route-dv-" + String(idx);
+      termIn.className = "sea-route-dv-terminal";
+      termIn.type = "text";
+      termIn.setAttribute("list", "terminal-suggestions");
+      termIn.placeholder = "Терминал ДВ";
+      termIn.required = true;
+      termIn.value = prevDv[i] || "";
+      dvLab.htmlFor = termIn.id;
+
+      [...panDv.querySelectorAll(".sea-row-dv-term-cb")].forEach((cb) => {
+        if (!(cb instanceof HTMLInputElement)) {
+          return;
+        }
+        const parts = termIn.value
+          .split(/[,/]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        cb.checked = parts.some(
+          (tok) =>
+            normalizeQuickOptionToken(tok) ===
+            normalizeQuickOptionToken(cb.value)
+        );
+      });
+
+      const stLab = document.createElement("label");
+      stLab.className = "sea-grid-lab sea-grid-lab--st";
+      stLab.textContent = "Станция назначения *";
       const stIn = document.createElement("input");
+      stIn.id = "sea-route-st-" + String(idx);
       stIn.className = "sea-route-station";
       stIn.type = "text";
       stIn.setAttribute("list", "station-suggestions");
-      stIn.placeholder = "Станция назначения";
+      stIn.placeholder = "Станция";
       stIn.required = true;
       stIn.value = prevSt[i] || "";
+      stLab.htmlFor = stIn.id;
       const stPieces = prevSt[i]
         ? prevSt[i].split(/[,/]/).map((s) => s.trim()).filter(Boolean)
         : [];
@@ -5513,21 +5534,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
       });
 
-      bundle.appendChild(detSt);
-      bundle.appendChild(stIn);
-
       const ulab = document.createElement("label");
-      ulab.textContent = "Адрес выгрузки на складе *";
-      ulab.className = "sea-route-unload-label";
+      ulab.className = "sea-grid-lab sea-grid-lab--unload sea-route-unload-label";
+      ulab.htmlFor = "sea-route-unl-" + String(idx);
+      ulab.textContent = "Адрес выгрузки *";
       const unl = document.createElement("input");
+      unl.id = "sea-route-unl-" + String(idx);
       unl.className = "sea-route-unload";
       unl.type = "text";
       unl.required = true;
-      unl.placeholder =
-        "Например, МО, Подольск, Домодедовское ш., 12";
+      unl.placeholder = "МО, Подольск, …";
       unl.value = prevUnl[i] || "";
-      bundle.appendChild(ulab);
-      bundle.appendChild(unl);
+
+      grid.appendChild(ctLabel);
+      grid.appendChild(ctSel);
+      grid.appendChild(lineLabelEl);
+      grid.appendChild(lineRo);
+      grid.appendChild(frLabel);
+      grid.appendChild(input);
+      grid.appendChild(dateLabel);
+      grid.appendChild(dateInput);
+      grid.appendChild(dvLab);
+      grid.appendChild(termIn);
+      grid.appendChild(stLab);
+      grid.appendChild(stIn);
+      grid.appendChild(ulab);
+      grid.appendChild(unl);
+
+      bundle.appendChild(grid);
 
       seaUsdWrap.appendChild(bundle);
     }
