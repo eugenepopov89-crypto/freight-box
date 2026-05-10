@@ -4288,7 +4288,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   /** Собираем значение главного поля из чекбоксов (как терминалы/линии). */
   function syncBookingAgentQuickPicksToInput() {
     const selected = getSelectedBookingAgentsFromQuickPicks();
-    bookingAgentInput.value = selected.join(", ");
+    const joined = selected.join(", ");
+    bookingAgentInput.value = joined;
+    newBookingAgentOptionInput.value = joined;
     syncBookingAgentLineVisibility();
     syncBookingAgentShippingLineDatalist();
   }
@@ -4299,7 +4301,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!selected.length) {
       return;
     }
-    bookingAgentInput.value = selected.join(", ");
+    const joined = selected.join(", ");
+    bookingAgentInput.value = joined;
+    newBookingAgentOptionInput.value = joined;
     syncBookingAgentLineVisibility();
     syncBookingAgentShippingLineDatalist();
   }
@@ -4632,6 +4636,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (firstPortInput instanceof HTMLInputElement) {
       firstPortInput.value = selectedPorts.join(", ");
     }
+    newPortOptionInput.value = selectedPorts.join(", ");
 
     const firstStationInput = destinationStationsWrap.querySelector(
       'input[name="destinationStations"]'
@@ -4643,6 +4648,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ) {
       firstStationInput.value = selectedStations[0];
     }
+    newStationOptionInput.value = selectedStations.join(", ");
   }
 
   function appendOriginPortRow(defaultValue) {
@@ -5132,7 +5138,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function syncShippingLineQuickPicksToInput() {
     const selectedLines = getSelectedShippingLines();
-    shippingLineInput.value = selectedLines.join(", ");
+    const joined = selectedLines.join(", ");
+    shippingLineInput.value = joined;
+    newShippingLineOptionInput.value = joined;
     syncBookingAgentShippingLineDatalist();
     syncSeaUsdRowsToRouteCombinations();
   }
@@ -5274,13 +5282,15 @@ document.addEventListener("DOMContentLoaded", async () => {
           : ""
       )
       .filter(Boolean);
+    const joined = selectedStations.join(", ");
     const firstStationInput = destinationStationsWrap.querySelector(
       'input[name="destinationStations"]'
     );
     if (!(firstStationInput instanceof HTMLInputElement)) {
       return;
     }
-    firstStationInput.value = selectedStations.join(", ");
+    firstStationInput.value = joined;
+    newStationOptionInput.value = joined;
   }
 
   function syncOriginQuickPicksToInput() {
@@ -5291,11 +5301,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         node instanceof HTMLInputElement ? String(node.value || "").trim().toUpperCase() : ""
       )
       .filter(Boolean);
+    const joined = selectedPorts.join(", ");
     const firstPortInput = originPortsWrap.querySelector('input[name="originPorts"]');
     if (!(firstPortInput instanceof HTMLInputElement)) {
       return;
     }
-    firstPortInput.value = selectedPorts.join(", ");
+    firstPortInput.value = joined;
+    newPortOptionInput.value = joined;
   }
 
   function enableDatalistOpenOnFocus(inputEl) {
