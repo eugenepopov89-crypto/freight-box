@@ -1,30 +1,40 @@
 /**
- * Импорт КП формата Green Sea Transport / терминал ВСК (PDF).
- * Требует: rates.js уже загрузился и выставил window.__ratesImportApi.
+ * Импорт КП Green Sea / ВСК:
+ * — раздел 1: море (порты без Busan, 20′DC / 40′HC);
+ * — раздел 2: для Москвы первые три суммы ₽ в блоке «Стоимость транспортировки»
+ *   (20′ &lt;24 т, 20′ &gt;24 т, 40′) → столбцы ЖД реестра.
+ *
+ * Требует: rates.js загрузился и выставил window.__ratesImportApi.
  */
 (function () {
   "use strict";
 
-  var SHIPPING_LINE = "Green Sea Transport (тариф подрядчика ВСК)";
+  var SHIPPING_LINE = "Green sea";
+
+  /** Профиль «Москва» по текущему ТЗ пользователя; позже можно добавить другие регионы. */
+  var GREENSEA_PROFILE_MOSCOW = {
+    id: "moscow",
+    destination: "MOSCOW",
+    railTerminal: "ВСК",
+    destinationStations: ["Электроугли", "Селятино", "Белый Раст"],
+    /** Одна строка для колонки «Станция назначения» в реестре */
+    destinationStationsDisplay: "Электроугли, Селятино, Белый Раст",
+    warehouseAddresses: ["Москва, МО"],
+    customsClearance: "destinationPort",
+    sailingPlaceholder: "Уточнять дополнительно",
+    dvTerminal: "ВСК",
+  };
+
   var PDFJS_BASE =
     "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/";
   var PDFJS_MAIN = PDFJS_BASE + "pdf.mjs";
   var PDFJS_WORKER = PDFJS_BASE + "pdf.worker.mjs";
 
-  var RAIL_ROWS = [
-    { match: /^МОСКВА/i, cityKey: "МОСКВА", dest: "MOSCOW", station: "Электроугли", addr: "По оферте ВСК (адрес склада)" },
-    { match: /^САНКТ-ПЕТЕРБУРГ/i, cityKey: "САНКТ-ПЕТЕРБУРГ", dest: "ST. PETERSBURG", station: "Шушары", addr: "По оферте ВСК (в пределах КАД)" },
-    { match: /^НОВОСИБИРСК/i, cityKey: "НОВОСИБИРСК", dest: "RU_REGIONS", station: "Иня-Восточная", addr: "По оферте ВСК" },
-    { match: /^ЕКАТЕРИНБУРГ/i, cityKey: "ЕКАТЕРИНБУРГ", dest: "RU_REGIONS", station: "Екатеринбург-Сортировочный", addr: "По оферте ВСК" },
-    { match: /^РОСТОВ/i, cityKey: "РОСТОВ-НА-ДОНУ", dest: "RU_REGIONS", station: "Ростов-Тов.", addr: "По оферте ВСК" },
-    { match: /^КРАСНОЯРСК/i, cityKey: "КРАСНОЯРСК", dest: "RU_REGIONS", station: "Красноярск-Северные ворота", addr: "По оферте ВСК" },
-    { match: /^ТОЛЬЯТТИ/i, cityKey: "ТОЛЬЯТТИ", dest: "RU_REGIONS", station: "Тольятти вет.", addr: "По оферте ВСК" },
-  ];
-
   function normalizePdfText(txt) {
     return String(txt || "")
       .replace(/\r/g, "\n")
       .replace(/\u00a0/g, " ")
+      .replace(/[\u200b\uFEFF]/g, "")
       .replace(/\s+\n/g, "\n");
   }
 
@@ -38,6 +48,81 @@
 
   function parseMoneyRub(raw) {
     return parseMoneyUsd(raw);
+  }
+
+  /**
+   * Первая строка «МОСКВА» в разделе 2: первые три суммы в ₽ подряд —
+   * базовый блок «Стоимость транспортировки» (без охраны): &lt;24т, &gt;24т, 40′.
+   */
+  function parseGreenseaMoscowRailTriple(sec2, warnings) {
+    if (!sec2 || String(sec2).trim().length < 30) {
+      if (warnings) {
+        warnings.push(
+          "Раздел 2 (наземная часть) не найден или слишком короткий — ЖД Москвы не заполнены."
+        );
+      }
+      return null;
+    }
+
+    var lines = String(sec2).split(/\n/);
+    var targetLine = "";
+    var i;
+    for (i = 0; i < lines.length; i++) {
+      var ln = lines[i].trim().replace(/\s+/g, " ");
+      if (/^МОСКВА/i.test(ln) || /^\*?МОСКВА/i.test(ln)) {
+        targetLine = ln;
+        break;
+      }
+    }
+
+    if (!targetLine) {
+      var flat = String(sec2).replace(/\s+/g, " ");
+      var block = flat.match(/МОСКВА\*?[\s\S]{0,900}?(?=\n\s*[А-ЯЁ]{4,}|$)/i);
+      if (block) {
+        targetLine = block[0].replace(/\s+/g, " ").trim();
+      }
+    }
+
+    if (!targetLine) {
+      var mm = String(sec2).match(/МОСКВА[^\n]{10,1200}/i);
+      if (mm) {
+        targetLine = mm[0].replace(/\s+/g, " ").trim();
+      }
+    }
+
+    if (!targetLine) {
+      if (warnings) {
+        warnings.push(
+          'Строка направления «МОСКВА» в разделе 2 не найдена — столбцы ЖД не заполнены.'
+        );
+      }
+      return null;
+    }
+
+    var rubs = [];
+    var reRub = /([\d][\d\s]*)\s*₽/g;
+    var m;
+    while ((m = reRub.exec(targetLine)) !== null && rubs.length < 12) {
+      var n = parseMoneyRub(m[1]);
+      if (Number.isFinite(n)) {
+        rubs.push(Math.round(n));
+      }
+    }
+
+    if (rubs.length < 3) {
+      if (warnings) {
+        warnings.push(
+          "Для Москвы в разделе 2 найдено меньше трёх сумм в ₽ — проверьте текст PDF или вставьте раздел вручную."
+        );
+      }
+      return null;
+    }
+
+    return {
+      lt24: rubs[0],
+      gt24: rubs[1],
+      hq40: rubs[2],
+    };
   }
 
   function sliceBetween(text, startRe, endRes) {
@@ -56,9 +141,80 @@
     return from.slice(0, Math.min(from.length, 12000));
   }
 
+  function shouldSkipPort(portUpper) {
+    var p = String(portUpper || "").trim().toUpperCase();
+    return /^BUSAN\b/i.test(p);
+  }
+
+  function normalizePortToken(raw) {
+    return String(raw || "")
+      .replace(/\*+/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toUpperCase();
+  }
+
   /**
-   * @returns {{fromIso:string,toIso:string}}
+   * Две суммы USD подряд после названия порта (20'DC и 40'HC).
+   * Устойчиво к переносам из PDF: сначала построчно, затем по всему фрагменту.
    */
+  function parseGreenseaSeaRows(sec1) {
+    var rows = [];
+    var warnings = [];
+    var seen = {};
+
+    function pushRow(portRaw, u20, u40) {
+      var port = normalizePortToken(portRaw);
+      if (!port || shouldSkipPort(port)) {
+        return;
+      }
+      if (/^ПОРТ/i.test(port) || /^СТОИМОСТЬ/i.test(port)) {
+        return;
+      }
+      if (!Number.isFinite(u20) || !Number.isFinite(u40)) {
+        return;
+      }
+      if (seen[port]) {
+        return;
+      }
+      seen[port] = true;
+      rows.push({ port: port, usd20: u20, usd40: u40 });
+    }
+
+    /** Звёздочки после порта (**, *) перед суммами — убираем из имени в normalizePortToken */
+    var lineRe =
+      /^([^$\n\r]+?)\s*\**\s*\$\s*([\d\s,\u00a0]+)\s+\$\s*([\d\s,\u00a0]+)/;
+
+    var lines = String(sec1 || "").split(/\n/);
+    var i;
+    for (i = 0; i < lines.length; i++) {
+      var ln = lines[i].trim().replace(/\s+/g, " ");
+      var mm = ln.match(lineRe);
+      if (!mm) {
+        continue;
+      }
+      pushRow(mm[1], parseMoneyUsd(mm[2]), parseMoneyUsd(mm[3]));
+    }
+
+    if (!rows.length) {
+      var flat = String(sec1 || "").replace(/\s+/g, " ");
+      var g =
+        /([^$\n\r]{4,90}?)\s*\**\s*\$\s*([\d\s,\u00a0]+)\s+\$\s*([\d\s,\u00a0]+)/g;
+      var m;
+      while ((m = g.exec(flat)) !== null) {
+        pushRow(m[1], parseMoneyUsd(m[2]), parseMoneyUsd(m[3]));
+      }
+    }
+
+    if (!rows.length) {
+      warnings.push(
+        "Не удалось распознать строки таблицы моря (раздел 1). Вставьте в поле ниже текст страницы PDF или проверьте, что в файле есть блок «Морская составляющая» с колонками 20'DC и 40'HC."
+      );
+    }
+
+    return { rows: rows, warnings: warnings };
+  }
+
   function parseValidityRange(fullText) {
     var isoFrom = "";
     var re =
@@ -70,8 +226,7 @@
         var dd = Number(m[1]);
         var yyyy = Number(m[3]);
         if (Number.isFinite(dd) && Number.isFinite(yyyy)) {
-          var d = new Date(yyyy, mo, dd);
-          isoFrom = toIsoDate(d);
+          isoFrom = toIsoDate(new Date(yyyy, mo, dd));
         }
       }
     }
@@ -92,8 +247,7 @@
       }
     }
     if (!isoFrom) {
-      var t = new Date();
-      isoFrom = toIsoDate(t);
+      isoFrom = toIsoDate(new Date());
     }
     var fromD = parseIsoLocal(isoFrom);
     var toD = fromD
@@ -153,128 +307,8 @@
     return -1;
   }
 
-  function parseSeaRows(sec) {
-    var rows = [];
-    var lines = sec.split(/\n/);
-    var re =
-      /^([A-Z][A-Za-z ()0-9,-]+)\s*(\*{0,2})\s*\$\s*([\d\s,]+)\s+\$\s*([\d\s,]+)/;
-    for (var i = 0; i < lines.length; i++) {
-      var ln = lines[i].trim();
-      var mm = ln.match(re);
-      if (!mm) {
-        continue;
-      }
-      var portRaw = mm[1]
-        .replace(/\*{1,2}\s*$/, "")
-        .trim()
-        .toUpperCase();
-      if (/^Порт/i.test(portRaw) || /^Стоимость/i.test(portRaw)) {
-        continue;
-      }
-      var u20 = parseMoneyUsd(mm[3]);
-      var u40 = parseMoneyUsd(mm[4]);
-      if (!Number.isFinite(u20) || !Number.isFinite(u40)) {
-        continue;
-      }
-      rows.push({ port: portRaw, usd20: u20, usd40: u40 });
-    }
-    return rows;
-  }
-
-  function parseRailTripleLine(line, rowDef) {
-    void rowDef;
-    var chunks = [];
-    var reRu = /([\d][\d\s]*)\s*₽/g;
-    var m;
-    while ((m = reRu.exec(line)) !== null && chunks.length < 3) {
-      chunks.push(parseMoneyRub(m[1]));
-    }
-    if (chunks.length < 3) {
-      return null;
-    }
-    return {
-      lt24: chunks[0],
-      gt24: chunks[1],
-      rub40: chunks[2],
-    };
-  }
-
-  function parseRailTable(sec) {
-    var lines = sec.split(/\n/).map(function (x) {
-      return String(x || "").trim();
-    });
-    var out = {};
-    var warnings = [];
-
-    RAIL_ROWS.forEach(function (def) {
-      if (out[def.cityKey]) {
-        return;
-      }
-      for (var i = 0; i < lines.length; i++) {
-        var ln = lines[i];
-        if (!ln || ln.length < 10 || !def.match.test(ln)) {
-          continue;
-        }
-        var triple = parseRailTripleLine(ln, def);
-        if (!triple) {
-          warnings.push(
-            "ЖД «" + def.cityKey + "»: не удалось прочитать три суммы"
-          );
-          return;
-        }
-        if (
-          Number.isFinite(triple.lt24) &&
-          Number.isFinite(triple.gt24) &&
-          Number.isFinite(triple.rub40)
-        ) {
-          out[def.cityKey] = triple;
-        }
-        return;
-      }
-    });
-
-    return { byCity: out, warnings: warnings };
-  }
-
-  function parseAutoTable(sec6) {
-    var byCity = {};
-    var lines = sec6.split(/\n/);
-    var re =
-      /^([А-ЯЁA-Z][А-ЯЁA-Z\-\s]+?)(\*)*\s+([\d\s]{2,})\s*₽\s+([\d\s]{2,})\s*₽/;
-    for (var i = 0; i < lines.length; i++) {
-      var ln = lines[i].trim();
-      var mm = ln.match(re);
-      if (!mm) {
-        continue;
-      }
-      var name = mm[1].replace(/\*{1,2}$/, "").trim().toUpperCase();
-      var a20 = parseMoneyRub(mm[3]);
-      var a40 = parseMoneyRub(mm[4]);
-      if (Number.isFinite(a20) && Number.isFinite(a40)) {
-        byCity[name] = { auto20: a20, auto40: a40 };
-      }
-    }
-    return byCity;
-  }
-
-  function matchAutoForCity(cityKey, autoByName) {
-    var up = cityKey.toUpperCase();
-    if (autoByName[up]) {
-      return autoByName[up];
-    }
-    for (var k in autoByName) {
-      if (!Object.prototype.hasOwnProperty.call(autoByName, k)) {
-        continue;
-      }
-      if (up.indexOf(k) === 0 || k.indexOf(up) === 0) {
-        return autoByName[k];
-      }
-    }
-    return null;
-  }
-
   /**
-   * @returns {{ sea:Array, rail:Object, auto:Object, validity:{fromIso:string,toIso:string}, warnings:string[] }}
+   * Разделы 1–2 + даты действия.
    */
   function parseGreenseaVskText(fullText) {
     var t = normalizePdfText(fullText);
@@ -282,231 +316,130 @@
 
     var sec1 = sliceBetween(t, /1\.\s*Морская составляющая/i, [
       /\n\s*2\.\s*Наземная составляющая/i,
+      /\n\s*2\.\s*Наземная/i,
     ]);
+
     var sec2 = sliceBetween(t, /\n\s*2\.\s*Наземная составляющая/i, [
       /\n\s*В случае изменения по инициативе Клиента/i,
       /\n\s*3\.\s*Условия использования предложения/i,
+      /\n\s*3\.\s*Условия/i,
     ]);
-
-    var sea = parseSeaRows(sec1);
-    if (!sea.length) {
-      warnings.push(
-        "Морские ставки из раздела 1 не найдены — проверьте файл или вставьте текст вручную."
-      );
+    if (!sec2) {
+      sec2 = sliceBetween(t, /2\.\s*Наземная составляющая/i, [
+        /\n\s*В случае изменения по инициативе Клиента/i,
+        /\n\s*3\.\s*Условия использования предложения/i,
+      ]);
     }
 
-    var rt = parseRailTable(sec2);
-    warnings.push.apply(warnings, rt.warnings);
+    var seaOut = parseGreenseaSeaRows(sec1);
+    warnings.push.apply(warnings, seaOut.warnings);
 
-    var autoMap = {};
-    var s6 = sliceBetween(t, /6\.\s*Организация доставки/i, [
-      /\n\s*7\.\s*Превышение/i,
-    ]);
-    if (s6 && s6.length > 120) {
-      autoMap = parseAutoTable(s6);
-    }
+    var railMoscow = parseGreenseaMoscowRailTriple(sec2, warnings);
 
     var validity = parseValidityRange(t);
 
-    var railCount = Object.keys(rt.byCity).length;
-    if (!railCount) {
-      warnings.push(
-        "Таблица ЖД (раздел 2): не удалось распознать строки направлений."
-      );
-    }
-
     return {
-      sea: sea,
-      rail: rt.byCity,
-      auto: autoMap,
+      sea: seaOut.rows,
+      railMoscow: railMoscow,
       validity: validity,
       warnings: warnings,
     };
   }
 
-  function buildSeaRouteRows(cfg) {
-    var origins = cfg.origins;
-    var line = cfg.line;
-    var seaByPort = cfg.seaByPort;
-    var slot = cfg.slot;
-    var seaUsdFn = cfg.seaUsdFn;
-    var railLt = cfg.railLt;
-    var railGt = cfg.railGt;
-    var railHq = cfg.railHq;
-    var autoRub = cfg.autoRub;
-    var sailingDate = cfg.sailingDate;
-    var station = cfg.station;
-    var addr = cfg.addr;
-    var rows = [];
-    for (var i = 0; i < origins.length; i++) {
-      var pol = origins[i];
-      var su = seaUsdFn(pol);
-      if (!Number.isFinite(su)) {
-        continue;
-      }
-      var row = {
-        origin: pol,
-        shippingLine: line,
-        seaUsd: su,
-        sailingDate: sailingDate,
-        dvTerminal: "ВСК(Врангель)",
-        destinationStation: station,
-        unloadAddress: addr,
-        containerSlot: slot,
-        railRub20Lt24:
-          slot === "20LT24" || (railLt != null && railGt != null)
-            ? railLt
-            : null,
-        railRub20Gt24:
-          slot === "20GT24" || (railLt != null && railGt != null)
-            ? railGt
-            : null,
-        railRub40Hq: slot === "40HQ" ? railHq : null,
-        autoRub: autoRub,
-      };
-      rows.push(row);
-    }
-    return rows;
-  }
-
-  /** Пара 20′: в строках указан общий тип 20LT24, суммы Lt/Gt задаём явно как в ставке через форму. */
-  function buildPair20SeaRows(cfg) {
-    var origins = cfg.origins;
-    var line = cfg.line;
-    var seaByFn = cfg.seaUsdFn;
-    var sailingDate = cfg.sailingDate;
-    var station = cfg.station;
-    var addr = cfg.addr;
-    var autoRub = cfg.autoRub;
-    var railLt = cfg.railLt;
-    var railGt = cfg.railGt;
-
-    var rows = [];
-    for (var i = 0; i < origins.length; i++) {
-      var pol = origins[i];
-      var su = seaByFn(pol);
-      rows.push({
-        origin: pol,
-        shippingLine: line,
-        seaUsd: su,
-        sailingDate: sailingDate,
-        dvTerminal: "ВСК(Врангель)",
-        destinationStation: station,
-        unloadAddress: addr,
-        containerSlot: "20LT24",
-        railRub20Lt24: railLt,
-        railRub20Gt24: railGt,
-        railRub40Hq: null,
-        autoRub: autoRub,
-      });
-    }
-    return rows;
-  }
-
-  function buildRateRecord(opts) {
-    var api = opts.api;
-    var stableRateKeyFromRecord = api.stableRateKeyFromRecord;
-    var origins = opts.origins.slice().sort(function (a, b) {
-      return a.localeCompare(b, "en");
+  function sortStationsRu(arr) {
+    return arr.slice().sort(function (a, b) {
+      return a.localeCompare(b, "ru", { sensitivity: "base" });
     });
-    var shippingLines = [SHIPPING_LINE];
-    var dest = opts.dest;
-    var destStation = opts.destStation;
-    var slotMode = opts.slotMode;
-    var seaByPort = opts.seaByPort;
+  }
+
+  function buildSeaRouteRow(profile, port, slot, seaUsd, railLt, railGt, railHq) {
+    return {
+      origin: port,
+      shippingLine: SHIPPING_LINE,
+      seaUsd: seaUsd,
+      sailingDate: profile.sailingPlaceholder,
+      dvTerminal: profile.dvTerminal,
+      destinationStation: profile.destinationStationsDisplay,
+      unloadAddress: profile.warehouseAddresses[0] || "",
+      containerSlot: slot,
+      railRub20Lt24: slot === "20LT24" ? railLt : null,
+      railRub20Gt24: slot === "20GT24" ? railGt : null,
+      railRub40Hq: slot === "40HQ" ? railHq : null,
+      autoRub: 0,
+    };
+  }
+
+  /**
+   * Одна публикация на комбинацию порт × тип слота (20LT24 / 20GT24 / 40HQ).
+   */
+  function buildGreenseaMoscowRate(opts) {
+    var stableRateKeyFromRecord = opts.stableRateKeyFromRecord;
+    var profile = opts.profile;
+    var port = opts.port;
+    var slot = opts.slot;
+    var seaUsd = opts.seaUsd;
+    var validity = opts.validity;
     var railLt = opts.railLt;
     var railGt = opts.railGt;
     var railHq = opts.railHq;
-    var autoRub = opts.autoRub;
-    var validity = opts.validity;
 
-    var seaUsdFor20 = function (pol) {
-      var r = seaByPort[pol];
-      return r ? r.usd20 : Number.NaN;
-    };
-    var seaUsdFor40 = function (pol) {
-      var r = seaByPort[pol];
-      return r ? r.usd40 : Number.NaN;
-    };
+    var stationsSorted = sortStationsRu(profile.destinationStations);
 
-    var sailingDate = validity.fromIso;
-    var seaRouteRows;
-    var containerType;
-    var containerTypes;
-    var railRub;
+    var seaRouteRows = [
+      buildSeaRouteRow(
+        profile,
+        port,
+        slot,
+        seaUsd,
+        railLt,
+        railGt,
+        railHq
+      ),
+    ];
+    var seaUsds = [seaUsd];
+    var autoRubs = [0];
+
+    var containerTypes =
+      slot === "40HQ" ? ["40HQ"] : ["20FT"];
+    var containerType = slot === "40HQ" ? "40HQ" : "20FT";
+
     var railRub20Lt24 = null;
     var railRub20Gt24 = null;
+    var railRub = null;
 
-    if (slotMode === "40") {
-      seaRouteRows = buildSeaRouteRows({
-        origins: origins,
-        line: SHIPPING_LINE,
-        seaByPort: seaByPort,
-        slot: "40HQ",
-        seaUsdFn: seaUsdFor40,
-        railLt: null,
-        railGt: null,
-        railHq: railHq,
-        autoRub: autoRub,
-        sailingDate: sailingDate,
-        station: destStation,
-        addr: opts.unloadAddress,
-      });
-      containerType = "40HQ";
-      containerTypes = ["40HQ"];
-      railRub = railHq;
-    } else {
-      seaRouteRows = buildPair20SeaRows({
-        origins: origins,
-        line: SHIPPING_LINE,
-        seaUsdFn: seaUsdFor20,
-        sailingDate: sailingDate,
-        station: destStation,
-        addr: opts.unloadAddress,
-        autoRub: autoRub,
-        railLt: railLt,
-        railGt: railGt,
-      });
-      containerType = "20FT";
-      containerTypes = ["20FT"];
-      railRub20Lt24 = railLt;
-      railRub20Gt24 = railGt;
+    if (slot === "40HQ") {
       railRub =
-        railLt != null &&
-        railGt != null &&
-        Number.isFinite(railLt) &&
-        Number.isFinite(railGt)
-          ? railLt
-          : Number.NaN;
+        Number.isFinite(railHq) && railHq >= 0 ? railHq : null;
+    } else if (slot === "20GT24") {
+      railRub20Gt24 =
+        Number.isFinite(railGt) && railGt >= 0 ? railGt : null;
+      railRub = railRub20Gt24;
+    } else {
+      railRub20Lt24 =
+        Number.isFinite(railLt) && railLt >= 0 ? railLt : null;
+      railRub = railRub20Lt24;
     }
-
-    var seaUsds = seaRouteRows.map(function (r) {
-      return r.seaUsd;
-    });
-    var autoRubs = seaRouteRows.map(function () {
-      return autoRub;
-    });
 
     var rate = {
       id: "",
-      origin: origins[0] || "",
-      originPorts: origins,
-      destination: dest,
-      railTerminal: "ВСК(Врангель)",
+      origin: port,
+      originPorts: [port],
+      destination: profile.destination,
+      railTerminal: profile.railTerminal,
       cargoDepartureTerminal: "",
       cargoDestinationStation: "",
-      destinationStation: destStation,
-      destinationStations: [destStation],
+      destinationStation: stationsSorted[0] || "",
+      destinationStations: stationsSorted,
       containerTypes: containerTypes,
       containerType: containerType,
       cargoSecurity: "no",
       tnvedCode: "",
       cargoWeightKg: null,
       shippingLine: SHIPPING_LINE,
-      shippingLines: shippingLines,
-      bookingAgent: "ВСК (КП перевозчика)",
-      bookingAgentShippingLine: SHIPPING_LINE,
-      customsClearance: "destinationPort",
+      shippingLines: [SHIPPING_LINE],
+      bookingAgent: "НЕТ",
+      bookingAgentShippingLine: "",
+      customsClearance: profile.customsClearance,
       tariffValidFrom: validity.fromIso,
       tariffValidTo: validity.toIso,
       tariffLineWindows: [
@@ -524,14 +457,15 @@
       railRub: railRub,
       railRub20Lt24: railRub20Lt24,
       railRub20Gt24: railRub20Gt24,
-      autoRub: autoRub,
+      autoRub: 0,
       autoRubs: autoRubs,
       securityCostRub: null,
-      warehouseAddress: opts.unloadAddress,
-      warehouseAddresses: [opts.unloadAddress],
+      warehouseAddress: profile.warehouseAddresses[0] || "",
+      warehouseAddresses: profile.warehouseAddresses.slice(),
       transitDays: 45,
-      nextSailingDates: [validity.fromIso],
-      manager: "Импорт PDF (Green Sea / ВСК)",
+      nextSailingDates: [profile.sailingPlaceholder],
+      manager:
+        "Импорт Green Sea — море + ЖД Москва (разд. 1–2), авто при необходимости вручную",
       updatedAt: new Date().toISOString(),
     };
 
@@ -539,78 +473,40 @@
     return rate;
   }
 
-  function buildAllRates(parsed, stableRateKeyFromRecord) {
-    var extraWarn = [];
+  function buildAllRatesGreenseaMoscow(parsed, stableRateKeyFromRecord) {
+    var rates = [];
+    var profile = GREENSEA_PROFILE_MOSCOW;
+    var sea = parsed.sea || [];
+    var rm = parsed.railMoscow;
+    var railLt = rm && Number.isFinite(rm.lt24) ? rm.lt24 : null;
+    var railGt = rm && Number.isFinite(rm.gt24) ? rm.gt24 : null;
+    var railHq = rm && Number.isFinite(rm.hq40) ? rm.hq40 : null;
 
-    var seaByName = {};
-    for (var s = 0; s < parsed.sea.length; s++) {
-      seaByName[parsed.sea[s].port] = parsed.sea[s];
-    }
-    var origins = Object.keys(seaByName).sort();
-    if (!origins.length) {
-      return [];
-    }
-
-    var out = [];
-
-    for (var i = 0; i < RAIL_ROWS.length; i++) {
-      var rr = RAIL_ROWS[i];
-      var tr = parsed.rail[rr.cityKey];
-      if (!tr) {
-        continue;
-      }
-      var au = matchAutoForCity(rr.cityKey, parsed.auto);
-      if (!au) {
-        extraWarn.push(
-          "Авто раздела 6 для «" +
-            rr.cityKey +
-            "» не найдено — в ставке авто указано как 0; при необходимости поправьте вручную."
+    var sl = ["20LT24", "20GT24", "40HQ"];
+    var si;
+    for (si = 0; si < sea.length; si++) {
+      var row = sea[si];
+      var sj;
+      for (sj = 0; sj < sl.length; sj++) {
+        var slot = sl[sj];
+        var seaUsd =
+          slot === "40HQ" ? row.usd40 : row.usd20;
+        rates.push(
+          buildGreenseaMoscowRate({
+            stableRateKeyFromRecord: stableRateKeyFromRecord,
+            profile: profile,
+            port: row.port,
+            slot: slot,
+            seaUsd: seaUsd,
+            validity: parsed.validity,
+            railLt: railLt,
+            railGt: railGt,
+            railHq: railHq,
+          })
         );
       }
-
-      function autoRubFor(mode) {
-        if (!au) {
-          return 0;
-        }
-        return mode === "40" ? au.auto40 : au.auto20;
-      }
-
-      out.push(
-        buildRateRecord({
-          api: { stableRateKeyFromRecord: stableRateKeyFromRecord },
-          origins: origins,
-          dest: rr.dest,
-          destStation: rr.station,
-          unloadAddress: rr.addr,
-          seaByPort: seaByName,
-          railLt: tr.lt24,
-          railGt: tr.gt24,
-          railHq: tr.rub40,
-          autoRub: autoRubFor("40"),
-          validity: parsed.validity,
-          slotMode: "40",
-        })
-      );
-
-      out.push(
-        buildRateRecord({
-          api: { stableRateKeyFromRecord: stableRateKeyFromRecord },
-          origins: origins,
-          dest: rr.dest,
-          destStation: rr.station,
-          unloadAddress: rr.addr,
-          seaByPort: seaByName,
-          railLt: tr.lt24,
-          railGt: tr.gt24,
-          railHq: tr.rub40,
-          autoRub: autoRubFor("20"),
-          validity: parsed.validity,
-          slotMode: "20",
-        })
-      );
     }
-
-    return { rates: out, extraWarnings: extraWarn };
+    return rates;
   }
 
   async function pdfFileToBytes(file) {
@@ -624,7 +520,8 @@
     }
     var doc = await pdfjs.getDocument({ data: data }).promise;
     var full = "";
-    for (var p = 1; p <= doc.numPages; p++) {
+    var p;
+    for (p = 1; p <= doc.numPages; p++) {
       var page = await doc.getPage(p);
       var tc = await page.getTextContent();
       full +=
@@ -656,7 +553,7 @@
       if (text.trim().length < 80) {
         if (api && api.setStatus) {
           api.setStatus(
-            "Укажите PDF или вставьте текст страницы в поле ниже.",
+            "Укажите PDF или вставьте текст страницы с таблицей моря в поле ниже.",
             "error"
           );
         }
@@ -668,33 +565,59 @@
       window.__greenseaLastParsed = parsed;
 
       var lines = [];
-
-      lines.push("Порты моря (" + parsed.sea.length + "):");
-      for (var si = 0; si < parsed.sea.length; si++) {
-        var s = parsed.sea[si];
-
-        lines.push(
-          "  " + s.port + " 20' " + s.usd20 + " USD 40' " + s.usd40 + " USD"
+      lines.push(
+        "Маппинг: раздел 1 → порты (кроме BUSAN), море по 20'DC / 40'HC; раздел 2 → ЖД Москва (первые три ₽ в строке МОСКВА)."
+      );
+      lines.push(
+        "Москва: станции «" +
+          GREENSEA_PROFILE_MOSCOW.destinationStationsDisplay +
+          "», склад «Москва, МО», терминал ЖД «ВСК», линия «" +
+          SHIPPING_LINE +
+          "», таможня «в порту назначения»."
+      );
+      lines.push("");
+      lines.push("Порты (" + parsed.sea.length + "):");
+      var pi;
+      for (pi = 0; pi < parsed.sea.length; pi++) {
+        var s = parsed.sea[pi];
+      lines.push(
+        "  " +
+            s.port +
+            " → 20'DC " +
+            s.usd20 +
+            " USD, 40'HC " +
+            s.usd40 +
+            " USD"
         );
       }
-      lines.push("ЖД направления: " + Object.keys(parsed.rail).join(", "));
+      lines.push("");
       lines.push(
-        "Срок: " +
+        "ЖД Москва (раздел 2, блок «Стоимость транспортировки» — первые три суммы ₽ в строке МОСКВА):"
+      );
+      if (parsed.railMoscow) {
+        lines.push(
+          "  20′ <24 т → " + parsed.railMoscow.lt24 + " ₽"
+        );
+        lines.push(
+          "  20′ >24 т → " + parsed.railMoscow.gt24 + " ₽"
+        );
+        lines.push("  40′ → " + parsed.railMoscow.hq40 + " ₽");
+      } else {
+        lines.push(
+          "  не распознано — проверьте раздел 2 в PDF или вставьте фрагмент текста с строкой МОСКВА."
+        );
+      }
+      lines.push(
+        "Срок тарифа (из текста КП): " +
           parsed.validity.fromIso +
           " … " +
           parsed.validity.toIso
       );
-
-      lines.push("");
       lines.push(
-        "Ставок к сохранению: " +
-          (parsed.sea.length
-            ? Object.keys(parsed.rail).length * 2
-            : 0)
+        "Ставок к сохранению: " + parsed.sea.length * 3 + " (3 типа контейнера × порты)."
       );
 
       if (parsed.warnings.length) {
-
         lines.push("");
         lines.push("Предупреждения:");
         for (var wi = 0; wi < parsed.warnings.length; wi++) {
@@ -702,30 +625,23 @@
         }
       }
 
-      var built = { rates: [], extraWarnings: [] };
-
+      var built = [];
       if (api && parsed.sea.length) {
-        built = buildAllRates(parsed, api.stableRateKeyFromRecord);
+        built = buildAllRatesGreenseaMoscow(parsed, api.stableRateKeyFromRecord);
       }
 
-      window.__greenseaLastBuiltRates = built.rates;
-
-      if (built.extraWarnings.length) {
-        lines.push("");
-        lines.push("Замечания:");
-        for (var ei = 0; ei < built.extraWarnings.length; ei++) {
-          lines.push("  — " + built.extraWarnings[ei]);
-        }
-      }
+      window.__greenseaLastBuiltRates = built;
 
       if (showPreviewEl instanceof HTMLElement) {
         showPreviewEl.textContent = lines.join("\n");
       }
       if (api && api.setStatus) {
         api.setStatus(
-          "Разбор выполнен (" +
-            built.rates.length +
-            " ставок по направлениям).",
+          "Разбор выполнен: " +
+            parsed.sea.length +
+            " портов → " +
+            built.length +
+            " ставок.",
           "success"
         );
       }
@@ -767,7 +683,8 @@
     var rates = await api.loadRates();
     var added = 0;
     var updated = 0;
-    for (var i = 0; i < built.length; i++) {
+    var i;
+    for (i = 0; i < built.length; i++) {
       var nr = built[i];
       var key = api.stableRateKeyFromRecord(nr);
       var idx = rates.findIndex(function (r) {
@@ -788,11 +705,11 @@
     await api.saveRates(rates);
     await api.fullPublicationRefresh(rates);
     api.setStatus(
-      "Импорт Green Sea: добавлено " +
+      "Green Sea (море, Москва): добавлено " +
         added +
         ", обновлено " +
         updated +
-        " (по совпадению ключа ставки).",
+        ".",
       "success"
     );
   }
