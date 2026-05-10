@@ -5499,8 +5499,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       quickBar.appendChild(detDv);
       quickBar.appendChild(detSt);
 
-      const grid = document.createElement("div");
-      grid.className = "sea-usd-row sea-usd-row--grid sea-usd-route-primary-grid";
+      const maritimeGrid = document.createElement("div");
+      maritimeGrid.className =
+        "sea-usd-row sea-usd-row--grid sea-usd-route-maritime-grid";
+      const landGrid = document.createElement("div");
+      landGrid.className = "sea-usd-row sea-usd-row--grid sea-usd-route-land-grid";
       const ctLabel = document.createElement("label");
       ctLabel.className = "sea-grid-lab sea-grid-lab--ct";
       ctLabel.htmlFor = "seaRouteCt-" + String(idx);
@@ -5633,24 +5636,26 @@ document.addEventListener("DOMContentLoaded", async () => {
       unl.placeholder = "МО, Подольск, …";
       unl.value = prevUnl[i] || "";
 
-      grid.appendChild(ctLabel);
-      grid.appendChild(ctSel);
-      grid.appendChild(portLabelEl);
-      grid.appendChild(portRo);
-      grid.appendChild(lineLabelEl);
-      grid.appendChild(lineRo);
-      grid.appendChild(frLabel);
-      grid.appendChild(input);
-      grid.appendChild(dateLabel);
-      grid.appendChild(dateInput);
-      grid.appendChild(dvLab);
-      grid.appendChild(termIn);
-      grid.appendChild(stLab);
-      grid.appendChild(stIn);
-      grid.appendChild(ulab);
-      grid.appendChild(unl);
+      maritimeGrid.appendChild(ctLabel);
+      maritimeGrid.appendChild(ctSel);
+      maritimeGrid.appendChild(portLabelEl);
+      maritimeGrid.appendChild(portRo);
+      maritimeGrid.appendChild(lineLabelEl);
+      maritimeGrid.appendChild(lineRo);
+      maritimeGrid.appendChild(frLabel);
+      maritimeGrid.appendChild(input);
+      maritimeGrid.appendChild(dateLabel);
+      maritimeGrid.appendChild(dateInput);
 
-      bundle.appendChild(grid);
+      landGrid.appendChild(dvLab);
+      landGrid.appendChild(termIn);
+      landGrid.appendChild(stLab);
+      landGrid.appendChild(stIn);
+      landGrid.appendChild(ulab);
+      landGrid.appendChild(unl);
+
+      bundle.appendChild(maritimeGrid);
+      bundle.appendChild(landGrid);
       bundle.appendChild(quickBar);
 
       seaUsdWrap.appendChild(bundle);
