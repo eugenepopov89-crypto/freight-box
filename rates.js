@@ -1227,7 +1227,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const bookingAgentLineRaw = String(
       formData.get("bookingAgentShippingLine") || ""
     ).trim();
-    if (isBookingAgentProvided(bookingAgentRaw) && !bookingAgentLineRaw) {
+    const bookingNeedsAgentLine =
+      bookingAgentMergedRequiresShippingLine(bookingAgentRaw);
+    if (bookingNeedsAgentLine && !bookingAgentLineRaw) {
       setStatus("Укажите, для какой морской линии используется букирующий агент.", "error");
       return;
     }
@@ -1342,7 +1344,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       shippingLine: String(formData.get("shippingLine") || "").trim(),
       shippingLines,
       bookingAgent: bookingAgentRaw,
-      bookingAgentShippingLine: bookingAgentLineRaw,
+      bookingAgentShippingLine: bookingNeedsAgentLine ? bookingAgentLineRaw : "",
       customsClearance: customsClearanceRaw,
       tariffValidFrom: tariffFromRaw,
       tariffValidTo: tariffToRaw,
@@ -1414,7 +1416,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     await saveRates(rates);
-    if (isBookingAgentProvided(bookingAgentRaw)) {
+    if (bookingAgentMergedRequiresShippingLine(bookingAgentRaw)) {
       await persistBookingAgentsFromMergedField(bookingAgentRaw);
     }
     refreshAutocompleteLists(rates);
@@ -2933,7 +2935,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function persistBookingAgentsFromMergedField(mergedRaw) {
     const merged = String(mergedRaw || "").trim();
-    if (!isBookingAgentProvided(merged)) {
+    if (!bookingAgentMergedRequiresShippingLine(merged)) {
       return;
     }
     const parts = merged
@@ -7261,9 +7263,34 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function syncShippingLineQuickPicksToInput() {
     const selectedLines = getSelectedShippingLines();
-    const joined = selectedLines.join(", ");
+    const fromInput = String(shippingLineInput.value || "")
+      .split(",")
+      .map((item) => item.trim().replace(/\s+/g, " "))
+      .filter(Boolean);
+
+    const merged = [];
+    const seenNorm = new Set();
+    function addLine(line) {
+      const lineNorm = String(line || "")
+        .trim()
+        .replace(/\s+/g, " ");
+      if (!lineNorm) {
+        return;
+      }
+      const key = normalizeQuickOptionToken(lineNorm);
+      if (seenNorm.has(key)) {
+        return;
+      }
+      seenNorm.add(key);
+      merged.push(lineNorm);
+    }
+    fromInput.forEach(addLine);
+    selectedLines.forEach((line) =>
+      addLine(String(line || "").trim().replace(/\s+/g, " "))
+    );
+
     if (shippingLineInput instanceof HTMLInputElement) {
-      shippingLineInput.value = joined;
+      shippingLineInput.value = merged.join(", ");
     }
     syncBookingAgentShippingLineDatalist();
     syncSeaUsdRowsToRouteCombinations();
@@ -7297,6 +7324,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       .trim()
       .toLocaleLowerCase("ru-RU");
     return normalized !== "" && normalized !== "нет";
+  }
+
+  /** Нужна ли привязка агента к морской линии: есть хотя бы один слот с реальным агентом (не пусто и не «нет»). */
+  function bookingAgentMergedRequiresShippingLine(mergedAgentField) {
+    const parts = String(mergedAgentField || "")
+      .split(";")
+      .map((p) => String(p || "").trim().replace(/\s+/g, " "))
+      .filter(Boolean);
+    return parts.some((p) => isBookingAgentProvided(p));
   }
 
   function syncBookingAgentShippingLineDatalist() {
@@ -7333,7 +7369,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       isBookingAgentProvided(String(inp.value || "").trim())
     );
     bookingAgentLineWrap.hidden = !shouldShow;
+    if (!(bookingAgentShippingLineInput instanceof HTMLInputElement)) {
+      return;
+    }
     bookingAgentShippingLineInput.required = shouldShow;
+    bookingAgentShippingLineInput.disabled = !shouldShow;
     if (!shouldShow) {
       bookingAgentShippingLineInput.value = "";
     } else {
@@ -7534,7 +7574,42 @@ document.addEventListener("DOMContentLoaded", async () => {
         node instanceof HTMLInputElement ? String(node.value || "").trim().toUpperCase() : ""
       )
       .filter(Boolean);
-    const joined = selectedPorts.join(", ");
+
+    function portsFromCommaList(raw) {
+      const out = [];
+      String(raw || "")
+        .split(",")
+        .forEach((chunk) => {
+          const u = String(chunk || "")
+            .trim()
+            .toUpperCase()
+            .replace(/\s+/g, " ");
+          if (u) {
+            out.push(u);
+          }
+        });
+      return out;
+    }
+
+    const fromField =
+      newPortOptionInput instanceof HTMLInputElement
+        ? portsFromCommaList(newPortOptionInput.value)
+        : [];
+
+    const merged = [];
+    const seen = new Set();
+    function addPort(p) {
+      const u = String(p || "").trim().toUpperCase().replace(/\s+/g, " ");
+      if (!u || seen.has(u)) {
+        return;
+      }
+      seen.add(u);
+      merged.push(u);
+    }
+    fromField.forEach(addPort);
+    selectedPorts.forEach(addPort);
+
+    const joined = merged.join(", ");
     if (newPortOptionInput instanceof HTMLInputElement) {
       newPortOptionInput.value = joined;
     }
