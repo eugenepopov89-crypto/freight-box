@@ -1261,6 +1261,14 @@ footer {
   min-width: 0;
 }
 
+.rates-filter-checkbox-details {
+  margin-top: 4px;
+}
+
+.rates-filter-checkbox-panel .rates-filter-explainer {
+  margin-top: 0;
+}
+
 .rates-filter-chip-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2560,6 +2568,36 @@ footer {
 }
 
 .shipping-line-main-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.field-label-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.86em;
+  font-weight: normal;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.booking-agent-main-field {
+  margin-top: 10px;
+}
+
+.booking-agent-main-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.booking-agent-line-follow {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.booking-agent-line-follow input {
   width: 100%;
   box-sizing: border-box;
 }
