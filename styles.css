@@ -2891,7 +2891,14 @@ footer {
   margin-top: 6px;
 }
 
-.booking-agent-main-field input {
+.booking-agent-value-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.booking-agent-main-field input,
+.booking-agent-value-rows .booking-agent-slot-input {
   width: 100%;
   box-sizing: border-box;
 }
