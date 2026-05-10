@@ -51,6 +51,14 @@
     return { ...d, _pbId: record.id };
   }
 
+  function isRatesRecordArchived(rate) {
+    const t =
+      rate && rate.ratesArchivedAt != null
+        ? String(rate.ratesArchivedAt).trim()
+        : "";
+    return Boolean(t);
+  }
+
   async function loadRatesPb() {
     const auth = pocketBaseAuthHeaders();
     if (!auth.Authorization) {
@@ -65,9 +73,9 @@
         return [];
       }
       const data = await res.json();
-      return (data.items || []).map((item) =>
-        normalizePocketBaseRateRecord(item)
-      );
+      return (data.items || [])
+        .map((item) => normalizePocketBaseRateRecord(item))
+        .filter((rate) => !isRatesRecordArchived(rate));
     } catch {
       return [];
     }
