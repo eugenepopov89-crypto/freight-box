@@ -2513,6 +2513,11 @@ footer {
   box-sizing: border-box;
 }
 
+/* Атрибут hidden иначе не скрывает блок: выше задан display:flex с большей специфичностью, чем UA [hidden]. */
+.delivery-exw-fca-row[hidden] {
+  display: none !important;
+}
+
 .delivery-exw-fca-row label {
   font-weight: 600;
   font-size: 0.88rem;
