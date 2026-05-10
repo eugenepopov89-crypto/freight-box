@@ -5185,15 +5185,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const hdr = document.createElement("div");
       hdr.className = "rail-sea-route-hdr helper-text cost-follow-hint";
       hdr.textContent =
-        "ЖД: " +
-        line +
-        " · " +
-        railSlotHeadlineRu(slot) +
-        " · ДВ «" +
+        "«" +
         (dv || "—") +
         "» → станция «" +
         (st || "—") +
-        "»";
+        "» - " +
+        railSlotHeadlineRu(slot) +
+        " (" +
+        line +
+        ")";
       wrap.appendChild(hdr);
       const p = prevSnap[ixStr] || { lt: "", gt: "", hq: "" };
       if (slot === "40HQ") {
