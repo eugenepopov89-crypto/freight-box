@@ -2585,6 +2585,10 @@ footer {
   margin-top: 10px;
 }
 
+.booking-agent-main-field--lead {
+  margin-top: 6px;
+}
+
 .booking-agent-main-field input {
   width: 100%;
   box-sizing: border-box;
