@@ -3724,13 +3724,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         const seaUsd = Number(rate.seaUsd);
         const railRub = Number(rate.railRub);
+        const ltRail0 = rateNumericOrNaN(rate.railRub20Lt24);
+        const gtRail0 = rateNumericOrNaN(rate.railRub20Gt24);
+        const pair20 = profitHas20RailPair(rate);
+        const single20Lt =
+          profitIsContainer20Ft(rate) &&
+          Number.isFinite(ltRail0) &&
+          ltRail0 >= 0 &&
+          !Number.isFinite(gtRail0);
+        const single20Gt =
+          profitIsContainer20Ft(rate) &&
+          Number.isFinite(gtRail0) &&
+          gtRail0 >= 0 &&
+          !Number.isFinite(ltRail0);
+
         if (!Number.isFinite(seaUsd) || seaUsd < 0) {
           skipped++;
           return rate;
         }
 
-        const pair20 = profitHas20RailPair(rate);
-        if (!pair20 && (!Number.isFinite(railRub) || railRub < 0)) {
+        if (
+          !pair20 &&
+          !single20Lt &&
+          !single20Gt &&
+          (!Number.isFinite(railRub) || railRub < 0)
+        ) {
           skipped++;
           return rate;
         }
@@ -3810,6 +3828,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           nextLt24 = nLt;
           nextGt24 = nGt;
           nextRailRub = profitEffective20RailRub(nLt, nGt, rate.cargoWeightKg);
+        } else if (single20Lt) {
+          if (railDeltaMode === "percent") {
+            nextLt24 = Math.round(ltRail0 + ltRail0 * (railValue / 100));
+          } else {
+            nextLt24 = Math.round(ltRail0 + railValue);
+          }
+          nextRailRub = nextLt24;
+        } else if (single20Gt) {
+          if (railDeltaMode === "percent") {
+            nextGt24 = Math.round(gtRail0 + gtRail0 * (railValue / 100));
+          } else {
+            nextGt24 = Math.round(gtRail0 + railValue);
+          }
+          nextRailRub = nextGt24;
         } else {
           const addRail =
             railDeltaMode === "percent"
@@ -3826,7 +3858,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           ...(nextSeaUsds.length ? { seaUsds: nextSeaUsds } : {}),
           ...(nextSeaRouteRows.length ? { seaRouteRows: nextSeaRouteRows } : {}),
           railRub: nextRailRub,
-          ...(pair20 ? { railRub20Lt24: nextLt24, railRub20Gt24: nextGt24 } : {}),
+          ...(pair20
+            ? { railRub20Lt24: nextLt24, railRub20Gt24: nextGt24 }
+            : single20Lt
+              ? { railRub20Lt24: nextLt24 }
+              : single20Gt
+                ? { railRub20Gt24: nextGt24 }
+                : {}),
           updatedAt: new Date().toISOString(),
         };
       });
@@ -3852,9 +3890,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             " USD, ЖД +" +
             railValue +
             " RUB.";
+      if (method === "percent") {
+        msg +=
+          " Если у 20′ указан только один тариф ЖД, процент добавляется к нему.";
+      }
       if (method === "fixed") {
         msg +=
-          " Для 20′ с двумя тарифами ЖД фикс добавляется один раз — к тарифу по весу строки (≤24 т или &gt;24 т).";
+          " Для 20′ с двумя тарифами ЖД фикс добавляется один раз — к тарифу по весу строки (≤24 т или &gt;24 т). Если указан только один тариф ЖД, фикс добавляется к нему.";
       }
       msg += " Обработано строк: " + applied + ".";
       if (skipped) {
@@ -4058,11 +4100,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         (!Number.isFinite(ltField) || !Number.isFinite(gtField));
       if (legacyRail) {
         if (!Number.isFinite(w)) {
-          if (!Number.isFinite(ltField)) {
+          const neitherExplicitLtGt =
+            !Number.isFinite(ltField) && !Number.isFinite(gtField);
+          if (neitherExplicitLtGt) {
             cell20Lt = fmt(rail);
-          }
-          if (!Number.isFinite(gtField)) {
             cell20Gt = fmt(rail);
+          } else if (!Number.isFinite(ltField)) {
+            cell20Lt = fmt(rail);
+          } else if (!Number.isFinite(gtField)) {
+            /* Явно указан только один тариф (<24 или >24) — не копировать агрегат railRub во второй столбец. */
           }
         } else if (w <= 24000) {
           if (!Number.isFinite(ltField)) {
