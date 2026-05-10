@@ -205,7 +205,8 @@
                         Букирующий агент при наличии *
                         <span class="field-label-hint">
                           Если букирующего агента нет — укажите
-                          <strong>НЕТ</strong>. Несколько агентов — знак «+». В справочник и подсказки — кнопка справа.
+                          <strong>НЕТ</strong>. Несколько агентов — знак «+». В список подсказок и PocketBase — средняя кнопка,
+                          по текущему названию в поле.
                         </span>
                       </label>
                   <input
@@ -215,7 +216,10 @@
                     value=""
                   />
                   <div id="booking-agent-value-rows" class="booking-agent-value-rows booking-agent-main-field booking-agent-main-field--lead">
-                    <div class="booking-agent-slot-row quick-add-row" data-booking-agent-row>
+                    <div
+                      class="booking-agent-slot-row quick-add-row booking-agent-primary-actions"
+                      data-booking-agent-row
+                    >
                       <input
                         id="bookingAgent"
                         class="booking-agent-slot-input"
@@ -223,6 +227,13 @@
                         autocomplete="organization"
                         placeholder="Название агента"
                       />
+                      <button
+                        type="button"
+                        id="add-booking-agent-option"
+                        class="btn-mini-control btn-add-booking-agent-to-list"
+                      >
+                        Добавить нового букирующего агента в список
+                      </button>
                       <button
                         type="button"
                         id="add-booking-agent-slot-btn"
@@ -234,17 +245,6 @@
                     </div>
                   </div>
                   <datalist id="booking-agent-suggestions"></datalist>
-                  <div class="quick-add-row booking-agent-list-add-row">
-                    <input
-                      id="new-booking-agent-option"
-                      list="booking-agent-suggestions"
-                      placeholder="Название агента"
-                      aria-label="Новый букирующий агент для списка подсказок"
-                    />
-                    <button type="button" id="add-booking-agent-option" class="btn-mini-control">
-                      Добавить нового букирующего агента в список
-                    </button>
-                  </div>
                   <details class="origin-quick-picks-details">
                     <summary class="origin-quick-picks-summary">
                       Быстрый выбор букирующего агента
@@ -1250,7 +1250,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778600000000"></script>
+    <script src="rates.js?v=1778700000000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
