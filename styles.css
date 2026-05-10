@@ -2498,7 +2498,7 @@ footer {
 .sea-route-block {
   box-sizing: border-box;
   min-width: 0;
-  overflow-x: auto;
+  overflow: visible;
   margin-bottom: 14px;
   padding: 14px 16px;
   border: 3px solid rgba(51, 65, 85, 0.85);
@@ -2516,16 +2516,28 @@ footer {
 
 .sea-route-quick-picks-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  flex-wrap: nowrap;
   gap: 10px;
-  margin-bottom: 12px;
-  align-items: flex-start;
+  margin-top: 14px;
+  margin-bottom: 0;
+  width: 100%;
+  align-items: stretch;
 }
 
 .sea-route-quick-picks-row .origin-quick-picks-details {
-  flex: 1 1 240px;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  margin-bottom: 0;
   border-color: rgba(148, 163, 184, 0.5);
+  overflow: visible;
+}
+
+.sea-route-quick-picks-row .origin-quick-picks-panel {
+  overflow: visible;
+  max-height: none;
 }
 
 .sea-usd-row.sea-usd-route-primary-grid {
