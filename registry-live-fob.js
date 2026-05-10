@@ -504,11 +504,15 @@
         (!Number.isFinite(ltField) || !Number.isFinite(gtField));
       if (legacyRail) {
         if (!Number.isFinite(w)) {
-          if (!Number.isFinite(ltField)) {
+          const neitherExplicitLtGt =
+            !Number.isFinite(ltField) && !Number.isFinite(gtField);
+          if (neitherExplicitLtGt) {
             cell20Lt = fmt(rail);
-          }
-          if (!Number.isFinite(gtField)) {
             cell20Gt = fmt(rail);
+          } else if (!Number.isFinite(ltField)) {
+            cell20Lt = fmt(rail);
+          } else if (!Number.isFinite(gtField)) {
+            /* См. rates.js: один явный тариф — не дублировать railRub во второй столбец. */
           }
         } else if (w <= 24000) {
           if (!Number.isFinite(ltField)) {
