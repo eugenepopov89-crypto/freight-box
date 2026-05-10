@@ -221,6 +221,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const terminalsClearAllBtn = document.getElementById("terminals-clear-all");
   const newPortOptionInput = document.getElementById("new-port-option");
   const newStationOptionInput = document.getElementById("new-station-option");
+  const cargoDepartureTerminalSelect = document.getElementById(
+    "cargoDepartureTerminal"
+  );
+  const cargoDestinationStationSelect = document.getElementById(
+    "cargoDestinationStation"
+  );
   const chinaPortSuggestions = document.getElementById("china-port-suggestions");
   const sailingDatesWrap = document.getElementById("sailing-dates-wrap");
   const addSailingDateBtn = document.getElementById("add-sailing-date-btn");
@@ -456,6 +462,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     !terminalsClearAllBtn ||
     !newPortOptionInput ||
     !newStationOptionInput ||
+    !cargoDepartureTerminalSelect ||
+    !cargoDestinationStationSelect ||
     !chinaPortSuggestions ||
     !sailingDatesWrap ||
     !addSailingDateBtn ||
@@ -5246,9 +5254,108 @@ document.addEventListener("DOMContentLoaded", async () => {
       .filter(Boolean);
   }
 
+  function parseTerminalTokensForCargoSelect() {
+    const raw = String(railTerminalInput.value || "");
+    const parts = raw.split(/[,/]/).map((s) => s.trim()).filter(Boolean);
+    const seen = new Set();
+    const out = [];
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      const key = normalizeQuickOptionToken(p);
+      if (!key || seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      out.push(String(p).replace(/\s+/g, " ").trim());
+    }
+    return out;
+  }
+
+  function rebuildCargoTerminalSelect(terminalValues) {
+    if (!(cargoDepartureTerminalSelect instanceof HTMLSelectElement)) {
+      return;
+    }
+    const prev = cargoDepartureTerminalSelect.value;
+    cargoDepartureTerminalSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent =
+      terminalValues.length === 0
+        ? "Сначала укажите терминал прибытия (ДВ) в маршруте выше"
+        : "Выберите терминал отправления";
+    cargoDepartureTerminalSelect.appendChild(placeholder);
+    for (let i = 0; i < terminalValues.length; i++) {
+      const t = terminalValues[i];
+      const opt = document.createElement("option");
+      opt.value = t;
+      opt.textContent = t;
+      cargoDepartureTerminalSelect.appendChild(opt);
+    }
+    if (terminalValues.length === 0) {
+      cargoDepartureTerminalSelect.disabled = true;
+      cargoDepartureTerminalSelect.removeAttribute("required");
+      cargoDepartureTerminalSelect.value = "";
+    } else {
+      cargoDepartureTerminalSelect.disabled = false;
+      cargoDepartureTerminalSelect.setAttribute("required", "required");
+      const keep = terminalValues.some((x) => x === prev);
+      if (keep) {
+        cargoDepartureTerminalSelect.value = prev;
+      } else if (terminalValues.length === 1) {
+        cargoDepartureTerminalSelect.value = terminalValues[0];
+      } else {
+        cargoDepartureTerminalSelect.value = "";
+      }
+    }
+  }
+
+  function rebuildCargoStationSelect(stationValues) {
+    if (!(cargoDestinationStationSelect instanceof HTMLSelectElement)) {
+      return;
+    }
+    const prev = cargoDestinationStationSelect.value;
+    cargoDestinationStationSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent =
+      stationValues.length === 0
+        ? "Сначала укажите станции в блоке маршрута выше"
+        : "Выберите станцию назначения";
+    cargoDestinationStationSelect.appendChild(placeholder);
+    for (let i = 0; i < stationValues.length; i++) {
+      const s = stationValues[i];
+      const opt = document.createElement("option");
+      opt.value = s;
+      opt.textContent = s;
+      cargoDestinationStationSelect.appendChild(opt);
+    }
+    if (stationValues.length === 0) {
+      cargoDestinationStationSelect.disabled = true;
+      cargoDestinationStationSelect.removeAttribute("required");
+      cargoDestinationStationSelect.value = "";
+    } else {
+      cargoDestinationStationSelect.disabled = false;
+      cargoDestinationStationSelect.setAttribute("required", "required");
+      const keep = stationValues.some((x) => x === prev);
+      if (keep) {
+        cargoDestinationStationSelect.value = prev;
+      } else if (stationValues.length === 1) {
+        cargoDestinationStationSelect.value = stationValues[0];
+      } else {
+        cargoDestinationStationSelect.value = "";
+      }
+    }
+  }
+
+  function refreshCargoRouteSelectOptions() {
+    rebuildCargoTerminalSelect(parseTerminalTokensForCargoSelect());
+    rebuildCargoStationSelect(getDestinationStations());
+  }
+
   function syncRailTerminalQuickPicksToInput() {
     const selectedTerminals = getSelectedRailTerminals();
     railTerminalInput.value = selectedTerminals.join(", ");
+    refreshCargoRouteSelectOptions();
   }
 
   function syncRailTerminalInputToQuickPicks() {
@@ -5268,6 +5375,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       input.checked = selected.has(normalizeQuickOptionToken(input.value));
     });
+    refreshCargoRouteSelectOptions();
   }
 
   function syncStationQuickPicksToInput() {
