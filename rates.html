@@ -199,65 +199,15 @@
                   </details>
                   <datalist id="shipping-line-suggestions"></datalist>
 
-                  <div class="cost-follow cost-follow--sea">
-                    <p class="cost-follow-hint cost-follow-hint--lead">
-                      После выбора морских линий: фрахт USD и дата выхода по каждой связке порт × линия; ниже — дополнительные окна выхода судна.
-                    </p>
-                    <div id="sea-usd-wrap" class="sailing-dates-wrap sea-usd-wrap-inner">
-                      <div class="sea-usd-row sea-usd-row--grid">
-                        <label for="seaUsd-1">Фрахт, USD *</label>
-                        <input
-                          id="seaUsd-1"
-                          name="seaUsd"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          required
-                          placeholder="Например, 1450"
-                        />
-                        <label for="seaSailingDate-1">Дата выхода *</label>
-                        <input id="seaSailingDate-1" name="seaSailingDate" type="date" required />
-                      </div>
-                    </div>
-                    <div class="sailing-dates-stack">
-                      <p class="helper-text cost-follow-hint">
-                        Окна выхода судна (порт, линия, дата). Несколько линий — строки через +.
-                      </p>
-                      <div id="sailing-dates-wrap" class="sailing-dates-wrap">
-                        <div class="sailing-date-row sailing-date-row--with-line">
-                          <select name="nextSailingDateOrigin">
-                            <option value="">Порт отправления (из маршрута)</option>
-                          </select>
-                          <input
-                            name="nextSailingDateLine"
-                            list="shipping-line-suggestions"
-                            placeholder="Линия (при необходимости)"
-                          />
-                          <input name="nextSailingDates" type="date" required />
-                          <button
-                            type="button"
-                            id="add-sailing-date-btn"
-                            class="btn-add-date"
-                            aria-label="Добавить дату"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="field-group field-group--full">
-                <div>
-                  <label for="bookingAgent">
-                    Букирующий агент (при наличии) *
-                    <span class="field-label-hint">
-                      Обязательное поле; если агента нет — укажите
-                      <strong>НЕТ</strong>. Ниже — добавление в подсказки и быстрый выбор.
-                    </span>
-                  </label>
+                  <div class="field-group-sub booking-after-lines">
+                    <div>
+                      <label for="bookingAgent">
+                        Букирующий агент (при наличии) *
+                        <span class="field-label-hint">
+                          Обязательное поле; если агента нет — укажите
+                          <strong>НЕТ</strong>. Ниже — добавление в подсказки и быстрый выбор.
+                        </span>
+                      </label>
                   <div class="booking-agent-main-field booking-agent-main-field--lead">
                     <input
                       id="bookingAgent"
@@ -309,88 +259,66 @@
                     <datalist id="booking-agent-route-line-suggestions"></datalist>
                   </div>
                 </div>
-              </div>
 
-              <div class="field-group field-group--full">
-                <div>
-                  <label for="railTerminal">Терминал прибытия на Дальнем Востоке *</label>
-                  <input
-                    id="railTerminal"
-                    name="railTerminal"
-                    list="terminal-suggestions"
-                    required
-                    placeholder="Например, ВМТП / ВМКТ / Соллерс"
-                  />
-                  <datalist id="terminal-suggestions"></datalist>
-                  <details class="origin-quick-picks-details">
-                    <summary class="origin-quick-picks-summary">
-                      Быстрый выбор терминала ДВ
-                    </summary>
-                    <div class="origin-quick-picks-panel">
-                      <div class="origin-quick-pick-controls">
-                        <button type="button" id="terminals-select-all" class="btn-mini-control">
-                          Выбрать все
-                        </button>
-                        <button type="button" id="terminals-clear-all" class="btn-mini-control">
-                          Очистить
-                        </button>
-                      </div>
-                      <div class="origin-quick-pick-grid" id="rail-terminal-quick-picks">
-                        <label>ВМТП <input type="checkbox" name="railTerminalQuickOptions" value="ВМТП" /></label>
-                        <label>ВМКТ <input type="checkbox" name="railTerminalQuickOptions" value="ВМКТ" /></label>
-                        <label>СОЛЛЕРС <input type="checkbox" name="railTerminalQuickOptions" value="СОЛЛЕРС" /></label>
-                        <label>ВМПП <input type="checkbox" name="railTerminalQuickOptions" value="ВМПП" /></label>
-                        <label>ВСК(Врангель) <input type="checkbox" name="railTerminalQuickOptions" value="ВСК(Врангель)" /></label>
-                        <label>Находка <input type="checkbox" name="railTerminalQuickOptions" value="Находка" /></label>
-                      </div>
-                    </div>
-                  </details>
-                </div>
-              </div>
+                  <div class="field-group-sub container-route-field-sub">
+                    <label for="containerType">Тип контейнера *</label>
+                    <select id="containerType" name="containerType" required>
+                      <option value="20FT">20FT</option>
+                      <option value="40HQ">40HQ</option>
+                    </select>
+                  </div>
 
-              <div class="field-group field-group--full">
-                <div>
-                  <label>Станции назначения (Москва / СПб / Минск) *</label>
                   <div class="quick-add-row destination-station-list-add-row">
                     <input
                       id="new-station-option"
                       list="station-suggestions"
-                      placeholder="Название станции"
-                      aria-label="Станции назначения и новая станция для списка подсказок"
+                      placeholder="Добавить станцию в подсказки"
+                      aria-label="Новая станция для списка подсказок"
                     />
                     <button type="button" id="add-station-option" class="btn-mini-control">
-                      Добавить новую станцию в список
+                      В список подсказок
                     </button>
                   </div>
-                  <details class="origin-quick-picks-details">
-                    <summary class="origin-quick-picks-summary">
-                      Быстрый выбор станций
-                    </summary>
-                    <div class="origin-quick-picks-panel">
-                      <div class="origin-quick-pick-controls">
-                        <button type="button" id="stations-select-all" class="btn-mini-control">
-                          Выбрать все
-                        </button>
-                        <button type="button" id="stations-clear-all" class="btn-mini-control">
-                          Очистить
-                        </button>
-                      </div>
-                      <div class="origin-quick-pick-grid" id="station-quick-picks">
-                        <label><input type="checkbox" name="destinationQuickStations" value="Ворсино" data-destination="MOSCOW" /> Ворсино</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Селятино" data-destination="MOSCOW" /> Селятино</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Ховрино" data-destination="MOSCOW" /> Ховрино</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Белый Раст" data-destination="MOSCOW" /> Белый Раст</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Электроугли" data-destination="MOSCOW" /> Электроугли</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Шушары" data-destination="ST. PETERSBURG" /> Шушары</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Автово" data-destination="ST. PETERSBURG" /> Автово</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Предпортовая" data-destination="ST. PETERSBURG" /> Предпортовая</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Купчинская" data-destination="ST. PETERSBURG" /> Купчинская</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Колядичи" data-destination="MINSK" /> Колядичи</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Минск-Северный" data-destination="MINSK" /> Минск-Северный</label>
-                        <label><input type="checkbox" name="destinationQuickStations" value="Степянка" data-destination="MINSK" /> Степянка</label>
+
+                  <div class="cost-follow cost-follow--sea">
+                    <p class="cost-follow-hint cost-follow-hint--lead">
+                      По каждой связке порт × линия: фрахт USD, дата выхода, терминал и станция назначения (быстрый выбор ниже полей), адрес выгрузки. Списки ЖД и авто ниже собираются из этих строк.
+                    </p>
+                    <div id="sea-usd-wrap" class="sailing-dates-wrap sea-usd-wrap-inner"></div>
+                    <div class="sailing-dates-stack">
+                      <p class="helper-text cost-follow-hint">
+                        Дополнительные окна выхода судна (порт, линия, дата).
+                      </p>
+                      <div id="sailing-dates-wrap" class="sailing-dates-wrap">
+                        <div class="sailing-date-row sailing-date-row--with-line">
+                          <select name="nextSailingDateOrigin">
+                            <option value="">Порт отправления (из маршрута)</option>
+                          </select>
+                          <input
+                            name="nextSailingDateLine"
+                            list="shipping-line-suggestions"
+                            placeholder="Линия (при необходимости)"
+                          />
+                          <input name="nextSailingDates" type="date" required />
+                          <button
+                            type="button"
+                            id="add-sailing-date-btn"
+                            class="btn-add-date"
+                            aria-label="Добавить дату"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </details>
+                  </div>
+
+                  <input
+                    type="hidden"
+                    id="railTerminal"
+                    name="railTerminal"
+                    value=""
+                  />
                   <div id="destination-stations-wrap" class="destination-stations-submit-inputs" hidden>
                     <input
                       type="hidden"
@@ -399,26 +327,7 @@
                       value=""
                     />
                   </div>
-
-                  <div class="cost-follow cost-follow--rail">
-                    <p class="cost-follow-hint">ЖД: терминал во Владивостоке → станция назначения</p>
-                    <div class="rail-rub-dynamic-block">
-                      <span class="rail-rub-section-title" id="rail-rub-section-label">
-                        Стоимость ЖД, RUB за *
-                      </span>
-                      <div id="rail-rub-rows-wrap" class="rail-rub-rows-stack" aria-labelledby="rail-rub-section-label"></div>
-                      <div class="rail-rub-add-row">
-                        <button
-                          type="button"
-                          id="add-rail-rub-row-btn"
-                          class="btn-add-date"
-                          aria-label="Добавить строку стоимости ЖД"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <datalist id="terminal-suggestions"></datalist>
                   <datalist id="station-suggestions">
                     <option value="Ворсино"></option>
                     <option value="Селятино"></option>
@@ -433,34 +342,67 @@
                     <option value="Минск-Северный"></option>
                     <option value="Степянка"></option>
                   </datalist>
+
+                  <div class="quick-picks-master-templates" hidden aria-hidden="true">
+                    <div class="origin-quick-pick-controls">
+                      <button type="button" id="terminals-select-all" class="btn-mini-control">
+                        Терминалы ДВ: выбрать все (строки моря)
+                      </button>
+                      <button type="button" id="terminals-clear-all" class="btn-mini-control">
+                        Терминалы ДВ: очистить
+                      </button>
+                      <button type="button" id="stations-select-all" class="btn-mini-control">
+                        Станции: выбрать все (видимые строки)
+                      </button>
+                      <button type="button" id="stations-clear-all" class="btn-mini-control">
+                        Станции: очистить
+                      </button>
+                    </div>
+                    <div class="origin-quick-pick-grid" id="rail-terminal-quick-picks">
+                      <label>ВМТП <input type="checkbox" name="railTerminalQuickOptions" value="ВМТП" /></label>
+                      <label>ВМКТ <input type="checkbox" name="railTerminalQuickOptions" value="ВМКТ" /></label>
+                      <label>СОЛЛЕРС <input type="checkbox" name="railTerminalQuickOptions" value="СОЛЛЕРС" /></label>
+                      <label>ВМПП <input type="checkbox" name="railTerminalQuickOptions" value="ВМПП" /></label>
+                      <label>ВСК(Врангель) <input type="checkbox" name="railTerminalQuickOptions" value="ВСК(Врангель)" /></label>
+                      <label>Находка <input type="checkbox" name="railTerminalQuickOptions" value="Находка" /></label>
+                    </div>
+                    <div class="origin-quick-pick-grid" id="station-quick-picks">
+                      <label><input type="checkbox" name="destinationQuickStations" value="Ворсино" data-destination="MOSCOW" /> Ворсино</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Селятино" data-destination="MOSCOW" /> Селятино</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Ховрино" data-destination="MOSCOW" /> Ховрино</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Белый Раст" data-destination="MOSCOW" /> Белый Раст</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Электроугли" data-destination="MOSCOW" /> Электроугли</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Шушары" data-destination="ST. PETERSBURG" /> Шушары</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Автово" data-destination="ST. PETERSBURG" /> Автово</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Предпортовая" data-destination="ST. PETERSBURG" /> Предпортовая</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Купчинская" data-destination="ST. PETERSBURG" /> Купчинская</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Колядичи" data-destination="MINSK" /> Колядичи</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Минск-Северный" data-destination="MINSK" /> Минск-Северный</label>
+                      <label><input type="checkbox" name="destinationQuickStations" value="Степянка" data-destination="MINSK" /> Степянка</label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div class="field-group field-group--full">
                 <div>
-                  <label>Адреса складов выгрузки *</label>
-                  <div id="warehouse-addresses-wrap" class="sailing-dates-wrap">
-                    <div class="warehouse-address-row">
-                      <label for="warehouseAddress-1">Адрес склада выгрузки 1 *</label>
-                      <div class="warehouse-address-controls">
-                        <input
-                          id="warehouseAddress-1"
-                          name="warehouseAddress"
-                          required
-                          placeholder="Например, МО, Подольск, Домодедовское ш., 12"
-                        />
-                        <button
-                          type="button"
-                          id="add-warehouse-address-btn"
-                          class="btn-add-date"
-                          aria-label="Добавить адрес выгрузки"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <div class="cost-follow cost-follow--auto" data-auto-rub-slot></div>
-                    </div>
+                  <div class="cost-follow cost-follow--rail cost-follow--rail-section">
+                    <p class="cost-follow-hint">
+                      По каждой строке моря: линия, тип контейнера (сверху), терминал ДВ и станция — укажите стоимость ЖД, RUB.
+                    </p>
+                    <span class="rail-rub-section-title" id="rail-rub-section-label">
+                      Стоимость ЖД, RUB *
+                    </span>
+                    <div id="rail-rub-rows-wrap" class="rail-rub-rows-stack" aria-labelledby="rail-rub-section-label"></div>
                   </div>
+                </div>
+              </div>
+
+              <div class="field-group field-group--full">
+                <div>
+                  <p class="cost-follow-hint">Стоимость авто доставки до склада (RUB) по каждой строке моря.</p>
+                  <div id="auto-delivery-rows-wrap" class="auto-delivery-rows-stack"></div>
+                  <div id="warehouse-addresses-wrap" class="warehouse-address-submit-inputs" hidden aria-hidden="true"></div>
                 </div>
               </div>
 
@@ -494,15 +436,8 @@
             </div>
 
             <div class="form-block">
-              <h2 class="form-block-heading">Тип контейнера и данные по грузу</h2>
-              <div class="field-group field-group--three">
-                <div>
-                  <label for="containerType">Тип контейнера *</label>
-                  <select id="containerType" name="containerType" required>
-                    <option value="20FT">20FT</option>
-                    <option value="40HQ">40HQ</option>
-                  </select>
-                </div>
+              <h2 class="form-block-heading">Данные по грузу</h2>
+              <div class="field-group">
                 <div>
                   <label for="cargoWeightKg">Вес груза, кг</label>
                   <input
@@ -533,34 +468,6 @@
                     </div>
                   </fieldset>
                 </div>
-              </div>
-
-              <div class="field-group field-group--full" id="cargo-route-selects-wrap">
-                <div>
-                  <label for="cargoDepartureTerminal">Терминал отправления *</label>
-                  <select
-                    id="cargoDepartureTerminal"
-                    name="cargoDepartureTerminal"
-                    required
-                    aria-describedby="cargo-route-selects-hint"
-                  >
-                    <option value="">Сначала укажите терминал прибытия (ДВ) в маршруте выше</option>
-                  </select>
-                </div>
-                <div>
-                  <label for="cargoDestinationStation">Станция назначения *</label>
-                  <select
-                    id="cargoDestinationStation"
-                    name="cargoDestinationStation"
-                    required
-                    aria-describedby="cargo-route-selects-hint"
-                  >
-                    <option value="">Сначала укажите станции в блоке маршрута выше</option>
-                  </select>
-                </div>
-                <p class="helper-text cargo-route-selects-hint" id="cargo-route-selects-hint">
-                  Списки заполняются из полей «Терминал прибытия на Дальнем Востоке» и «Станции назначения».
-                </p>
               </div>
 
               <div class="field-group field-group--full">
@@ -1335,7 +1242,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778369202950"></script>
+    <script src="rates.js?v=1778370500000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
