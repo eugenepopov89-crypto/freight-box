@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=1778940400000" />
+    <link rel="stylesheet" href="styles.css?v=1778940900000" />
     <script>
       if (!localStorage.getItem('pb_token')) {
         window.location.href = 'login.html';
@@ -340,36 +340,18 @@
                       </div>
                     </div>
                     <div class="tariff-validity-block">
-                      <label class="tariff-validity-label" for="tariffValidFrom">
-                        Срок действия тарифа *
-                      </label>
-                      <p class="helper-text tariff-validity-hint">
-                        Укажите период, в течение которого действуют суммы ниже (в списках и КП год — две последние
-                        цифры, например&nbsp;26).
-                      </p>
-                      <div class="tariff-validity-range-row">
-                        <div class="tariff-validity-field">
-                          <span class="tariff-validity-sub">С даты</span>
-                          <input
-                            id="tariffValidFrom"
-                            name="tariffValidFrom"
-                            type="date"
-                            required
-                            autocomplete="off"
-                          />
-                        </div>
-                        <span class="tariff-validity-dash" aria-hidden="true">—</span>
-                        <div class="tariff-validity-field">
-                          <span class="tariff-validity-sub">По дату</span>
-                          <input
-                            id="tariffValidTo"
-                            name="tariffValidTo"
-                            type="date"
-                            required
-                            autocomplete="off"
-                          />
-                        </div>
+                      <div class="tariff-validity-label" id="tariff-validity-heading">
+                        Срок действия тарифа по морским линиям *
                       </div>
+                      <p class="helper-text tariff-validity-hint">
+                        Для каждой выбранной морской линии укажите период, в течение которого действует тариф по этой линии
+                        (в списках и КП год показывается двумя цифрами, например&nbsp;26).
+                      </p>
+                      <p id="tariff-validity-empty-hint" class="tariff-validity-empty-hint" hidden>
+                        Сначала укажите морские линии выше — здесь появится по строке на каждую линию; название подставится
+                        автоматически, остаётся только выбрать даты «с» и «по».
+                      </p>
+                      <div id="tariff-validity-rows-root"></div>
                     </div>
                   </div>
 
@@ -1291,7 +1273,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778940200000"></script>
+    <script src="rates.js?v=1778940900000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
