@@ -260,14 +260,6 @@
                   </div>
                 </div>
 
-                  <div class="field-group-sub container-route-field-sub">
-                    <label for="containerType">Тип контейнера *</label>
-                    <select id="containerType" name="containerType" required>
-                      <option value="20FT">20FT</option>
-                      <option value="40HQ">40HQ</option>
-                    </select>
-                  </div>
-
                   <div class="quick-add-row destination-station-list-add-row">
                     <input
                       id="new-station-option"
@@ -282,7 +274,7 @@
 
                   <div class="cost-follow cost-follow--sea">
                     <p class="cost-follow-hint cost-follow-hint--lead">
-                      По каждой связке порт × линия: фрахт USD, дата выхода, терминал и станция назначения (быстрый выбор ниже полей), адрес выгрузки. Списки ЖД и авто ниже собираются из этих строк.
+                      По каждой связке порт × линия: тариф ЖД (тип контейнера) слева от фрахта, USD, дата выхода; далее терминал и станция (быстрый выбор), адрес выгрузки. Блоки ЖД и авто подставляют суммы по этим строкам.
                     </p>
                     <div id="sea-usd-wrap" class="sailing-dates-wrap sea-usd-wrap-inner"></div>
                     <div class="sailing-dates-stack">
@@ -1242,7 +1234,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1778371200000"></script>
+    <script src="rates.js?v=1778372800000"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
