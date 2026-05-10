@@ -11,6 +11,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const LINES_KEY = "freightbox-shipping-lines";
   /** Линии для поля «Для какой морской линии используется агент» (дополняют маршрут). */
   const ROUTE_LINES_KEY = "freightbox-booking-route-lines";
+  /** Подсказки «агента нет» — всегда в списке (WebKit/Safari и форма без входа в PB). */
+  const DEFAULT_BOOKING_AGENT_SUGGESTIONS = ["НЕТ", "нет"];
 
   function readSavedList(storageKey) {
     try {
@@ -134,6 +136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!exists) {
       const opt = document.createElement("option");
       opt.value = value;
+      opt.textContent = value;
       datalist.appendChild(opt);
     }
   }
@@ -948,6 +951,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    saveNewOption(AGENTS_KEY, "booking-agent-suggestions", null, newValue);
+
     const ok = await createBookingAgentPbRecord(newValue);
     try {
       const latest = await loadRates();
@@ -958,11 +963,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     bookingAgentInput.value = newValue;
     newBookingAgentOptionInput.value = "";
     syncBookingAgentLineVisibility();
-    saveNewOption(AGENTS_KEY, "booking-agent-suggestions", null, newValue);
-    if (ok) {
+    const hasPb = Boolean(pocketBaseAuthHeaders().Authorization);
+    const isNyetHint =
+      normalizeBookingAgentDedupeKey(newValue) === "нет";
+
+    if (ok && !isNyetHint) {
       setStatus(
         "Агент «" + newValue + "» сохранён в общий список подсказок (PocketBase).",
         "success"
+      );
+    } else if (isNyetHint) {
+      setStatus(
+        "Подсказка «НЕТ» / «нет» уже есть в списке; выберите значение из подсказок или введите в поле сверху.",
+        "success"
+      );
+    } else if (!hasPb) {
+      setStatus(
+        "Агент добавлен в подсказки в этом браузере. Общие подсказки из PocketBase (как другие сохранённые агенты) появятся после входа в том же браузере — откройте страницу логина и авторизуйтесь.",
+        "success"
+      );
+    } else {
+      setStatus(
+        "Подсказка «" +
+          newValue +
+          "» сохранена локально. Сервер вернул ошибку при записи справочника — проверьте права коллекции booking_agents или консоль.",
+        "error"
       );
     }
   });
@@ -1957,9 +1982,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const auth = pocketBaseAuthHeaders();
     if (!auth.Authorization) {
-      if (typeof setStatus === "function") {
-        setStatus("Войдите в систему, чтобы сохранить агента в общий справочник.", "error");
-      }
       return false;
     }
     await fetchBookingAgentsPb();
@@ -4091,6 +4113,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     syncSalesPrintMeta();
   }
 
+  function datalistOptionWithLabelMarkup(value) {
+    const escaped = escapeHtml(value);
+    return '<option value="' + escaped + '">' + escaped + "</option>";
+  }
+
+  /**
+   * WebKit/Safari часто не обновляет привязку подсказок после смены option в datalist.
+   */
+  function nudgeBookingAgentDatalistBindings() {
+    const listId = bookingAgentSuggestions && bookingAgentSuggestions.id;
+    if (!listId) {
+      return;
+    }
+    [bookingAgentInput, newBookingAgentOptionInput].forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      if (input.getAttribute("list") !== listId) {
+        return;
+      }
+      input.removeAttribute("list");
+      void input.offsetHeight;
+      input.setAttribute("list", listId);
+    });
+  }
+
   function refreshAutocompleteLists(rates) {
     const terminals = uniqueSorted(
       DEFAULT_RAIL_TERMINALS.concat(
@@ -4104,9 +4152,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       )
     );
     const bookingAgents = uniqueSorted(
-      bookingAgentsPbCache.concat(
-        rates.map((item) => String(item.bookingAgent || "").trim()),
-        readSavedList(AGENTS_KEY)
+      DEFAULT_BOOKING_AGENT_SUGGESTIONS.concat(
+        bookingAgentsPbCache.concat(
+          rates.map((item) => String(item.bookingAgent || "").trim()),
+          readSavedList(AGENTS_KEY)
+        )
       )
     );
     const stationVals = [];
@@ -4118,22 +4168,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     const stations = uniqueSorted(stationVals);
     terminalSuggestions.innerHTML = terminals
-      .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
+      .map((value) => datalistOptionWithLabelMarkup(value))
       .join("");
     shippingLineSuggestions.innerHTML = shippingLines
-      .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
+      .map((value) => datalistOptionWithLabelMarkup(value))
       .join("");
     bookingAgentSuggestions.innerHTML = bookingAgents
-      .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
+      .map((value) => datalistOptionWithLabelMarkup(value))
       .join("");
     stationSuggestions.innerHTML = stations
-      .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
+      .map((value) => datalistOptionWithLabelMarkup(value))
       .join("");
     sortDatalistOptions(terminalSuggestions);
     sortDatalistOptions(shippingLineSuggestions);
     sortDatalistOptions(bookingAgentSuggestions);
     sortDatalistOptions(stationSuggestions);
     syncBookingAgentShippingLineDatalist();
+    nudgeBookingAgentDatalistBindings();
   }
 
   function uniqueSorted(values) {
@@ -4396,7 +4447,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const input = document.createElement("input");
     input.name = "originPorts";
     input.setAttribute("list", "china-port-suggestions");
-    input.placeholder = "Например, SHANGHAI";
     input.value = defaultValue || "";
 
     const removeBtn = document.createElement("button");
@@ -4413,7 +4463,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function resetOriginPortRows() {
     originPortsWrap.innerHTML =
-      '<div class="origin-port-row"><input name="originPorts" list="china-port-suggestions" placeholder="Например, SHANGHAI" /></div>';
+      '<div class="origin-port-row"><input name="originPorts" list="china-port-suggestions" /></div>';
     [
       ...originQuickPicks.querySelectorAll('input[name="originQuickPorts"]'),
     ].forEach((input) => {
@@ -4805,7 +4855,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           : a.localeCompare(b, "en", { sensitivity: "base" })
       );
     datalistEl.innerHTML = values
-      .map((value) => '<option value="' + escapeHtml(value) + '"></option>')
+      .map((value) => datalistOptionWithLabelMarkup(value))
       .join("");
   }
 
