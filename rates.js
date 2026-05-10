@@ -3792,18 +3792,27 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
         }
         if (nextSeaRouteRows.length) {
-          nextSeaRouteRows = nextSeaRouteRows.map((row) => {
-            const current = Number(row.seaUsd);
-            if (!Number.isFinite(current) || current < 0) {
-              return row;
-            }
-            const delta =
-              seaDeltaMode === "percent" ? current * (seaValue / 100) : seaValue;
-            return {
-              ...row,
-              seaUsd: Math.round((current + delta) * 100) / 100,
-            };
-          });
+          if (nextSeaUsds.length === nextSeaRouteRows.length) {
+            nextSeaRouteRows = nextSeaRouteRows.map((row, i) => {
+              const u = Number(nextSeaUsds[i]);
+              return Number.isFinite(u)
+                ? { ...row, seaUsd: Math.round(u * 100) / 100 }
+                : row;
+            });
+          } else {
+            nextSeaRouteRows = nextSeaRouteRows.map((row) => {
+              const current = Number(row.seaUsd);
+              if (!Number.isFinite(current) || current < 0) {
+                return row;
+              }
+              const delta =
+                seaDeltaMode === "percent" ? current * (seaValue / 100) : seaValue;
+              return {
+                ...row,
+                seaUsd: Math.round((current + delta) * 100) / 100,
+              };
+            });
+          }
         }
 
         if (pair20) {
@@ -4475,12 +4484,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 normalizeShippingLineToken(row.shippingLine) ===
                   normalizeShippingLineToken(line)
             ) || null;
-          const seaUsdFallback = Number(
-            seaUsds[originIndex * shippingLines.length + lineIndex]
-          );
-          const seaUsdValue = routeRow
-            ? Number(routeRow.seaUsd)
-            : seaUsdFallback;
+          const bundleIdx = originIndex * shippingLines.length + lineIndex;
+          const fromSlot = Number(seaUsds[bundleIdx]);
+          const fromRow = routeRow ? Number(routeRow.seaUsd) : Number.NaN;
+          const fromRate = Number(rate.seaUsd);
+          const seaUsdValue = Number.isFinite(fromSlot)
+            ? fromSlot
+            : Number.isFinite(fromRow)
+              ? fromRow
+              : Number.isFinite(fromRate)
+                ? fromRate
+                : Number.NaN;
           const sailingDate = routeRow
             ? String(routeRow.sailingDate || "")
             : "";
