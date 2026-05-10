@@ -553,11 +553,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function aggregateRailRubTiersFromDom() {
-    const containerSel = document.getElementById("containerType");
-    const ct =
-      containerSel instanceof HTMLSelectElement
-        ? String(containerSel.value || "").trim()
-        : "40HQ";
+    const seaBlocks = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
     const bundles = [
       ...railRubRowsWrap.querySelectorAll("[data-sea-rail-route]"),
     ];
@@ -567,15 +563,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     let gt24 = null;
     /** @type {number|null} */
     let hq = null;
-    /** @type {{railRub40Hq: number|null,railRub20Lt24: number|null,railRub20Gt24: number|null}[]} */
+    /** @type {{slot:string,railRub40Hq: number|null,railRub20Lt24: number|null,railRub20Gt24: number|null}[]} */
     const perRoute = [];
     bundles.forEach((blk, bundleIndex) => {
       if (!(blk instanceof HTMLElement)) {
         return;
       }
-      if (ct === "40HQ") {
+      const seaBlk = seaBlocks[bundleIndex];
+      const slotSel = seaBlk?.querySelector(".sea-route-container-slot");
+      let slot =
+        slotSel instanceof HTMLSelectElement
+          ? String(slotSel.value || "").trim()
+          : "40HQ";
+      if (slot !== "20LT24" && slot !== "20GT24" && slot !== "40HQ") {
+        slot = "40HQ";
+      }
+      if (slot === "40HQ") {
         const hqVal = readSeaRailNum(blk.querySelector('input[data-rail-slot="hq"]'));
         perRoute.push({
+          slot,
           railRub40Hq: hqVal,
           railRub20Lt24: null,
           railRub20Gt24: null,
@@ -583,16 +589,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (bundleIndex === 0) {
           hq = hqVal;
         }
-      } else {
+      } else if (slot === "20LT24") {
         const lt = readSeaRailNum(blk.querySelector('input[data-rail-slot="lt"]'));
-        const gt = readSeaRailNum(blk.querySelector('input[data-rail-slot="gt"]'));
         perRoute.push({
+          slot,
           railRub40Hq: null,
           railRub20Lt24: lt,
-          railRub20Gt24: gt,
+          railRub20Gt24: null,
         });
         if (bundleIndex === 0) {
           lt24 = lt;
+        }
+      } else {
+        const gt = readSeaRailNum(blk.querySelector('input[data-rail-slot="gt"]'));
+        perRoute.push({
+          slot,
+          railRub40Hq: null,
+          railRub20Lt24: null,
+          railRub20Gt24: gt,
+        });
+        if (bundleIndex === 0) {
           gt24 = gt;
         }
       }
@@ -638,11 +654,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   enableDatalistOpenOnFocus(bookingAgentInput);
   syncBookingAgentShippingLineDatalist();
   enableDatalistOpenOnFocus(bookingAgentShippingLineInput);
-
-  document.getElementById("containerType")?.addEventListener("change", () => {
-    syncRailAutoSectionsFromSea();
-    refreshCargoRouteSelectOptions();
-  });
 
   const initialRates = await loadRates();
   await fetchBookingAgentsPb();
@@ -709,7 +720,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const requiredMissingMessages = [
       ["destination", "Выберите финальное направление."],
       ["railTerminal", "Заполните терминал прибытия на Дальнем Востоке."],
-      ["containerType", "Выберите тип контейнера."],
       ["shippingLine", "Заполните морскую линию."],
       ["bookingAgent", "Заполните букирующего агента (или НЕТ)."],
       ["customsClearance", "Выберите таможенную очистку."],
@@ -726,8 +736,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
     }
-
-    const containerTypeRaw = String(formData.get("containerType") || "").trim();
 
     const customsClearanceRaw = String(
       formData.get("customsClearance") || ""
@@ -750,29 +758,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const railTiersForSave = aggregateRailRubTiersFromDom();
-    if (containerTypeRaw === "20FT") {
-      for (let ri = 0; ri < railTiersForSave.perRoute.length; ri++) {
-        const pr = railTiersForSave.perRoute[ri];
-        if (pr.railRub20Lt24 == null || pr.railRub20Gt24 == null) {
-          setStatus(
-            "В строке ЖД №" +
-              String(ri + 1) +
-              " укажите суммы для 20′ft < 24 t и 20′ft > 24 t.",
-            "error"
-          );
-          return;
-        }
+    for (let ri = 0; ri < railTiersForSave.perRoute.length; ri++) {
+      const pr = railTiersForSave.perRoute[ri];
+      const rs = pr.slot || "40HQ";
+      if (rs === "40HQ" && pr.railRub40Hq == null) {
+        setStatus(
+          "В строке ЖД №" + String(ri + 1) + " укажите сумму для выбранного типа 40′ HQ.",
+          "error"
+        );
+        return;
       }
-    } else {
-      for (let ri = 0; ri < railTiersForSave.perRoute.length; ri++) {
-        const pr = railTiersForSave.perRoute[ri];
-        if (pr.railRub40Hq == null) {
-          setStatus(
-            "В строке ЖД №" + String(ri + 1) + " укажите сумму для 40′ HQ.",
-            "error"
-          );
-          return;
-        }
+      if (rs === "20LT24" && pr.railRub20Lt24 == null) {
+        setStatus(
+          "В строке ЖД №" + String(ri + 1) + " укажите сумму для 20′ ft < 24 t.",
+          "error"
+        );
+        return;
+      }
+      if (rs === "20GT24" && pr.railRub20Gt24 == null) {
+        setStatus(
+          "В строке ЖД №" + String(ri + 1) + " укажите сумму для 20′ ft > 24 t.",
+          "error"
+        );
+        return;
       }
     }
 
@@ -800,6 +808,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const seaRouteRowsWithKeys = seaRouteRows.map((row, index) => {
       const railPart = railTiersForSave.perRoute[index] || {
+        slot: "40HQ",
         railRub40Hq: null,
         railRub20Lt24: null,
         railRub20Gt24: null,
@@ -812,6 +821,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         dvTerminal: row.dvTerminal,
         destinationStation: row.destinationStation,
         unloadAddress: row.unloadAddress,
+        containerSlot: row.containerSlot,
         railRub20Lt24: railPart.railRub20Lt24,
         railRub20Gt24: railPart.railRub20Gt24,
         railRub40Hq: railPart.railRub40Hq,
@@ -916,16 +926,61 @@ document.addEventListener("DOMContentLoaded", async () => {
       setStatus("Проверьте поле «Вес груза, кг».", "error");
       return;
     }
-    const railRub20Lt24 = railTiersForSave.lt24;
-    const railRub20Gt24 = railTiersForSave.gt24;
-    const railRubDefault =
-      railTiersForSave.hq == null ? Number.NaN : railTiersForSave.hq;
-    const effectiveRailRubFor20 =
-      cargoWeightKgValue != null && cargoWeightKgValue > 24000
-        ? railRub20Gt24
-        : railRub20Lt24;
-    const finalRailRub =
-      containerTypeRaw === "20FT" ? effectiveRailRubFor20 : railRubDefault;
+    let aggLtSave = null;
+    let aggGtSave = null;
+    railTiersForSave.perRoute.forEach((p) => {
+      if (p.railRub20Lt24 != null) {
+        aggLtSave = p.railRub20Lt24;
+      }
+      if (p.railRub20Gt24 != null) {
+        aggGtSave = p.railRub20Gt24;
+      }
+    });
+    const railRub20Lt24 = aggLtSave;
+    const railRub20Gt24 = aggGtSave;
+    const pr0 = railTiersForSave.perRoute[0];
+    let finalRailRub = Number.NaN;
+    if (pr0) {
+      if (pr0.slot === "40HQ") {
+        finalRailRub =
+          pr0.railRub40Hq == null ? Number.NaN : pr0.railRub40Hq;
+      } else if (
+        aggLtSave != null &&
+        aggGtSave != null &&
+        Number.isFinite(aggLtSave) &&
+        Number.isFinite(aggGtSave)
+      ) {
+        finalRailRub =
+          cargoWeightKgValue != null && cargoWeightKgValue > 24000
+            ? aggGtSave
+            : aggLtSave;
+      } else if (pr0.slot === "20LT24") {
+        finalRailRub =
+          pr0.railRub20Lt24 == null ? Number.NaN : pr0.railRub20Lt24;
+      } else if (pr0.slot === "20GT24") {
+        finalRailRub =
+          pr0.railRub20Gt24 == null ? Number.NaN : pr0.railRub20Gt24;
+      }
+    }
+    const slotSet = new Set(
+      seaRouteRowsWithKeys.map((r) => String(r.containerSlot || "").trim())
+    );
+    const has20 = [...slotSet].some(
+      (s) => s === "20LT24" || s === "20GT24"
+    );
+    const has40 = slotSet.has("40HQ");
+    const containerType =
+      has40 && !has20 ? "40HQ" : has20 ? "20FT" : "40HQ";
+    const containerTypesDer = [];
+    if (has20) {
+      containerTypesDer.push("20FT");
+    }
+    if (has40) {
+      containerTypesDer.push("40HQ");
+    }
+    if (!containerTypesDer.length) {
+      containerTypesDer.push("40HQ");
+    }
 
     const bookingAgentRaw = String(formData.get("bookingAgent") || "").trim();
     const bookingAgentLineRaw = String(
@@ -950,7 +1005,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       ).trim(),
       destinationStation: destinationStations[0] || "",
       destinationStations,
-      containerType: containerTypeRaw,
+      containerTypes: containerTypesDer,
+      containerType,
       cargoSecurity: cargoSecurityRaw,
       tnvedCode: tnvedTrim,
       cargoWeightKg: cargoWeightKgValue,
@@ -1882,6 +1938,85 @@ document.addEventListener("DOMContentLoaded", async () => {
     return "Текущий рабочий период: " + half + " (" + monthName + " " + date.getFullYear() + ")";
   }
 
+  function normalizedContainerTypesKey(values) {
+    const list = Array.isArray(values)
+      ? values.map((x) => String(x || "").trim()).filter(Boolean)
+      : [];
+    return [...new Set(list)].sort((a, b) =>
+      a.localeCompare(b, "en", { sensitivity: "base" })
+    ).join(";");
+  }
+
+  function normalizedSeaSlotKeyFromRate(rate) {
+    const rows = Array.isArray(rate?.seaRouteRows) ? rate.seaRouteRows : [];
+    const slots = rows
+      .map((r) => String(r.containerSlot || "").trim())
+      .filter((s) => s === "20LT24" || s === "20GT24" || s === "40HQ");
+    if (slots.length) {
+      return normalizedContainerTypesKey(slots);
+    }
+    const raw = rate?.containerTypes;
+    if (Array.isArray(raw) && raw.length) {
+      return normalizedContainerTypesKey(raw);
+    }
+    const one = String(rate?.containerType || "").trim();
+    return one ? normalizedContainerTypesKey([one]) : "";
+  }
+
+  function getRateContainerTypes(rate) {
+    if (!rate || typeof rate !== "object") {
+      return [];
+    }
+    const rows = Array.isArray(rate.seaRouteRows) ? rate.seaRouteRows : [];
+    const slots = rows
+      .map((r) => String(r.containerSlot || "").trim())
+      .filter((s) => s === "20LT24" || s === "20GT24" || s === "40HQ");
+    if (slots.length) {
+      const has20 = slots.some((s) => s === "20LT24" || s === "20GT24");
+      const has40 = slots.includes("40HQ");
+      const out = [];
+      if (has20) {
+        out.push("20FT");
+      }
+      if (has40) {
+        out.push("40HQ");
+      }
+      return out.length ? out : ["40HQ"];
+    }
+    const raw = rate.containerTypes;
+    if (Array.isArray(raw) && raw.length) {
+      return raw.map((x) => String(x || "").trim()).filter(Boolean);
+    }
+    const one = String(rate.containerType || "").trim();
+    return one ? [one] : [];
+  }
+
+  function formatContainerTypesDisplay(rate) {
+    const rows = Array.isArray(rate?.seaRouteRows) ? rate.seaRouteRows : [];
+    const slots = rows
+      .map((r) => String(r.containerSlot || "").trim())
+      .filter((s) => s === "20LT24" || s === "20GT24" || s === "40HQ");
+    if (slots.length) {
+      const seen = new Set();
+      const parts = [];
+      slots.forEach((s) => {
+        const label =
+          s === "20LT24"
+            ? "20′ <24т"
+            : s === "20GT24"
+              ? "20′ >24т"
+              : "40′ HQ";
+        if (!seen.has(label)) {
+          seen.add(label);
+          parts.push(label);
+        }
+      });
+      return parts.join(", ");
+    }
+    const xs = getRateContainerTypes(rate);
+    return xs.length ? [...new Set(xs)].join(", ") : "—";
+  }
+
   function buildRateId(formData) {
     const normalizedPorts = getOriginPorts()
       .map((port) => port.toUpperCase())
@@ -1891,11 +2026,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       .sort((a, b) => a.localeCompare(b, "ru", { sensitivity: "base" }))
       .join(";");
     const cargoSecurityForId = String(formData.get("cargoSecurity") || "").trim();
+    const slotVals = [
+      ...seaUsdWrap.querySelectorAll(".sea-route-container-slot"),
+    ]
+      .filter((s) => s instanceof HTMLSelectElement)
+      .map((s) => String(s.value || "").trim())
+      .filter((v) => v === "20LT24" || v === "20GT24" || v === "40HQ");
+    const ctCombined = normalizedContainerTypesKey(slotVals);
     return [
       normalizedPorts,
       normalizedStations,
       String(formData.get("destination")),
-      String(formData.get("containerType") || "").trim(),
+      ctCombined,
       cargoSecurityForId,
       String(formData.get("customsClearance") || ""),
       String(formData.get("bookingAgent") || "").trim(),
@@ -1926,12 +2068,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       .join(";");
 
     const cargoSecurityForId = String(rate.cargoSecurity || "").trim();
+    const ctCombined = normalizedSeaSlotKeyFromRate(rate);
 
     return [
       normalizedPorts,
       normalizedStations,
       String(rate.destination || ""),
-      String(rate.containerType || "").trim(),
+      ctCombined,
       cargoSecurityForId,
       String(rate.customsClearance || ""),
       String(rate.bookingAgent || "").trim(),
@@ -2612,11 +2755,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (containerTypeFiltersWrap) {
-      const ctSet = [
-        ...new Set(
-          base.map((r) => String(r.containerType || "").trim()).filter(Boolean)
-        ),
-      ].sort((a, b) =>
+      const ctAccum = new Set();
+      base.forEach((r) => {
+        getRateContainerTypes(r).forEach((ct) => ctAccum.add(ct));
+      });
+      const ctSet = [...ctAccum].sort((a, b) =>
         a.localeCompare(b, "en", { sensitivity: "base" })
       );
       containerTypeFiltersWrap.innerHTML = ctSet
@@ -2691,7 +2834,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (ctFilterOn) {
         const wantedCt = new Set(selCt);
         out = out.filter((r) =>
-          wantedCt.has(String(r.containerType || "").trim())
+          getRateContainerTypes(r).some((ct) => wantedCt.has(ct))
         );
       }
     }
@@ -3318,7 +3461,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       escapeHtml(formatShippingLineDisplay(rate)) +
       "</td>" +
       "<td>" +
-      escapeHtml(String(rate.containerType || "—")) +
+      escapeHtml(formatContainerTypesDisplay(rate)) +
       "</td>" +
       "<td>" +
       formatKpTariffCeilPlain(rate.seaUsd) +
@@ -3571,7 +3714,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           escapeHtml(formatShippingLineDisplay(rate)) +
           "</td>" +
           "<td>" +
-          escapeHtml(rate.containerType) +
+          escapeHtml(formatContainerTypesDisplay(rate)) +
           "</td>" +
           '<td class="no-print">' +
           escapeHtml(formatBookingAgentDisplay(rate)) +
@@ -4151,7 +4294,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           escapeHtml(formatShippingLineDisplay(expandedRate)) +
           "</td>" +
           "<td>" +
-          escapeHtml(String(expandedRate.containerType || "—")) +
+          escapeHtml(formatContainerTypesDisplay(expandedRate)) +
           "</td>" +
           "<td>" +
           formatNumber(expandedRate.seaUsd) +
@@ -4925,16 +5068,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     return out;
   }
 
+  function railSlotHeadlineRu(slot) {
+    if (slot === "20LT24") {
+      return "20′ ft < 24 t";
+    }
+    if (slot === "20GT24") {
+      return "20′ ft > 24 t";
+    }
+    return "40′ HQ";
+  }
+
   function rebuildRailRubFromSeaRoutes() {
     const prevSnap = snapshotSeaRailAmountsForRebuild();
-    const containerSel = document.getElementById("containerType");
-    const ct =
-      containerSel instanceof HTMLSelectElement
-        ? String(containerSel.value || "").trim()
-        : "40HQ";
     railRubRowsWrap.innerHTML = "";
     [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((seaBlk, i) => {
       const ixStr = String(i);
+      const slotSel = seaBlk.querySelector(".sea-route-container-slot");
+      let slot =
+        slotSel instanceof HTMLSelectElement
+          ? String(slotSel.value || "").trim()
+          : "40HQ";
+      if (slot !== "20LT24" && slot !== "20GT24" && slot !== "40HQ") {
+        slot = "40HQ";
+      }
       const line = seaBlk.dataset.routeLine || "—";
       const origin = seaBlk.dataset.routeOrigin || "—";
       const dvEl = seaBlk.querySelector(".sea-route-dv-terminal");
@@ -4952,7 +5108,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         " · " +
         line +
         " · " +
-        ct +
+        railSlotHeadlineRu(slot) +
         " · ДВ «" +
         (dv || "—") +
         "» → станция «" +
@@ -4960,7 +5116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "»";
       wrap.appendChild(hdr);
       const p = prevSnap[ixStr] || { lt: "", gt: "", hq: "" };
-      if (ct === "40HQ") {
+      if (slot === "40HQ") {
         const l = document.createElement("label");
         l.textContent = "ЖД сумма для этой связки, RUB *";
         const inp = document.createElement("input");
@@ -4974,24 +5130,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         inp.value = p.hq;
         wrap.appendChild(l);
         wrap.appendChild(inp);
+      } else if (slot === "20LT24") {
+        const l = document.createElement("label");
+        l.textContent = "20′ ft < 24 t, RUB *";
+        const inp = document.createElement("input");
+        inp.type = "number";
+        inp.min = "0";
+        inp.step = "1";
+        inp.required = true;
+        inp.dataset.railSlot = "lt";
+        inp.className = "rail-rub-amount-input";
+        inp.placeholder = "Сумма";
+        inp.value = p.lt;
+        wrap.appendChild(l);
+        wrap.appendChild(inp);
       } else {
-        [["lt", "20′ ft < 24 t, RUB *"], ["gt", "20′ ft > 24 t, RUB *"]].forEach(
-          ([slot, cap]) => {
-            const l = document.createElement("label");
-            l.textContent = cap;
-            const inp = document.createElement("input");
-            inp.type = "number";
-            inp.min = "0";
-            inp.step = "1";
-            inp.required = true;
-            inp.dataset.railSlot = slot === "lt" ? "lt" : "gt";
-            inp.className = "rail-rub-amount-input";
-            inp.placeholder = "Сумма";
-            inp.value = slot === "lt" ? p.lt : p.gt;
-            wrap.appendChild(l);
-            wrap.appendChild(inp);
-          }
-        );
+        const l = document.createElement("label");
+        l.textContent = "20′ ft > 24 t, RUB *";
+        const inp = document.createElement("input");
+        inp.type = "number";
+        inp.min = "0";
+        inp.step = "1";
+        inp.required = true;
+        inp.dataset.railSlot = "gt";
+        inp.className = "rail-rub-amount-input";
+        inp.placeholder = "Сумма";
+        inp.value = p.gt;
+        wrap.appendChild(l);
+        wrap.appendChild(inp);
       }
       railRubRowsWrap.appendChild(wrap);
     });
@@ -5010,17 +5176,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function rebuildAutoDeliveryFromSeaRoutes() {
     const prevA = snapshotAutoAmountsForRebuild();
-    const containerSel = document.getElementById("containerType");
-    const ct =
-      containerSel instanceof HTMLSelectElement
-        ? String(containerSel.value || "").trim()
-        : "40HQ";
     autoDeliveryRowsWrap.innerHTML = "";
     warehouseAddressesWrap.innerHTML = "";
     const addrSeen = new Set();
     [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((seaBlk, i) => {
       const ixStr = String(i);
       const line = seaBlk.dataset.routeLine || "—";
+      const slotSel = seaBlk.querySelector(".sea-route-container-slot");
+      let slot =
+        slotSel instanceof HTMLSelectElement
+          ? String(slotSel.value || "").trim()
+          : "40HQ";
+      if (slot !== "20LT24" && slot !== "20GT24" && slot !== "40HQ") {
+        slot = "40HQ";
+      }
       const stEl = seaBlk.querySelector(".sea-route-station");
       const adEl = seaBlk.querySelector(".sea-route-unload");
       const st =
@@ -5033,7 +5202,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const hdr = document.createElement("div");
       hdr.className = "auto-delivery-route-hdr helper-text cost-follow-hint";
       hdr.textContent =
-        "Авто: " + line + " · " + ct + " · «" + (st || "—") + "» · «" + (addr || "—") + "»";
+        "Авто: " +
+        line +
+        " · " +
+        railSlotHeadlineRu(slot) +
+        " · «" +
+        (st || "—") +
+        "» · «" +
+        (addr || "—") +
+        "»";
       const lab = document.createElement("label");
       lab.textContent = "Авто доставка до адреса, RUB *";
       const inp = document.createElement("input");
@@ -5069,6 +5246,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function onSeaUsdWrapDelegatedChange(event) {
     const target = event.target;
+    if (target instanceof HTMLSelectElement && target.classList.contains("sea-route-container-slot")) {
+      syncRailAutoSectionsFromSea();
+      return;
+    }
     if (!(target instanceof HTMLInputElement)) {
       return;
     }
@@ -5108,6 +5289,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       const dvInp = bundle.querySelector(".sea-route-dv-terminal");
       const stInp = bundle.querySelector(".sea-route-station");
       const unlInp = bundle.querySelector(".sea-route-unload");
+      const ctSel = bundle.querySelector(".sea-route-container-slot");
+      let containerSlot =
+        ctSel instanceof HTMLSelectElement
+          ? String(ctSel.value || "").trim()
+          : "40HQ";
+      if (containerSlot !== "20LT24" && containerSlot !== "20GT24" && containerSlot !== "40HQ") {
+        containerSlot = "40HQ";
+      }
       const seaRaw =
         seaInp instanceof HTMLInputElement ? String(seaInp.value || "").trim() : "";
       const dateRaw =
@@ -5115,6 +5304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return {
         seaUsd: seaRaw === "" ? Number.NaN : Number(seaRaw),
         sailingDate: dateRaw,
+        containerSlot,
         dvTerminal:
           dvInp instanceof HTMLInputElement ? String(dvInp.value || "").trim() : "",
         destinationStation:
@@ -5160,6 +5350,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       const el = b.querySelector(".sea-route-unload");
       return el instanceof HTMLInputElement ? el.value.trim() : "";
     });
+    const prevSlot = prevBundles.map((b) => {
+      const el = b.querySelector(".sea-route-container-slot");
+      return el instanceof HTMLSelectElement ? el.value.trim() : "";
+    });
     const destNow = String(destinationSelect.value || "MOSCOW");
     seaUsdWrap.innerHTML = "";
     for (let i = 0; i < combos.length; i++) {
@@ -5173,7 +5367,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       bundle.dataset.routeLine = combo.shippingLine || "";
       const grid = document.createElement("div");
       grid.className = "sea-usd-row sea-usd-row--grid sea-usd-route-primary-grid";
+      const ctLabel = document.createElement("label");
+      ctLabel.className = "sea-grid-lab sea-grid-lab--ct";
+      ctLabel.htmlFor = "seaRouteCt-" + String(idx);
+      ctLabel.textContent = "Тип / тариф ЖД *";
+      const ctSel = document.createElement("select");
+      ctSel.className = "sea-route-container-slot";
+      ctSel.id = "seaRouteCt-" + String(idx);
+      ctSel.required = true;
+      [
+        ["20LT24", "20′ ft < 24 t, RUB *"],
+        ["20GT24", "20′ ft > 24 t, RUB *"],
+        ["40HQ", "40′ HQ *"],
+      ].forEach(([val, text]) => {
+        const o = document.createElement("option");
+        o.value = val;
+        o.textContent = text;
+        ctSel.appendChild(o);
+      });
+      const ps = prevSlot[i] || "";
+      ctSel.value =
+        ps === "20LT24" || ps === "20GT24" || ps === "40HQ" ? ps : "40HQ";
       const label = document.createElement("label");
+      label.className = "sea-grid-lab sea-grid-lab--usd";
       label.htmlFor = "seaUsd-" + String(idx);
       label.textContent = "Фрахт USD · " + portLabel + " × " + lineLabel + " *";
       const input = document.createElement("input");
@@ -5186,6 +5402,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       input.placeholder = "Например, 1450";
       input.value = prevSeaValues[i] || "";
       const dateLabel = document.createElement("label");
+      dateLabel.className = "sea-grid-lab sea-grid-lab--date";
       dateLabel.htmlFor = "seaSailingDate-" + String(idx);
       dateLabel.textContent = "Дата выхода *";
       const dateInput = document.createElement("input");
@@ -5194,6 +5411,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       dateInput.type = "date";
       dateInput.required = true;
       dateInput.value = prevDateValues[i] || "";
+      grid.appendChild(ctLabel);
+      grid.appendChild(ctSel);
       grid.appendChild(label);
       grid.appendChild(input);
       grid.appendChild(dateLabel);
