@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=3" />
+    <link rel="stylesheet" href="styles.css?v=4" />
     <link rel="stylesheet" href="redesign.css?v=3" />
     <script>
       if (!localStorage.getItem('pb_token')) {
@@ -822,7 +822,6 @@
                     <th>POD</th>
                     <th>Станция назначения</th>
                     <th>Таможня</th>
-                    <th>Склад выгрузки</th>
                     <th>Ближайшие выходы</th>
                     <th>Морская линия</th>
                     <th>Контейнер</th>
@@ -862,7 +861,7 @@
                 </thead>
                 <tbody id="rates-tbody">
                   <tr>
-                    <td colspan="21">Пока нет сохраненных ставок.</td>
+                    <td colspan="20">Пока нет сохраненных ставок.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1051,7 +1050,7 @@
                       >
                         <thead>
                           <tr>
-                            <th colspan="24" class="kp-table-placeholder-msg">
+                            <th colspan="18" class="kp-table-placeholder-msg">
                               Заполняется после «Сформировать таблицу для продаж» или из ссылки КП.
                             </th>
                           </tr>
@@ -1073,6 +1072,10 @@
                       <div class="kp-inc-item">Drop-off контейнера</div>
                       <div class="kp-inc-item">Возврат порожнего контейнера</div>
                       <div class="kp-inc-item">Приемка и раскредитация на ЖД станции прибытия</div>
+                      <div class="kp-inc-item kp-inc-item--stacked">
+                        <span class="kp-inc-item-lead">Автодоставка до</span>
+                        <span class="kp-inc-item-detail" id="sales-kp-autodelivery-to">—</span>
+                      </div>
                     </div>
                   </section>
 
@@ -1274,7 +1277,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1779000000005"></script>
+    <script src="rates.js?v=1779000000006"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
