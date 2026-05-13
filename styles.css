@@ -2071,6 +2071,13 @@ footer {
   gap: 10px;
 }
 
+.sales-kp-print-sheet .kp-conditions-unload-list {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .sales-kp-print-sheet .kp-cond-item {
   background: #f4f7fc;
   border-left: 3px solid #f37021;
@@ -3035,8 +3042,8 @@ footer {
 
 @media (min-width: 920px) {
   .sea-usd-row.sea-usd-route-land-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
   }
 
   .sea-usd-row.sea-usd-route-land-grid .sea-grid-lab--dv {
@@ -3065,18 +3072,48 @@ footer {
     box-sizing: border-box;
   }
 
-  .sea-usd-row.sea-usd-route-land-grid .sea-grid-lab--unload {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  .sea-usd-row.sea-usd-route-land-grid .sea-route-unload {
-    grid-column: 3;
-    grid-row: 2;
+  .sea-usd-row.sea-usd-route-land-grid .sea-route-unload-stack {
+    grid-column: 1 / -1;
+    grid-row: 3;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
   }
+}
+
+.sea-route-unload-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.sea-route-unload-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.sea-route-unload-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.sea-unload-stack-footer {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.sea-grid-lab--unload-inline {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
 }
 
 .warehouse-address-row {
