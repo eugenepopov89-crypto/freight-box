@@ -534,7 +534,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const seaUsdWrap = document.getElementById("sea-usd-wrap");
   /** Ключи «порт\u0000линия» для связок, которые пользователь убрал кнопкой удаления блока. */
   const seaRouteBlockExclusions = new Set();
-  /** Дополнительные блоки с тем же портом и линией (копии); id — префикс `c-`. */
+  /** Дополнительные блоки-копии: id, anchorComboKey — ключ базовой строки маршрута, после которой показываем копию. */
   const seaRouteExtraCopies = [];
   /** Первое заполнение новой копии до появления в DOM: id → снимок полей. */
   const pendingSeaRouteCopyState = new Map();
@@ -1840,11 +1840,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       const seg = t.closest(".sea-route-maritime-segment");
       if (
         bundle instanceof HTMLElement &&
+        bundle.dataset.seaRouteCopy !== "1" &&
         seg instanceof HTMLElement &&
         seg.getAttribute("data-maritime-primary") === "true"
       ) {
         syncSeaSecondarySailingDatesFromPrimary(bundle);
       }
+    }
+    if (
+      t.classList.contains("sea-route-port-input") ||
+      t.classList.contains("sea-route-line-input")
+    ) {
+      const bundle = t.closest(".sea-route-block");
+      if (bundle instanceof HTMLElement) {
+        syncSeaRouteBundleRouteFromInputs(bundle);
+      }
+      mirrorLegacyHiddenFromSeaRows();
+      syncRailAutoSectionsFromSea();
     }
     if (
       t.classList.contains("sea-route-dv-terminal") ||
@@ -6893,11 +6905,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       const seg = target.closest(".sea-route-maritime-segment");
       if (
         bundle instanceof HTMLElement &&
+        bundle.dataset.seaRouteCopy !== "1" &&
         seg instanceof HTMLElement &&
         seg.getAttribute("data-maritime-primary") === "true"
       ) {
         syncSeaSecondarySailingDatesFromPrimary(bundle);
       }
+      return;
+    }
+    if (
+      target.classList.contains("sea-route-port-input") ||
+      target.classList.contains("sea-route-line-input")
+    ) {
+      const bundle = target.closest(".sea-route-block");
+      if (bundle instanceof HTMLElement) {
+        syncSeaRouteBundleRouteFromInputs(bundle);
+      }
+      mirrorLegacyHiddenFromSeaRows();
+      syncRailAutoSectionsFromSea();
       return;
     }
     if (target.classList.contains("sea-row-dv-term-cb")) {
@@ -6977,6 +7002,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         dv: "",
         st: "",
         unload: [""],
+        routeOrigin: "",
+        routeLine: "",
       };
     }
     const rawUnload = [...bundle.querySelectorAll(".sea-route-unload")].map(
@@ -6985,6 +7012,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     const dvEl = bundle.querySelector(".sea-route-dv-terminal");
     const stEl = bundle.querySelector(".sea-route-station");
+    const portInp = bundle.querySelector(".sea-route-port-input");
+    const lineInp = bundle.querySelector(".sea-route-line-input");
+    let routeOrigin = normalizeOriginPortToken(
+      String(bundle.dataset.routeOrigin || "")
+    );
+    let routeLine = String(bundle.dataset.routeLine || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (portInp instanceof HTMLInputElement) {
+      routeOrigin = normalizeOriginPortToken(portInp.value);
+    }
+    if (lineInp instanceof HTMLInputElement) {
+      routeLine = String(lineInp.value || "")
+        .trim()
+        .replace(/\s+/g, " ");
+    }
     return {
       snaps: snapshotMaritimeSegmentsFromBundle(bundle).map((s) => ({
         seaUsd: String(s.seaUsd ?? ""),
@@ -6994,7 +7037,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       dv: dvEl instanceof HTMLInputElement ? dvEl.value.trim() : "",
       st: stEl instanceof HTMLInputElement ? stEl.value.trim() : "",
       unload: rawUnload.length ? rawUnload : [""],
+      routeOrigin,
+      routeLine,
     };
+  }
+
+  function syncSeaRouteBundleRouteFromInputs(bundle) {
+    if (!(bundle instanceof HTMLElement)) {
+      return;
+    }
+    const pi = bundle.querySelector(".sea-route-port-input");
+    const li = bundle.querySelector(".sea-route-line-input");
+    if (pi instanceof HTMLInputElement) {
+      bundle.dataset.routeOrigin = normalizeOriginPortToken(pi.value);
+    }
+    if (li instanceof HTMLInputElement) {
+      bundle.dataset.routeLine = String(li.value || "")
+        .trim()
+        .replace(/\s+/g, " ");
+    }
   }
 
   function seaRoutePrimarySlotId(comboKey) {
@@ -7030,8 +7091,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     portLabel,
     lineLabel,
     snap,
-    isPrimary
+    isPrimary,
+    segOpts
   ) {
+    const opts = segOpts || {};
+    const editableRoute = Boolean(opts.editableRoute && isPrimary);
+    const independentSailingDates = Boolean(opts.independentSailingDates);
     const idSuf = String(bundleIdx1) + "-" + String(segIdx0);
     const wrap = document.createElement("div");
     wrap.className = "sea-route-maritime-segment";
@@ -7077,22 +7142,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     ctSel.value = normalizeContainerSlotValue(snap.slot);
 
-    const portLabelEl = document.createElement("div");
+    const portLabelEl = document.createElement("label");
     portLabelEl.className = "sea-grid-lab sea-grid-lab--port";
     portLabelEl.textContent = "Порт отправления *";
-    const portRo = document.createElement("span");
-    portRo.className = "sea-route-port-display";
-    portRo.textContent = portLabel || "—";
+    let portRo;
+    if (editableRoute) {
+      portRo = document.createElement("input");
+      portRo.type = "text";
+      portRo.className = "sea-route-port-input";
+      portRo.id = "seaRoutePort-" + idSuf;
+      portRo.setAttribute("list", "china-port-suggestions");
+      portRo.required = true;
+      portRo.placeholder = "Порт, например QINGDAO";
+      portRo.autocomplete = "off";
+      portRo.value =
+        portLabel && portLabel !== "—" ? String(portLabel).trim() : "";
+      portLabelEl.htmlFor = portRo.id;
+    } else {
+      portRo = document.createElement("span");
+      portRo.className = "sea-route-port-display";
+      portRo.textContent = portLabel || "—";
+    }
 
-    const lineLabelEl = document.createElement("div");
+    const lineLabelEl = document.createElement("label");
     lineLabelEl.className = "sea-grid-lab sea-grid-lab--line";
     lineLabelEl.textContent = "Морская линия *";
-    const lineRo = document.createElement("span");
-    lineRo.className = "sea-route-line-display";
-    if (isPrimary) {
-      lineRo.id = "sea-route-line-ro-" + String(bundleIdx1);
+    let lineRo;
+    if (editableRoute) {
+      lineRo = document.createElement("input");
+      lineRo.type = "text";
+      lineRo.className = "sea-route-line-input";
+      lineRo.id = "seaRouteLine-" + idSuf;
+      lineRo.setAttribute("list", "shipping-line-suggestions");
+      lineRo.required = true;
+      lineRo.placeholder = "Линия";
+      lineRo.autocomplete = "off";
+      lineRo.value =
+        lineLabel && lineLabel !== "—" ? String(lineLabel).trim() : "";
+      lineLabelEl.htmlFor = lineRo.id;
+    } else {
+      lineRo = document.createElement("span");
+      lineRo.className = "sea-route-line-display";
+      if (isPrimary) {
+        lineRo.id = "sea-route-line-ro-" + String(bundleIdx1);
+      }
+      lineRo.textContent = lineLabel || "—";
     }
-    lineRo.textContent = lineLabel || "—";
     lineRo.title = portLabel
       ? portLabel + " → " + String(lineLabel || "")
       : String(lineLabel || "");
@@ -7124,7 +7219,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     dateInput.type = "date";
     dateInput.required = true;
     dateInput.value = snap.sailingDate || "";
-    if (!isPrimary) {
+    if (!isPrimary && !independentSailingDates) {
       dateInput.readOnly = true;
       dateInput.tabIndex = -1;
       dateInput.classList.add("sea-sailing-date--from-primary");
@@ -7248,7 +7343,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         (typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
           : String(Date.now()) + "-" + Math.random().toString(36).slice(2, 10));
-      seaRouteExtraCopies.push({ id, comboKey });
+      seaRouteExtraCopies.push({ id, anchorComboKey: comboKey });
       pendingSeaRouteCopyState.set(id, snapshotSeaRouteFullState(bundle));
       syncSeaUsdRowsToRouteCombinations();
       return;
@@ -7273,7 +7368,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         seaRouteBlockExclusions.add(key);
         for (let i = seaRouteExtraCopies.length - 1; i >= 0; i--) {
-          if (seaRouteExtraCopies[i].comboKey === key) {
+          if (seaRouteExtraCopies[i].anchorComboKey === key) {
             seaRouteExtraCopies.splice(i, 1);
           }
         }
@@ -7350,7 +7445,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         portLabel,
         lineLabel,
         snap,
-        false
+        false,
+        bundle.dataset.seaRouteCopy === "1"
+          ? { editableRoute: false, independentSailingDates: true }
+          : undefined
       );
       const footer = stack.querySelector(".sea-maritime-stack-footer");
       if (footer instanceof HTMLElement) {
@@ -7358,7 +7456,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         stack.appendChild(el);
       }
-      syncSeaSecondarySailingDatesFromPrimary(bundle);
+      if (bundle.dataset.seaRouteCopy !== "1") {
+        syncSeaSecondarySailingDatesFromPrimary(bundle);
+      }
       syncRailAutoSectionsFromSea();
       return;
     }
@@ -7383,10 +7483,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const rows = [];
     [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach(
       (bundle, blockIndex) => {
-        const origin = String(bundle.dataset.routeOrigin || "")
+        const portInp = bundle.querySelector(".sea-route-port-input");
+        const lineInp = bundle.querySelector(".sea-route-line-input");
+        let origin = String(bundle.dataset.routeOrigin || "")
           .trim()
           .toUpperCase();
-        const shippingLine = String(bundle.dataset.routeLine || "").trim();
+        let shippingLine = String(bundle.dataset.routeLine || "").trim();
+        if (portInp instanceof HTMLInputElement) {
+          origin = normalizeOriginPortToken(portInp.value);
+        }
+        if (lineInp instanceof HTMLInputElement) {
+          shippingLine = String(lineInp.value || "")
+            .trim()
+            .replace(/\s+/g, " ");
+        }
         const dvInp = bundle.querySelector(".sea-route-dv-terminal");
         const stInp = bundle.querySelector(".sea-route-station");
         const unloadParts = collectBundleUnloadAddresses(bundle);
@@ -7485,7 +7595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       )
     );
     for (let i = seaRouteExtraCopies.length - 1; i >= 0; i--) {
-      if (!visibleKeySet.has(seaRouteExtraCopies[i].comboKey)) {
+      if (!visibleKeySet.has(seaRouteExtraCopies[i].anchorComboKey)) {
         pendingSeaRouteCopyState.delete(seaRouteExtraCopies[i].id);
         seaRouteExtraCopies.splice(i, 1);
       }
@@ -7503,7 +7613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         isCopy: false,
       });
       for (const ex of seaRouteExtraCopies) {
-        if (ex.comboKey === comboKey) {
+        if (ex.anchorComboKey === comboKey) {
           renderRows.push({
             combo,
             comboKey,
@@ -7517,21 +7627,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const prevByKey = new Map();
     const prevBySlotId = new Map();
     prevBundles.forEach((b) => {
-      const o = String(b.dataset.routeOrigin || "");
-      const l = String(b.dataset.routeLine || "");
+      const state = snapshotSeaRouteFullState(b);
       const key =
-        normalizeOriginPortToken(o) + "\u0000" + String(l || "").trim();
-      const rawUnload = [...b.querySelectorAll(".sea-route-unload")].map((el) =>
-        el instanceof HTMLInputElement ? String(el.value || "").trim() : ""
-      );
-      const dvEl = b.querySelector(".sea-route-dv-terminal");
-      const stEl = b.querySelector(".sea-route-station");
-      const state = {
-        snaps: snapshotMaritimeSegmentsFromBundle(b),
-        dv: dvEl instanceof HTMLInputElement ? dvEl.value.trim() : "",
-        st: stEl instanceof HTMLInputElement ? stEl.value.trim() : "",
-        unload: rawUnload.length ? rawUnload : [""],
-      };
+        normalizeOriginPortToken(String(b.dataset.routeOrigin || "")) +
+        "\u0000" +
+        String(b.dataset.routeLine || "").trim();
       prevByKey.set(key, state);
       const sid = String(b.dataset.seaRouteSlotId || "").trim();
       if (sid) {
@@ -7558,6 +7658,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           dv: "",
           st: "",
           unload: [""],
+          routeOrigin: "",
+          routeLine: "",
         };
       }
       const snaps =
@@ -7568,13 +7670,28 @@ document.addEventListener("DOMContentLoaded", async () => {
               slot: normalizeContainerSlotValue(s.slot),
             }))
           : [{ seaUsd: "", sailingDate: "", slot: "40HQ" }];
-      const portLabel = combo.origin || "—";
-      const lineLabel = combo.shippingLine || "—";
+      const portLabel = isCopy
+        ? String(prev.routeOrigin || combo.origin || "")
+            .trim()
+            .toUpperCase() || "—"
+        : combo.origin || "—";
+      const lineLabel = isCopy
+        ? String(prev.routeLine || combo.shippingLine || "").trim() || "—"
+        : combo.shippingLine || "—";
       const bundle = document.createElement("div");
       bundle.className = "sea-route-block";
-      bundle.dataset.routeOrigin = combo.origin || "";
-      bundle.dataset.routeLine = combo.shippingLine || "";
       bundle.dataset.seaRouteSlotId = slotId;
+      if (isCopy) {
+        bundle.dataset.seaRouteCopy = "1";
+        bundle.dataset.routeOrigin =
+          portLabel === "—" ? "" : String(portLabel).trim().toUpperCase();
+        bundle.dataset.routeLine =
+          lineLabel === "—" ? "" : String(lineLabel).trim();
+      } else {
+        bundle.removeAttribute("data-sea-route-copy");
+        bundle.dataset.routeOrigin = combo.origin || "";
+        bundle.dataset.routeLine = combo.shippingLine || "";
+      }
 
       const detDv = document.createElement("details");
       detDv.className = "origin-quick-picks-details sea-row-dv-details";
@@ -7625,6 +7742,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const maritimeStack = document.createElement("div");
       maritimeStack.className = "sea-route-maritime-stack";
+      const segOpts = isCopy
+        ? { editableRoute: true, independentSailingDates: true }
+        : undefined;
       snaps.forEach((snap, sj) => {
         maritimeStack.appendChild(
           createSeaMaritimeSegment(
@@ -7633,7 +7753,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             portLabel,
             lineLabel,
             snap,
-            sj === 0
+            sj === 0,
+            segOpts
           )
         );
       });
@@ -7739,12 +7860,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       bundle.appendChild(blockToolbar);
       bundle.appendChild(maritimeStack);
-      syncSeaSecondarySailingDatesFromPrimary(bundle);
+      if (bundle.dataset.seaRouteCopy !== "1") {
+        syncSeaSecondarySailingDatesFromPrimary(bundle);
+      }
       bundle.appendChild(landGrid);
       bundle.appendChild(quickBar);
 
       seaUsdWrap.appendChild(bundle);
     }
+    seaUsdWrap
+      .querySelectorAll(
+        ".sea-route-dv-terminal, .sea-route-station, .sea-route-port-input, .sea-route-line-input"
+      )
+      .forEach((el) => {
+        if (el instanceof HTMLInputElement) {
+          enableDatalistOpenOnFocus(el);
+        }
+      });
     syncSailingDateOriginOptions();
     syncRailAutoSectionsFromSea();
     mergeExtraSailingRowsFromSeaBlocks();
