@@ -443,7 +443,7 @@
                   />
                 </div>
                 <div>
-                  <label for="railRub">ЖД терминал отправления–станция назначения, RUB *</label>
+                  <label for="railRub">POD отправления–станция назначения, RUB *</label>
                   <input
                     id="railRub"
                     name="railRub"
@@ -680,41 +680,44 @@
               <table class="rates-table" id="rates-table">
                 <thead>
                   <tr>
-                    <th>Отправление</th>
-                    <th>Назначение</th>
-                    <th>ЖД терминал</th>
+                    <th>Incoterms</th>
+                    <th>POL</th>
+                    <th>POD</th>
                     <th>Станция назначения</th>
                     <th>Таможня</th>
                     <th>Склад выгрузки</th>
                     <th>Ближайшие выходы</th>
                     <th>Морская линия</th>
                     <th>Контейнер</th>
+                    <th scope="col" title="Стоимость EXW или FCA в зависимости от Incoterms, USD">
+                      EXW/FCA,<br />USD
+                    </th>
                     <th class="no-print">Букирующий агент</th>
                     <th>Море, USD</th>
                     <th
                       scope="col"
-                      title="ЖД терминал отправления–станция назначения для 20'ft &lt; 24 t, RUB"
+                      title="POD отправления–станция назначения для 20'ft &lt; 24 t, RUB"
                     >
-                      ЖД терминал отправл.–ст.&nbsp;назнач.<br />
+                      POD отправл.–ст.&nbsp;назнач.<br />
                       для 20'ft &lt; 24 t, RUB
                     </th>
                     <th
                       scope="col"
-                      title="ЖД терминал отправления–станция назначения для 20'ft &gt; 24 t, RUB"
+                      title="POD отправления–станция назначения для 20'ft &gt; 24 t, RUB"
                     >
-                      ЖД терминал отправл.–ст.&nbsp;назнач.<br />
+                      POD отправл.–ст.&nbsp;назнач.<br />
                       для 20'ft &gt; 24 t, RUB
                     </th>
                     <th
                       scope="col"
-                      title="ЖД терминал отправления–станция назначения для 40' HQ, RUB"
+                      title="POD отправления–станция назначения для 40' HQ, RUB"
                     >
-                      ЖД терминал отправл.–ст.&nbsp;назнач.<br />
+                      POD отправл.–ст.&nbsp;назнач.<br />
                       для 40' HQ, RUB
                     </th>
                     <th>Авто, RUB</th>
                     <th>Транзит, дней</th>
-                    <th>Период</th>
+                    <th>Срок действия тарифа</th>
                     <th>Обновлено</th>
                     <th>Комментарий</th>
                     <th class="no-print">Действие</th>
@@ -722,7 +725,7 @@
                 </thead>
                 <tbody id="rates-tbody">
                   <tr>
-                    <td colspan="20">Пока нет сохраненных ставок.</td>
+                    <td colspan="21">Пока нет сохраненных ставок.</td>
                   </tr>
                 </tbody>
               </table>
@@ -794,7 +797,7 @@
                   </caption>
                   <thead>
                     <tr>
-                      <th>Отправление</th>
+                      <th>POL</th>
                       <th>Морская линия</th>
                       <th>Контейнер</th>
                       <th>Море, USD</th>
