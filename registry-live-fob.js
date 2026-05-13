@@ -325,6 +325,14 @@
       .toLocaleLowerCase("ru-RU");
   }
 
+  function normalizeContainerSlotValue(raw) {
+    const s = String(raw || "").trim();
+    if (s === "20LT24" || s === "20GT24" || s === "40HQ") {
+      return s;
+    }
+    return "40HQ";
+  }
+
   function buildOriginLineCombinations(origins, lines) {
     const combos = [];
     const safeOrigins = origins.length ? origins : [""];
@@ -569,77 +577,136 @@
       const seaRouteRowsNormalized = seaRouteRowsRaw.map((row, index) => ({
         ...row,
         origin: normalizeOriginPortToken(
-          row.origin || routeCombos[index]?.origin || ""
+          row.origin ||
+            routeCombos[Math.min(index, Math.max(0, routeCombos.length - 1))]
+              ?.origin ||
+            ""
         ),
         shippingLine: String(
-          row.shippingLine || routeCombos[index]?.shippingLine || ""
+          row.shippingLine ||
+            routeCombos[Math.min(index, Math.max(0, routeCombos.length - 1))]
+              ?.shippingLine ||
+            ""
         )
           .trim()
           .replace(/\s+/g, " "),
       }));
       origins.forEach((origin, originIndex) => {
         shippingLines.forEach((line, lineIndex) => {
-          const routeRow =
-            seaRouteRowsNormalized.find(
-              (row) =>
-                normalizeOriginPortToken(row.origin) ===
-                  normalizeOriginPortToken(origin) &&
-                normalizeShippingLineToken(row.shippingLine) ===
-                  normalizeShippingLineToken(line)
-            ) || null;
           const bundleIdx = originIndex * shippingLines.length + lineIndex;
           const fromSlot = Number(seaUsds[bundleIdx]);
-          const fromRow = routeRow ? Number(routeRow.seaUsd) : Number.NaN;
           const fromRate = Number(rate.seaUsd);
-          const seaUsdValue = Number.isFinite(fromSlot)
-            ? fromSlot
-            : Number.isFinite(fromRow)
-              ? fromRow
-              : Number.isFinite(fromRate)
-                ? fromRate
+          const matching = seaRouteRowsNormalized.filter(
+            (row) =>
+              normalizeOriginPortToken(row.origin) ===
+                normalizeOriginPortToken(origin) &&
+              normalizeShippingLineToken(row.shippingLine) ===
+                normalizeShippingLineToken(line)
+          );
+          function pushExpandedForRouteRow(routeRow) {
+            let seaUsdValue = routeRow ? Number(routeRow.seaUsd) : Number.NaN;
+            if (!Number.isFinite(seaUsdValue) || seaUsdValue < 0) {
+              seaUsdValue = Number.isFinite(fromSlot)
+                ? fromSlot
+                : Number.isFinite(fromRate)
+                  ? fromRate
+                  : Number.NaN;
+            }
+            const sailingDate = routeRow
+              ? String(routeRow.sailingDate || "")
+              : "";
+            const slot = routeRow
+              ? normalizeContainerSlotValue(routeRow.containerSlot)
+              : normalizeContainerSlotValue(rate.containerType);
+            const ct = slot === "40HQ" ? "40HQ" : "20FT";
+            let railRub20Lt24 = null;
+            let railRub20Gt24 = null;
+            let railRub40Hq = null;
+            let railRub = Number.NaN;
+            if (routeRow) {
+              if (slot === "40HQ") {
+                const n = rateNumericOrNaN(routeRow.railRub40Hq);
+                if (Number.isFinite(n)) {
+                  railRub40Hq = n;
+                  railRub = n;
+                }
+              } else if (slot === "20LT24") {
+                const n = rateNumericOrNaN(routeRow.railRub20Lt24);
+                if (Number.isFinite(n)) {
+                  railRub20Lt24 = n;
+                  railRub = n;
+                }
+              } else {
+                const n = rateNumericOrNaN(routeRow.railRub20Gt24);
+                if (Number.isFinite(n)) {
+                  railRub20Gt24 = n;
+                  railRub = n;
+                }
+              }
+            }
+            if (!Number.isFinite(railRub)) {
+              railRub = rateNumericOrNaN(rate.railRub);
+              railRub20Lt24 = rate.railRub20Lt24;
+              railRub20Gt24 = rate.railRub20Gt24;
+              railRub40Hq = rate.railRub40Hq;
+            }
+            addresses.forEach((address, addressIndex) => {
+              const rowAuto = routeRow
+                ? rateNumericOrNaN(routeRow.autoRub)
                 : Number.NaN;
-          const sailingDate = routeRow
-            ? String(routeRow.sailingDate || "")
-            : "";
-          addresses.forEach((address, addressIndex) => {
-            const autoRubValue = Number(autoRubs[addressIndex]);
-            expanded.push({
-              ...rate,
-              origin: String(origin || "").trim().toUpperCase(),
-              originPorts: [String(origin || "").trim().toUpperCase()],
-              shippingLine: String(routeRow?.shippingLine || line || "")
-                .trim()
-                .replace(/\s+/g, " "),
-              shippingLines: [
-                String(routeRow?.shippingLine || line || "")
+              const autoRubValue = Number.isFinite(rowAuto)
+                ? rowAuto
+                : Number(autoRubs[addressIndex]);
+              expanded.push({
+                ...rate,
+                origin: String(origin || "").trim().toUpperCase(),
+                originPorts: [String(origin || "").trim().toUpperCase()],
+                shippingLine: String(routeRow?.shippingLine || line || "")
                   .trim()
                   .replace(/\s+/g, " "),
-              ],
-              seaUsd: Number.isFinite(seaUsdValue)
-                ? seaUsdValue
-                : Number(rate.seaUsd),
-              seaUsds: [
-                Number.isFinite(seaUsdValue)
+                shippingLines: [
+                  String(routeRow?.shippingLine || line || "")
+                    .trim()
+                    .replace(/\s+/g, " "),
+                ],
+                seaUsd: Number.isFinite(seaUsdValue)
                   ? seaUsdValue
                   : Number(rate.seaUsd),
-              ],
-              nextSailingDates: sailingDate
-                ? [sailingDate]
-                : Array.isArray(rate.nextSailingDates)
-                  ? rate.nextSailingDates
-                  : [],
-              warehouseAddress: address,
-              warehouseAddresses: [address],
-              autoRub: Number.isFinite(autoRubValue)
-                ? autoRubValue
-                : Number(rate.autoRub),
-              autoRubs: [
-                Number.isFinite(autoRubValue)
+                seaUsds: [
+                  Number.isFinite(seaUsdValue)
+                    ? seaUsdValue
+                    : Number(rate.seaUsd),
+                ],
+                nextSailingDates: sailingDate
+                  ? [sailingDate]
+                  : Array.isArray(rate.nextSailingDates)
+                    ? rate.nextSailingDates
+                    : [],
+                warehouseAddress: address,
+                warehouseAddresses: [address],
+                autoRub: Number.isFinite(autoRubValue)
                   ? autoRubValue
                   : Number(rate.autoRub),
-              ],
+                autoRubs: [
+                  Number.isFinite(autoRubValue)
+                    ? autoRubValue
+                    : Number(rate.autoRub),
+                ],
+                containerType: routeRow ? ct : String(rate.containerType || "40HQ"),
+                containerTypes: routeRow ? [ct] : getRateContainerTypes(rate),
+                railRub,
+                railRub20Lt24,
+                railRub20Gt24,
+                railRub40Hq,
+                seaRouteRows: routeRow ? [routeRow] : rate.seaRouteRows,
+              });
             });
-          });
+          }
+          if (matching.length) {
+            matching.forEach((routeRow) => pushExpandedForRouteRow(routeRow));
+          } else {
+            pushExpandedForRouteRow(null);
+          }
         });
       });
     });
