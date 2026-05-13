@@ -16,6 +16,7 @@
     { key: "sailings", label: "Ближайшие<br />выходы", filter: true, sort: true },
     { key: "line", label: "Морская<br />линия", filter: true, sort: true },
     { key: "container", label: "Контейнер", filter: true, sort: true },
+    { key: "seaUsd", label: "Фрахт,<br />USD", filter: true, sort: true },
     { key: "railLt", label: "ЖД 20′<br />&lt;24т", filter: true, sort: true },
     { key: "railGt", label: "ЖД 20′<br />&gt;24т", filter: true, sort: true },
     { key: "rail40", label: "ЖД 40′<br />HQ", filter: true, sort: true },
@@ -726,6 +727,10 @@
       sailings: formatSailingDates(rate.nextSailingDates || rate.nextSailing),
       line: formatShippingLineDisplay(rate),
       container: formatContainerTypesDisplay(rate),
+      seaUsd: (() => {
+        const n = Number(rate.seaUsd);
+        return Number.isFinite(n) ? formatNumber(n) : "—";
+      })(),
       railLt: rail.cell20Lt,
       railGt: rail.cell20Gt,
       rail40: rail.cell40,
