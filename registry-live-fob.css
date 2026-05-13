@@ -11,7 +11,7 @@ body {
 }
 
 body.registry-live-fob {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Roboto", system-ui, -apple-system, sans-serif;
   color: #0f172a;
   position: relative;
   overflow-x: hidden;
@@ -60,7 +60,7 @@ body.registry-live-fob {
 }
 
 .registry-brand-main {
-  font-family: "Bebas Neue", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   letter-spacing: 0.14em;
   font-size: clamp(1.6rem, 4vw, 2.35rem);
   color: #f8fafc;
@@ -226,7 +226,7 @@ body.registry-live-fob {
 
 .registry-footer-brand {
   margin: 0;
-  font-family: "Bebas Neue", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   letter-spacing: 0.12em;
   font-size: 1.05rem;
   color: #cbd5e1;
