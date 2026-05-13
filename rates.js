@@ -532,6 +532,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   /** Тот же секрет, что TRACKING_SECRET у сервера (опционально). */
   const TRACKING_WEBHOOK_SECRET = "";
   const seaUsdWrap = document.getElementById("sea-usd-wrap");
+  /** Ключи «порт\u0000линия» для связок, которые пользователь убрал кнопкой удаления блока. */
+  const seaRouteBlockExclusions = new Set();
   const railRubRowsWrap = document.getElementById("rail-rub-rows-wrap");
   const cargoDepartureTerminalSelect = document.getElementById("cargoDepartureTerminal");
   const cargoDestinationStationSelect = document.getElementById("cargoDestinationStation");
@@ -7196,6 +7198,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(t instanceof Element)) {
       return;
     }
+    const rmBlockBtn = t.closest("[data-action='remove-sea-route-block']");
+    if (rmBlockBtn instanceof HTMLButtonElement) {
+      const bundle = rmBlockBtn.closest(".sea-route-block");
+      if (!(bundle instanceof HTMLElement)) {
+        return;
+      }
+      const origin = String(bundle.dataset.routeOrigin || "");
+      const line = String(bundle.dataset.routeLine || "");
+      seaRouteBlockExclusions.add(
+        normalizeOriginPortToken(origin) + "\u0000" + String(line || "").trim()
+      );
+      syncSeaUsdRowsToRouteCombinations();
+      return;
+    }
     const addUnlBtn = t.closest("[data-action='add-sea-unload-row']");
     if (addUnlBtn instanceof HTMLButtonElement) {
       const stack = addUnlBtn.closest(".sea-route-unload-stack");
@@ -7371,28 +7387,54 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
       });
     });
-    const prevBundles = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
-    const prevMaritimeSnapshots = prevBundles.map((b) =>
-      snapshotMaritimeSegmentsFromBundle(b)
+    const productKeys = new Set(
+      combos.map(
+        (c) =>
+          normalizeOriginPortToken(c.origin) +
+          "\u0000" +
+          String(c.shippingLine || "").trim()
+      )
     );
-    const prevDv = prevBundles.map((b) => {
-      const el = b.querySelector(".sea-route-dv-terminal");
-      return el instanceof HTMLInputElement ? el.value.trim() : "";
+    for (const k of [...seaRouteBlockExclusions]) {
+      if (!productKeys.has(k)) {
+        seaRouteBlockExclusions.delete(k);
+      }
+    }
+    const visibleCombos = combos.filter((combo) => {
+      const k =
+        normalizeOriginPortToken(combo.origin) +
+        "\u0000" +
+        String(combo.shippingLine || "").trim();
+      return !seaRouteBlockExclusions.has(k);
     });
-    const prevSt = prevBundles.map((b) => {
-      const el = b.querySelector(".sea-route-station");
-      return el instanceof HTMLInputElement ? el.value.trim() : "";
-    });
-    const prevUnloadStacks = prevBundles.map((b) => {
-      const raw = [...b.querySelectorAll(".sea-route-unload")].map((el) =>
+    const prevBundles = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
+    const prevByKey = new Map();
+    prevBundles.forEach((b) => {
+      const o = String(b.dataset.routeOrigin || "");
+      const l = String(b.dataset.routeLine || "");
+      const key =
+        normalizeOriginPortToken(o) + "\u0000" + String(l || "").trim();
+      const rawUnload = [...b.querySelectorAll(".sea-route-unload")].map((el) =>
         el instanceof HTMLInputElement ? String(el.value || "").trim() : ""
       );
-      return raw.length ? raw : [""];
+      const dvEl = b.querySelector(".sea-route-dv-terminal");
+      const stEl = b.querySelector(".sea-route-station");
+      prevByKey.set(key, {
+        snaps: snapshotMaritimeSegmentsFromBundle(b),
+        dv: dvEl instanceof HTMLInputElement ? dvEl.value.trim() : "",
+        st: stEl instanceof HTMLInputElement ? stEl.value.trim() : "",
+        unload: rawUnload.length ? rawUnload : [""],
+      });
     });
     seaUsdWrap.innerHTML = "";
-    for (let i = 0; i < combos.length; i++) {
+    for (let i = 0; i < visibleCombos.length; i++) {
       const idx = i + 1;
-      const combo = combos[i];
+      const combo = visibleCombos[i];
+      const comboKey =
+        normalizeOriginPortToken(combo.origin) +
+        "\u0000" +
+        String(combo.shippingLine || "").trim();
+      const prev = prevByKey.get(comboKey);
       const portLabel = combo.origin || "—";
       const lineLabel = combo.shippingLine || "—";
       const bundle = document.createElement("div");
@@ -7450,8 +7492,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const maritimeStack = document.createElement("div");
       maritimeStack.className = "sea-route-maritime-stack";
       const snaps =
-        i < prevMaritimeSnapshots.length && prevMaritimeSnapshots[i].length
-          ? prevMaritimeSnapshots[i]
+        prev && prev.snaps && prev.snaps.length
+          ? prev.snaps
           : [{ seaUsd: "", sailingDate: "", slot: "40HQ" }];
       snaps.forEach((snap, sj) => {
         maritimeStack.appendChild(
@@ -7481,7 +7523,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       termIn.setAttribute("list", "terminal-suggestions");
       termIn.placeholder = "Терминал ДВ";
       termIn.required = true;
-      termIn.value = prevDv[i] || "";
+      termIn.value = (prev && prev.dv) || "";
       dvLab.htmlFor = termIn.id;
 
       [...panDv.querySelectorAll(".sea-row-dv-term-cb")].forEach((cb) => {
@@ -7509,10 +7551,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       stIn.setAttribute("list", "station-suggestions");
       stIn.placeholder = "Станция";
       stIn.required = true;
-      stIn.value = prevSt[i] || "";
+      stIn.value = (prev && prev.st) || "";
       stLab.htmlFor = stIn.id;
-      const stPieces = prevSt[i]
-        ? prevSt[i].split(/[,/]/).map((s) => s.trim()).filter(Boolean)
+      const stPieces = prev && prev.st
+        ? prev.st.split(/[,/]/).map((s) => s.trim()).filter(Boolean)
         : [];
       [...panSt.querySelectorAll(".sea-row-station-cb")].forEach((cb) => {
         if (!(cb instanceof HTMLInputElement)) {
@@ -7526,9 +7568,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       const unloadStackVals =
-        i < prevUnloadStacks.length && prevUnloadStacks[i].length
-          ? prevUnloadStacks[i]
-          : [""];
+        prev && prev.unload && prev.unload.length ? prev.unload : [""];
       const unloadStack = document.createElement("div");
       unloadStack.className = "sea-route-unload-stack";
       unloadStackVals.forEach((uval, ur) => {
@@ -7544,6 +7584,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       landGrid.appendChild(stIn);
       landGrid.appendChild(unloadStack);
 
+      const blockToolbar = document.createElement("div");
+      blockToolbar.className = "sea-route-block-toolbar";
+      const delBlockBtn = document.createElement("button");
+      delBlockBtn.type = "button";
+      delBlockBtn.className = "btn-remove-sea-route-block";
+      delBlockBtn.dataset.action = "remove-sea-route-block";
+      delBlockBtn.textContent = "Удалить блок фрахта";
+      delBlockBtn.setAttribute(
+        "aria-label",
+        "Удалить блок фрахта для этой связки порта отправления и морской линии"
+      );
+      blockToolbar.appendChild(delBlockBtn);
+
+      bundle.appendChild(blockToolbar);
       bundle.appendChild(maritimeStack);
       syncSeaSecondarySailingDatesFromPrimary(bundle);
       bundle.appendChild(landGrid);
