@@ -773,7 +773,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function aggregateRailRubTiersFromDom() {
-    const seaBlocks = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
     const bundles = [
       ...railRubRowsWrap.querySelectorAll("[data-sea-rail-route]"),
     ];
@@ -789,8 +788,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!(blk instanceof HTMLElement)) {
         return;
       }
-      const seaBlk = seaBlocks[bundleIndex];
-      const slot = getPrimarySeaContainerSlot(seaBlk);
+      const slot = normalizeContainerSlotValue(
+        blk.dataset.containerSlot || ""
+      );
       if (slot === "40HQ") {
         const hqVal = readSeaRailNum(blk.querySelector('input[data-rail-slot="hq"]'));
         perRoute.push({
@@ -1024,27 +1024,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     const seaRouteRows = getSeaRouteRows();
     const routeCombos = buildOriginLineCombinations(originPorts, shippingLines);
     const autoRubs = getAutoRubValues();
-    if (seaRouteRows.length < routeCombos.length) {
-      setStatus("Заполните фрахт и дату выхода для каждой строки порт + линия.", "error");
+    if (!seaRouteRows.length) {
+      setStatus("Заполните фрахт и дату выхода для морских строк.", "error");
       return;
     }
-    if (railTiersForSave.perRoute.length !== routeCombos.length) {
+    if (railTiersForSave.perRoute.length !== seaRouteRows.length) {
       setStatus(
-        "Число строк ЖД не совпадает с числом морских связок. Обновите маршрут и заполните ЖД по каждой строке.",
+        "Число блоков ЖД (" +
+          String(railTiersForSave.perRoute.length) +
+          ") не совпадает с числом строк моря (" +
+          String(seaRouteRows.length) +
+          "). Обновите маршрут и заполните ЖД по каждой строке (в т.ч. по каждому типу контейнера).",
         "error"
       );
       return;
     }
-    if (autoRubs.length !== routeCombos.length) {
+    if (autoRubs.length !== seaRouteRows.length) {
       setStatus(
-        "Укажите стоимость авто для каждой блоку порта × линия (блок авто ниже).",
+        "Укажите стоимость авто для каждой строки моря (в т.ч. под каждый тип контейнера в одной связке порта × линия).",
         "error"
       );
       return;
     }
-    const seaRouteRowsWithKeys = seaRouteRows.map((row) => {
-      const bi = typeof row.seaBundleBlockIndex === "number" ? row.seaBundleBlockIndex : 0;
-      const railPart = railTiersForSave.perRoute[bi] || {
+    const seaRouteRowsWithKeys = seaRouteRows.map((row, rowIdx) => {
+      const railPart = railTiersForSave.perRoute[rowIdx] || {
         slot: "40HQ",
         railRub40Hq: null,
         railRub20Lt24: null,
@@ -1059,10 +1062,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         destinationStation: row.destinationStation,
         unloadAddress: row.unloadAddress,
         containerSlot: row.containerSlot,
+        seaBundleBlockIndex: row.seaBundleBlockIndex,
+        seaSegmentIndex: row.seaSegmentIndex,
         railRub20Lt24: railPart.railRub20Lt24,
         railRub20Gt24: railPart.railRub20Gt24,
         railRub40Hq: railPart.railRub40Hq,
-        autoRub: autoRubs[bi],
+        autoRub: autoRubs[rowIdx],
       };
     });
     const seaUsds = seaRouteRowsWithKeys.map((row) => row.seaUsd);
@@ -1103,14 +1108,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
         return;
       }
-      const bi =
-        typeof row.seaBundleBlockIndex === "number" ? row.seaBundleBlockIndex : 0;
-      const ar = autoRubs[bi];
+      const ar = autoRubs[i];
       if (!Number.isFinite(ar) || ar < 0) {
         setStatus(
-          "Проверьте стоимость авто для блока порта × линия №" +
-            String(bi + 1) +
-            ".",
+          "Проверьте стоимость авто для строки моря №" + String(i + 1) + ".",
           "error"
         );
         return;
@@ -3910,6 +3911,26 @@ document.addEventListener("DOMContentLoaded", async () => {
               ? railRub * (railValue / 100)
               : railValue;
           nextRailRub = Math.round(railRub + addRail);
+          if (nextSeaRouteRows.length) {
+            nextSeaRouteRows = nextSeaRouteRows.map((row) => {
+              const slot = normalizeContainerSlotValue(row.containerSlot);
+              if (slot !== "40HQ") {
+                return row;
+              }
+              const cur = rateNumericOrNaN(row.railRub40Hq);
+              if (!Number.isFinite(cur) || cur < 0) {
+                return row;
+              }
+              const rowAdd =
+                railDeltaMode === "percent"
+                  ? cur * (railValue / 100)
+                  : railValue;
+              return {
+                ...row,
+                railRub40Hq: Math.round(cur + rowAdd),
+              };
+            });
+          }
         }
 
         undoPatch[rid] = snap;
@@ -4519,66 +4540,137 @@ document.addEventListener("DOMContentLoaded", async () => {
       const routeCombos = buildOriginLineCombinations(origins, shippingLines);
       const seaRouteRowsNormalized = seaRouteRowsRaw.map((row, index) => ({
         ...row,
-        origin: normalizeOriginPortToken(row.origin || routeCombos[index]?.origin || ""),
+        origin: normalizeOriginPortToken(
+          row.origin ||
+            routeCombos[Math.min(index, Math.max(0, routeCombos.length - 1))]
+              ?.origin ||
+            ""
+        ),
         shippingLine: String(
-          row.shippingLine || routeCombos[index]?.shippingLine || ""
+          row.shippingLine ||
+            routeCombos[Math.min(index, Math.max(0, routeCombos.length - 1))]
+              ?.shippingLine ||
+            ""
         )
           .trim()
           .replace(/\s+/g, " "),
       }));
       origins.forEach((origin, originIndex) => {
         shippingLines.forEach((line, lineIndex) => {
-          const routeRow =
-            seaRouteRowsNormalized.find(
-              (row) =>
-                normalizeOriginPortToken(row.origin) ===
-                  normalizeOriginPortToken(origin) &&
-                normalizeShippingLineToken(row.shippingLine) ===
-                  normalizeShippingLineToken(line)
-            ) || null;
           const bundleIdx = originIndex * shippingLines.length + lineIndex;
           const fromSlot = Number(seaUsds[bundleIdx]);
-          const fromRow = routeRow ? Number(routeRow.seaUsd) : Number.NaN;
           const fromRate = Number(rate.seaUsd);
-          const seaUsdValue = Number.isFinite(fromSlot)
-            ? fromSlot
-            : Number.isFinite(fromRow)
-              ? fromRow
-              : Number.isFinite(fromRate)
-                ? fromRate
+          const matching = seaRouteRowsNormalized.filter(
+            (row) =>
+              normalizeOriginPortToken(row.origin) ===
+                normalizeOriginPortToken(origin) &&
+              normalizeShippingLineToken(row.shippingLine) ===
+                normalizeShippingLineToken(line)
+          );
+          function pushExpandedForRouteRow(routeRow) {
+            let seaUsdValue = routeRow ? Number(routeRow.seaUsd) : Number.NaN;
+            if (!Number.isFinite(seaUsdValue) || seaUsdValue < 0) {
+              seaUsdValue = Number.isFinite(fromSlot)
+                ? fromSlot
+                : Number.isFinite(fromRate)
+                  ? fromRate
+                  : Number.NaN;
+            }
+            const sailingDate = routeRow
+              ? String(routeRow.sailingDate || "")
+              : "";
+            const slot = routeRow
+              ? normalizeContainerSlotValue(routeRow.containerSlot)
+              : normalizeContainerSlotValue(rate.containerType);
+            const ct = slot === "40HQ" ? "40HQ" : "20FT";
+            let railRub20Lt24 = null;
+            let railRub20Gt24 = null;
+            let railRub40Hq = null;
+            let railRub = Number.NaN;
+            if (routeRow) {
+              if (slot === "40HQ") {
+                const n = rateNumericOrNaN(routeRow.railRub40Hq);
+                if (Number.isFinite(n)) {
+                  railRub40Hq = n;
+                  railRub = n;
+                }
+              } else if (slot === "20LT24") {
+                const n = rateNumericOrNaN(routeRow.railRub20Lt24);
+                if (Number.isFinite(n)) {
+                  railRub20Lt24 = n;
+                  railRub = n;
+                }
+              } else {
+                const n = rateNumericOrNaN(routeRow.railRub20Gt24);
+                if (Number.isFinite(n)) {
+                  railRub20Gt24 = n;
+                  railRub = n;
+                }
+              }
+            }
+            if (!Number.isFinite(railRub)) {
+              railRub = rateNumericOrNaN(rate.railRub);
+              railRub20Lt24 = rate.railRub20Lt24;
+              railRub20Gt24 = rate.railRub20Gt24;
+              railRub40Hq = rate.railRub40Hq;
+            }
+            addresses.forEach((address, addressIndex) => {
+              const rowAuto = routeRow
+                ? rateNumericOrNaN(routeRow.autoRub)
                 : Number.NaN;
-          const sailingDate = routeRow
-            ? String(routeRow.sailingDate || "")
-            : "";
-          addresses.forEach((address, addressIndex) => {
-            const autoRubValue = Number(autoRubs[addressIndex]);
-            expanded.push({
-              ...rate,
-              origin: String(origin || "").trim().toUpperCase(),
-              originPorts: [String(origin || "").trim().toUpperCase()],
-              shippingLine: String(routeRow?.shippingLine || line || "")
-                .trim()
-                .replace(/\s+/g, " "),
-              shippingLines: [
-                String(routeRow?.shippingLine || line || "")
+              const autoRubValue = Number.isFinite(rowAuto)
+                ? rowAuto
+                : Number(autoRubs[addressIndex]);
+              expanded.push({
+                ...rate,
+                origin: String(origin || "").trim().toUpperCase(),
+                originPorts: [String(origin || "").trim().toUpperCase()],
+                shippingLine: String(routeRow?.shippingLine || line || "")
                   .trim()
                   .replace(/\s+/g, " "),
-              ],
-              seaUsd: Number.isFinite(seaUsdValue) ? seaUsdValue : Number(rate.seaUsd),
-              seaUsds: [Number.isFinite(seaUsdValue) ? seaUsdValue : Number(rate.seaUsd)],
-              nextSailingDates: sailingDate
-                ? [sailingDate]
-                : Array.isArray(rate.nextSailingDates)
-                  ? rate.nextSailingDates
-                  : [],
-              warehouseAddress: address,
-              warehouseAddresses: [address],
-              autoRub: Number.isFinite(autoRubValue) ? autoRubValue : Number(rate.autoRub),
-              autoRubs: [
-                Number.isFinite(autoRubValue) ? autoRubValue : Number(rate.autoRub),
-              ],
+                shippingLines: [
+                  String(routeRow?.shippingLine || line || "")
+                    .trim()
+                    .replace(/\s+/g, " "),
+                ],
+                seaUsd: Number.isFinite(seaUsdValue)
+                  ? seaUsdValue
+                  : Number(rate.seaUsd),
+                seaUsds: [
+                  Number.isFinite(seaUsdValue)
+                    ? seaUsdValue
+                    : Number(rate.seaUsd),
+                ],
+                nextSailingDates: sailingDate
+                  ? [sailingDate]
+                  : Array.isArray(rate.nextSailingDates)
+                    ? rate.nextSailingDates
+                    : [],
+                warehouseAddress: address,
+                warehouseAddresses: [address],
+                autoRub: Number.isFinite(autoRubValue)
+                  ? autoRubValue
+                  : Number(rate.autoRub),
+                autoRubs: [
+                  Number.isFinite(autoRubValue)
+                    ? autoRubValue
+                    : Number(rate.autoRub),
+                ],
+                containerType: routeRow ? ct : String(rate.containerType || "40HQ"),
+                containerTypes: routeRow ? [ct] : getRateContainerTypes(rate),
+                railRub,
+                railRub20Lt24,
+                railRub20Gt24,
+                railRub40Hq,
+                seaRouteRows: routeRow ? [routeRow] : rate.seaRouteRows,
+              });
             });
-          });
+          }
+          if (matching.length) {
+            matching.forEach((routeRow) => pushExpandedForRouteRow(routeRow));
+          } else {
+            pushExpandedForRouteRow(null);
+          }
         });
       });
     });
@@ -6460,75 +6552,88 @@ document.addEventListener("DOMContentLoaded", async () => {
   function rebuildRailRubFromSeaRoutes() {
     const prevSnap = snapshotSeaRailAmountsForRebuild();
     railRubRowsWrap.innerHTML = "";
-    [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((seaBlk, i) => {
-      const ixStr = String(i);
-      const slot = getPrimarySeaContainerSlot(seaBlk);
-      const line = seaBlk.dataset.routeLine || "—";
-      const dvEl = seaBlk.querySelector(".sea-route-dv-terminal");
-      const stEl = seaBlk.querySelector(".sea-route-station");
-      const dv = dvEl instanceof HTMLInputElement ? String(dvEl.value || "").trim() : "";
-      const st = stEl instanceof HTMLInputElement ? String(stEl.value || "").trim() : "";
-      const wrap = document.createElement("div");
-      wrap.className = "rail-sea-route-bundle";
-      wrap.dataset.seaRailRoute = ixStr;
-      const hdr = document.createElement("div");
-      hdr.className = "rail-sea-route-hdr helper-text cost-follow-hint";
-      hdr.textContent =
-        "«" +
-        (dv || "—") +
-        "» → станция «" +
-        (st || "—") +
-        "» - " +
-        railSlotHeadlineRu(slot) +
-        " (" +
-        line +
-        ")";
-      wrap.appendChild(hdr);
-      const p = prevSnap[ixStr] || { lt: "", gt: "", hq: "" };
-      if (slot === "40HQ") {
-        const l = document.createElement("label");
-        l.textContent = "ЖД сумма для этой связки, RUB *";
-        const inp = document.createElement("input");
-        inp.type = "number";
-        inp.min = "0";
-        inp.step = "1";
-        inp.required = true;
-        inp.dataset.railSlot = "hq";
-        inp.className = "rail-rub-amount-input";
-        inp.placeholder = "Сумма";
-        inp.value = p.hq;
-        wrap.appendChild(l);
-        wrap.appendChild(inp);
-      } else if (slot === "20LT24") {
-        const l = document.createElement("label");
-        l.textContent = "20′ ft < 24 t, RUB *";
-        const inp = document.createElement("input");
-        inp.type = "number";
-        inp.min = "0";
-        inp.step = "1";
-        inp.required = true;
-        inp.dataset.railSlot = "lt";
-        inp.className = "rail-rub-amount-input";
-        inp.placeholder = "Сумма";
-        inp.value = p.lt;
-        wrap.appendChild(l);
-        wrap.appendChild(inp);
-      } else {
-        const l = document.createElement("label");
-        l.textContent = "20′ ft > 24 t, RUB *";
-        const inp = document.createElement("input");
-        inp.type = "number";
-        inp.min = "0";
-        inp.step = "1";
-        inp.required = true;
-        inp.dataset.railSlot = "gt";
-        inp.className = "rail-rub-amount-input";
-        inp.placeholder = "Сумма";
-        inp.value = p.gt;
-        wrap.appendChild(l);
-        wrap.appendChild(inp);
-      }
-      railRubRowsWrap.appendChild(wrap);
+    const blocks = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
+    blocks.forEach((seaBlk, blockIndex) => {
+      const stack = seaBlk.querySelector(".sea-route-maritime-stack");
+      const segEls =
+        stack instanceof HTMLElement
+          ? [...stack.querySelectorAll(".sea-route-maritime-segment")]
+          : [];
+      const segmentNodes = segEls.length ? segEls : [seaBlk];
+      segmentNodes.forEach((segEl, segIndex) => {
+        const ixStr = String(blockIndex) + "-" + String(segIndex);
+        const ctSel = segEl.querySelector(".sea-route-container-slot");
+        const slot = normalizeContainerSlotValue(
+          ctSel instanceof HTMLSelectElement ? ctSel.value : ""
+        );
+        const line = seaBlk.dataset.routeLine || "—";
+        const dvEl = seaBlk.querySelector(".sea-route-dv-terminal");
+        const stEl = seaBlk.querySelector(".sea-route-station");
+        const dv = dvEl instanceof HTMLInputElement ? String(dvEl.value || "").trim() : "";
+        const st = stEl instanceof HTMLInputElement ? String(stEl.value || "").trim() : "";
+        const wrap = document.createElement("div");
+        wrap.className = "rail-sea-route-bundle";
+        wrap.dataset.seaRailRoute = ixStr;
+        wrap.dataset.containerSlot = slot;
+        const hdr = document.createElement("div");
+        hdr.className = "rail-sea-route-hdr helper-text cost-follow-hint";
+        hdr.textContent =
+          "«" +
+          (dv || "—") +
+          "» → станция «" +
+          (st || "—") +
+          "» - " +
+          railSlotHeadlineRu(slot) +
+          " (" +
+          line +
+          ")";
+        wrap.appendChild(hdr);
+        const p = prevSnap[ixStr] || { lt: "", gt: "", hq: "" };
+        if (slot === "40HQ") {
+          const l = document.createElement("label");
+          l.textContent = "ЖД сумма для этой связки, RUB *";
+          const inp = document.createElement("input");
+          inp.type = "number";
+          inp.min = "0";
+          inp.step = "1";
+          inp.required = true;
+          inp.dataset.railSlot = "hq";
+          inp.className = "rail-rub-amount-input";
+          inp.placeholder = "Сумма";
+          inp.value = p.hq;
+          wrap.appendChild(l);
+          wrap.appendChild(inp);
+        } else if (slot === "20LT24") {
+          const l = document.createElement("label");
+          l.textContent = "20′ ft < 24 t, RUB *";
+          const inp = document.createElement("input");
+          inp.type = "number";
+          inp.min = "0";
+          inp.step = "1";
+          inp.required = true;
+          inp.dataset.railSlot = "lt";
+          inp.className = "rail-rub-amount-input";
+          inp.placeholder = "Сумма";
+          inp.value = p.lt;
+          wrap.appendChild(l);
+          wrap.appendChild(inp);
+        } else {
+          const l = document.createElement("label");
+          l.textContent = "20′ ft > 24 t, RUB *";
+          const inp = document.createElement("input");
+          inp.type = "number";
+          inp.min = "0";
+          inp.step = "1";
+          inp.required = true;
+          inp.dataset.railSlot = "gt";
+          inp.className = "rail-rub-amount-input";
+          inp.placeholder = "Сумма";
+          inp.value = p.gt;
+          wrap.appendChild(l);
+          wrap.appendChild(inp);
+        }
+        railRubRowsWrap.appendChild(wrap);
+      });
     });
   }
 
@@ -6548,55 +6653,68 @@ document.addEventListener("DOMContentLoaded", async () => {
     autoDeliveryRowsWrap.innerHTML = "";
     warehouseAddressesWrap.innerHTML = "";
     const addrSeen = new Set();
-    [...seaUsdWrap.querySelectorAll(".sea-route-block")].forEach((seaBlk, i) => {
-      const ixStr = String(i);
-      const line = seaBlk.dataset.routeLine || "—";
-      const slot = getPrimarySeaContainerSlot(seaBlk);
-      const stEl = seaBlk.querySelector(".sea-route-station");
-      const adEl = seaBlk.querySelector(".sea-route-unload");
-      const st =
-        stEl instanceof HTMLInputElement ? String(stEl.value || "").trim() : "";
-      const addr =
-        adEl instanceof HTMLInputElement ? String(adEl.value || "").trim() : "";
-      const rowWrap = document.createElement("div");
-      rowWrap.className = "auto-delivery-route-bundle";
-      rowWrap.dataset.seaAutoRoute = ixStr;
-      const hdr = document.createElement("div");
-      hdr.className = "auto-delivery-route-hdr helper-text cost-follow-hint";
-      hdr.textContent =
-        "«" +
-        (st || "—") +
-        "» - «" +
-        (addr || "—") +
-        "» - " +
-        railSlotHeadlineRu(slot) +
-        " (" +
-        (line || "—") +
-        ")";
-      const lab = document.createElement("label");
-      lab.textContent = "Авто доставка до адреса, RUB *";
-      const inp = document.createElement("input");
-      inp.type = "number";
-      inp.name = "autoRub";
-      inp.min = "0";
-      inp.step = "1";
-      inp.required = true;
-      inp.className = "rail-rub-amount-input";
-      inp.placeholder = "Например, 28000";
-      inp.value = prevA[ixStr] || "";
-      rowWrap.appendChild(hdr);
-      rowWrap.appendChild(lab);
-      rowWrap.appendChild(inp);
-      autoDeliveryRowsWrap.appendChild(rowWrap);
-      const keyAddr = addr.toLocaleLowerCase("ru-RU");
-      if (addr && !addrSeen.has(keyAddr)) {
-        addrSeen.add(keyAddr);
-        const wh = document.createElement("input");
-        wh.type = "hidden";
-        wh.name = "warehouseAddress";
-        wh.value = addr;
-        warehouseAddressesWrap.appendChild(wh);
-      }
+    const blocks = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
+    blocks.forEach((seaBlk, blockIndex) => {
+      const stack = seaBlk.querySelector(".sea-route-maritime-stack");
+      const segEls =
+        stack instanceof HTMLElement
+          ? [...stack.querySelectorAll(".sea-route-maritime-segment")]
+          : [];
+      const segmentNodes = segEls.length ? segEls : [seaBlk];
+      segmentNodes.forEach((segEl, segIndex) => {
+        const ixStr = String(blockIndex) + "-" + String(segIndex);
+        const line = seaBlk.dataset.routeLine || "—";
+        const ctSel = segEl.querySelector(".sea-route-container-slot");
+        const slot = normalizeContainerSlotValue(
+          ctSel instanceof HTMLSelectElement ? ctSel.value : ""
+        );
+        const stEl = seaBlk.querySelector(".sea-route-station");
+        const adEl = seaBlk.querySelector(".sea-route-unload");
+        const st =
+          stEl instanceof HTMLInputElement ? String(stEl.value || "").trim() : "";
+        const addr =
+          adEl instanceof HTMLInputElement ? String(adEl.value || "").trim() : "";
+        const rowWrap = document.createElement("div");
+        rowWrap.className = "auto-delivery-route-bundle";
+        rowWrap.dataset.seaAutoRoute = ixStr;
+        rowWrap.dataset.containerSlot = slot;
+        const hdr = document.createElement("div");
+        hdr.className = "auto-delivery-route-hdr helper-text cost-follow-hint";
+        hdr.textContent =
+          "«" +
+          (st || "—") +
+          "» - «" +
+          (addr || "—") +
+          "» - " +
+          railSlotHeadlineRu(slot) +
+          " (" +
+          (line || "—") +
+          ")";
+        const lab = document.createElement("label");
+        lab.textContent = "Авто доставка до адреса, RUB *";
+        const inp = document.createElement("input");
+        inp.type = "number";
+        inp.name = "autoRub";
+        inp.min = "0";
+        inp.step = "1";
+        inp.required = true;
+        inp.className = "rail-rub-amount-input";
+        inp.placeholder = "Например, 28000";
+        inp.value = prevA[ixStr] || "";
+        rowWrap.appendChild(hdr);
+        rowWrap.appendChild(lab);
+        rowWrap.appendChild(inp);
+        autoDeliveryRowsWrap.appendChild(rowWrap);
+        const keyAddr = addr.toLocaleLowerCase("ru-RU");
+        if (addr && !addrSeen.has(keyAddr)) {
+          addrSeen.add(keyAddr);
+          const wh = document.createElement("input");
+          wh.type = "hidden";
+          wh.name = "warehouseAddress";
+          wh.value = addr;
+          warehouseAddressesWrap.appendChild(wh);
+        }
+      });
     });
   }
 
@@ -6921,6 +7039,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         stack.appendChild(el);
       }
       syncSeaSecondarySailingDatesFromPrimary(bundle);
+      syncRailAutoSectionsFromSea();
       return;
     }
     const rmBtn = t.closest("[data-action='remove-sea-maritime-segment']");
@@ -6933,6 +7052,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
       seg.remove();
+      const bundleRm = rmBtn.closest(".sea-route-block");
+      if (bundleRm instanceof HTMLElement) {
+        syncRailAutoSectionsFromSea();
+      }
     }
   }
 
@@ -6964,7 +7087,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           stack instanceof HTMLElement
             ? [...stack.querySelectorAll(".sea-route-maritime-segment")]
             : [];
-        const pushSegment = (segEl) => {
+        const pushSegment = (segEl, segIndex) => {
           const seaInp = segEl.querySelector('input[name="seaUsd"]');
           const dateInp = segEl.querySelector('input[name="seaSailingDate"]');
           const ctSel = segEl.querySelector(".sea-route-container-slot");
@@ -6989,13 +7112,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             origin,
             shippingLine,
             seaBundleBlockIndex: blockIndex,
+            seaSegmentIndex: segIndex,
           });
         };
         if (segments.length) {
-          segments.forEach(pushSegment);
+          segments.forEach((seg, si) => pushSegment(seg, si));
           return;
         }
-        pushSegment(bundle);
+        pushSegment(bundle, 0);
       }
     );
     return rows;
