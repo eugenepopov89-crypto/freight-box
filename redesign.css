@@ -1,7 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Martian+Mono:wght@300;400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap");
 
 /* ── Сброс цветовой схемы ───────────────────────────── */
 :root {
+  --font-display: "Oswald", system-ui, sans-serif;
+  --font-body: "Roboto", system-ui, sans-serif;
   --clr-accent: #0a0a0a;
   --clr-accent-light: #f5f5f5;
   --clr-border: #e0e0e0;
@@ -11,7 +13,7 @@
 }
 
 body {
-  font-family: 'Martian Mono', monospace !important;
+  font-family: var(--font-body) !important;
   background: var(--clr-bg);
   color: var(--clr-text);
 }
@@ -24,28 +26,33 @@ body {
   padding: 14px 24px !important;
 }
 
+.brand,
+.brand--text-only,
 .site-title,
 .site-title a {
-  font-family: 'Bebas Neue', sans-serif !important;
+  font-family: var(--font-display) !important;
   font-size: 1.8rem !important;
+  font-weight: 700 !important;
   letter-spacing: 0.08em !important;
   color: #0a0a0a !important;
   text-decoration: none !important;
+  text-transform: uppercase !important;
 }
 
+.brand-tagline,
 .site-tagline {
-  font-size: 0.52rem !important;
+  font-family: var(--font-body) !important;
+  font-size: 0.62rem !important;
   letter-spacing: 0.2em !important;
   color: var(--clr-text-muted) !important;
   text-transform: uppercase !important;
-  font-family: 'Martian Mono', monospace !important;
 }
 
 /* ── Навигационные кнопки ───────────────────────────── */
 .shell.nav button,
 .shell.nav .btn,
 #logout-btn {
-  font-family: 'Martian Mono', monospace !important;
+  font-family: var(--font-display) !important;
   font-size: 0.6rem !important;
   letter-spacing: 0.15em !important;
   text-transform: uppercase !important;
@@ -64,7 +71,7 @@ body {
 
 /* ── Заголовки блоков формы ─────────────────────────── */
 .form-block-heading {
-  font-family: 'Martian Mono', monospace !important;
+  font-family: var(--font-display) !important;
   font-size: 0.55rem !important;
   letter-spacing: 0.22em !important;
   text-transform: uppercase !important;
@@ -79,6 +86,20 @@ body {
   border-radius: 0 !important;
 }
 
+.section-kicker,
+.section-title {
+  font-family: var(--font-display) !important;
+}
+
+.section-title {
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+.section-subtitle {
+  font-family: var(--font-body) !important;
+}
+
 /* ── Поля ввода ─────────────────────────────────────── */
 input[type="text"],
 input[type="number"],
@@ -86,7 +107,7 @@ input[type="date"],
 input[type="email"],
 select,
 textarea {
-  font-family: 'Martian Mono', monospace !important;
+  font-family: var(--font-body) !important;
   font-size: 0.72rem !important;
   border: none !important;
   border-bottom: 1px solid var(--clr-border) !important;
@@ -116,7 +137,7 @@ button,
 .btn-primary,
 .btn-secondary,
 [class*="btn-"] {
-  font-family: 'Martian Mono', monospace !important;
+  font-family: var(--font-display) !important;
   font-size: 0.58rem !important;
   letter-spacing: 0.14em !important;
   text-transform: uppercase !important;
@@ -163,16 +184,17 @@ table {
   border-collapse: collapse !important;
   width: 100% !important;
   font-size: 0.62rem !important;
-  font-family: 'Martian Mono', monospace !important;
+  font-family: var(--font-body) !important;
   letter-spacing: 0.04em !important;
 }
 
 thead th {
+  font-family: var(--font-display) !important;
   font-size: 0.5rem !important;
   letter-spacing: 0.18em !important;
   text-transform: uppercase !important;
   color: var(--clr-text-muted) !important;
-  font-weight: 400 !important;
+  font-weight: 600 !important;
   padding: 8px 10px !important;
   border-bottom: 1px solid var(--clr-border) !important;
   background: none !important;
@@ -191,12 +213,13 @@ tbody tr:hover td {
 }
 
 /* ── Таб-фильтры (MOSCOW, СПБ и т.д.) ──────────────── */
+.rates-tab,
 .tab-pill,
 [class*="tab-btn"],
 .destination-tab,
 .month-tab,
 .year-tab {
-  font-family: 'Martian Mono', monospace !important;
+  font-family: var(--font-display) !important;
   font-size: 0.55rem !important;
   letter-spacing: 0.12em !important;
   text-transform: uppercase !important;
@@ -212,7 +235,8 @@ tbody tr:hover td {
 [class*="tab-btn"].active,
 .destination-tab.active,
 .month-tab.active,
-.year-tab.active {
+.year-tab.active,
+.rates-tab.is-active {
   background: var(--clr-text) !important;
   color: #fff !important;
   border-color: var(--clr-text) !important;
@@ -222,7 +246,7 @@ tbody tr:hover td {
 details summary,
 .quick-pick-toggle,
 [class*="quick-pick"] summary {
-  font-family: 'Martian Mono', monospace !important;
+  font-family: var(--font-display) !important;
   font-size: 0.58rem !important;
   letter-spacing: 0.12em !important;
   text-transform: uppercase !important;
@@ -241,7 +265,9 @@ details summary,
   --color-accent: #0a0a0a !important;
 }
 
-a { color: var(--clr-text) !important; }
+a {
+  color: var(--clr-text) !important;
+}
 
 /* ── Убираем все тени и градиенты ───────────────────── */
 .form-block,
@@ -255,8 +281,9 @@ a { color: var(--clr-text) !important; }
 /* ── Уведомление о сохранении ───────────────────────── */
 .save-status,
 [class*="status-banner"],
-[class*="alert"] {
-  font-family: 'Martian Mono', monospace !important;
+[class*="alert"],
+#rates-status.status {
+  font-family: var(--font-body) !important;
   font-size: 0.58rem !important;
   letter-spacing: 0.1em !important;
   border-radius: 2px !important;
