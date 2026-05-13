@@ -1,6 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap");
 
 :root {
+  --font-display: "Oswald", system-ui, sans-serif;
+  --font-body: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
   --primary: #0b7285;
   --primary-soft: #e3fafc;
   --accent: #ff6b6b;
@@ -20,8 +22,7 @@
 
 body {
   margin: 0;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: var(--font-body);
   background: radial-gradient(circle at top left, #e0f2fe 0, #f5f7fb 55%)
     fixed;
   color: var(--text);
@@ -69,8 +70,9 @@ header {
   display: flex;
   align-items: center;
   gap: 10px;
+  font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   font-size: 13px;
 }
@@ -80,18 +82,21 @@ header {
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-weight: 700;
   font-size: 22px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .brand-tagline {
+  font-family: var(--font-body);
   font-size: 12px;
-  font-style: italic;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  text-transform: none;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .brand-mark {
@@ -538,16 +543,20 @@ main {
 }
 
 .section-kicker {
+  font-family: var(--font-display);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   color: var(--muted);
 }
 
 .section-title {
+  font-family: var(--font-display);
   font-size: 20px;
-  letter-spacing: -0.04em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   margin-top: 4px;
 }
 
@@ -923,9 +932,10 @@ form {
 }
 
 .form-block-heading {
+  font-family: var(--font-display);
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   line-height: 1.35;
   color: #0a3f52;
@@ -1255,10 +1265,12 @@ footer {
 }
 
 .rates-table th {
+  font-family: var(--font-display);
+  font-weight: 600;
   background: #f1f5f9;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: #475569;
 }
 
@@ -1582,7 +1594,7 @@ footer {
   font-size: 20px;
   color: #ffffff;
   font-weight: 800;
-  font-family: "Inter", "Montserrat", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
 }
 
 .sales-kp-brand-sub {
@@ -1771,7 +1783,7 @@ footer {
 .sales-kp-print-sheet .kp-page {
   background: #ffffff;
   color: #0d1f3c;
-  font-family: "PT Sans", system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 .sales-kp-print-sheet .kp-header {
@@ -1787,7 +1799,7 @@ footer {
 }
 
 .sales-kp-print-sheet .kp-brand {
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 800;
   font-size: 21px;
   color: #fff;
@@ -1807,7 +1819,7 @@ footer {
 
 .sales-kp-print-sheet .kp-doc-num {
   color: #f37021;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 700;
   font-size: 13px;
 }
@@ -1826,7 +1838,7 @@ footer {
   display: inline-block;
   background: #f37021;
   color: #fff;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 700;
   font-size: 10px;
   letter-spacing: 0.15em;
@@ -1837,7 +1849,7 @@ footer {
 
 .sales-kp-print-sheet .kp-header-main h3 {
   margin-top: 10px;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 900;
   font-size: 25px;
   color: #fff;
@@ -1873,7 +1885,7 @@ footer {
   border-radius: 7px;
   padding: 5px 10px;
   color: #fff;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-size: 11px;
   font-weight: 600;
 }
@@ -1901,13 +1913,13 @@ footer {
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: #7a90a8;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 600;
   margin-bottom: 6px;
 }
 
 .sales-kp-print-sheet .kp-party-name {
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 800;
   font-size: 14px;
   color: #0a2d5e;
@@ -1926,7 +1938,7 @@ footer {
 }
 
 .sales-kp-print-sheet .kp-section-title {
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -1972,7 +1984,7 @@ footer {
 .sales-kp-print-sheet .kp-price-table th {
   background: #0a2d5e;
   color: #fff;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-size: 9px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -2123,7 +2135,7 @@ footer {
   flex: 1;
   min-width: 0;
   color: #0a2d5e;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -2221,7 +2233,7 @@ footer {
 .sales-kp-print-sheet .kp-escort-title {
   margin: 0 0 10px;
   color: #0a2d5e;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -2281,7 +2293,7 @@ footer {
 
 .sales-kp-print-sheet .kp-footer-name {
   margin-top: 5px;
-  font-family: "Montserrat", "Inter", sans-serif;
+  font-family: "Oswald", "Roboto", sans-serif;
   font-weight: 700;
   font-size: 14px;
   color: #fff;
@@ -2427,13 +2439,16 @@ footer {
 }
 
 .rates-tab {
+  font-family: var(--font-display);
   border: 1px solid rgba(148, 163, 184, 0.6);
   background: #f8fafc;
   color: #334155;
   border-radius: 999px;
   padding: 8px 13px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
 }
 
@@ -3773,7 +3788,7 @@ footer {
   }
 
   .sales-kp-print-sheet .kp-addon-lead .kp-overload-intro {
-    font-family: "Montserrat", "Inter", sans-serif !important;
+    font-family: "Oswald", "Roboto", sans-serif !important;
     font-weight: 800 !important;
     font-size: 10px !important;
     letter-spacing: 0.12em !important;
@@ -3814,7 +3829,7 @@ footer {
   }
 
   .sales-kp-print-sheet .kp-escort-title {
-    font-family: "Montserrat", "Inter", sans-serif !important;
+    font-family: "Oswald", "Roboto", sans-serif !important;
     font-weight: 800 !important;
     font-size: 10px !important;
     letter-spacing: 0.12em !important;
