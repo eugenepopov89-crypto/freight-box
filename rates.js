@@ -4595,7 +4595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!filteredBase.length) {
       tbody.innerHTML =
-        '<tr><td colspan="22">В выбранной группе (направление и календарный месяц в шапке таблицы; учитывается пересечение со сроком действия тарифа) ставок пока нет.</td></tr>';
+        '<tr><td colspan="21">В выбранной группе (направление и календарный месяц в шапке таблицы; учитывается пересечение со сроком действия тарифа) ставок пока нет.</td></tr>';
       syncCbrSortBanner();
       refreshSalesWorksetTable(rates);
       return;
@@ -4605,7 +4605,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const filtered = applyPublicationTableFilters(expandedBase);
     if (!filtered.length) {
       tbody.innerHTML =
-        '<tr><td colspan="22">Под выбранные порты, типы контейнера, морские линии или букирующих агентов ставок не найдено — измените галочки или «Не фильтровать».</td></tr>';
+        '<tr><td colspan="21">Под выбранные порты, типы контейнера, морские линии или букирующих агентов ставок не найдено — измените галочки или «Не фильтровать».</td></tr>';
       syncCbrSortBanner();
       refreshSalesWorksetTable(rates);
       return;
@@ -4652,9 +4652,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           "</td>" +
           "<td>" +
           escapeHtml(formatOriginPorts(rate.originPorts || [rate.origin])) +
-          "</td>" +
-          "<td>" +
-          escapeHtml(rate.destination) +
           "</td>" +
           "<td>" +
           escapeHtml(rate.railTerminal || "—") +
