@@ -8,7 +8,7 @@
       name="description"
       content="Форма публикации ставок доставки по маршрутам FOB Shanghai и FOB Qingdao через Владивосток до Москвы, Санкт-Петербурга и Минска."
     />
-    <link rel="stylesheet" href="styles.css?v=4" />
+    <link rel="stylesheet" href="styles.css?v=5" />
     <link rel="stylesheet" href="redesign.css?v=3" />
     <script>
       if (!localStorage.getItem('pb_token')) {
@@ -1072,9 +1072,10 @@
                       <div class="kp-inc-item">Drop-off контейнера</div>
                       <div class="kp-inc-item">Возврат порожнего контейнера</div>
                       <div class="kp-inc-item">Приемка и раскредитация на ЖД станции прибытия</div>
-                      <div class="kp-inc-item kp-inc-item--stacked">
-                        <span class="kp-inc-item-lead">Автодоставка до</span>
-                        <span class="kp-inc-item-detail" id="sales-kp-autodelivery-to">—</span>
+                      <div class="kp-inc-item">
+                        <span class="kp-inc-item-lead" id="sales-kp-autodelivery-lead"
+                          >Автодоставка до указанного склада выгрузки</span
+                        >
                       </div>
                     </div>
                   </section>
@@ -1097,6 +1098,7 @@
                           ><strong>Страхование:</strong> <span id="sales-kp-insurance">—</span></span
                         >
                       </div>
+                      <div id="sales-kp-unload-addresses" class="kp-conditions-unload-list"></div>
                     </div>
                     <div class="kp-overload-addon" aria-label="Перегруз при автовывозе контейнера">
                       <div class="kp-addon-lead">
@@ -1277,7 +1279,7 @@
       </div>
     </footer>
 
-    <script src="rates.js?v=1779000000006"></script>
+    <script src="rates.js?v=1779000000007"></script>
     <script>
       (function () {
         var STORAGE_KEY = "factoriall-rates-v1";
