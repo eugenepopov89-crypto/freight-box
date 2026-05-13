@@ -4293,13 +4293,79 @@ document.addEventListener("DOMContentLoaded", async () => {
     return dt + " " + formatKpTariffCeilPlain(n);
   }
 
+  /** Первая строка заголовков ЖД в КП: «POD – станция» из реестра (по первой строке набора КП). */
+  function kpBuildPodStationPrimaryLineForHead(sampleRate) {
+    if (!sampleRate) {
+      return "POD – ст. назнач.";
+    }
+    const pod = String(sampleRate.railTerminal || "").trim().replace(/\s+/g, " ");
+    const st = formatDestinationStations(
+      sampleRate.destinationStations || [sampleRate.destinationStation]
+    )
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!pod && !st) {
+      return "POD – ст. назнач.";
+    }
+    if (!pod) {
+      return st;
+    }
+    if (!st) {
+      return pod;
+    }
+    return pod + " – " + st;
+  }
+
+  function kpBuildAutoColumnHeadTh(sampleRate) {
+    if (!sampleRate) {
+      return '<th scope="col">Авто, RUB</th>';
+    }
+    const st = formatDestinationStations(
+      sampleRate.destinationStations || [sampleRate.destinationStation]
+    )
+      .trim()
+      .replace(/\s+/g, " ");
+    const addr = formatWarehouseAddresses(sampleRate).trim().replace(/\s+/g, " ");
+    const s = st || "—";
+    const a = addr || "—";
+    const full = "Авто (" + s + " — " + a + "), RUB";
+    return (
+      '<th scope="col" title="' +
+      escapeHtml(full) +
+      '">Авто (' +
+      escapeHtml(s) +
+      " — " +
+      escapeHtml(a) +
+      "), RUB</th>"
+    );
+  }
+
   function buildKpDirectionsTableHtml(expandedRates) {
-    const railLtHead =
-      "POD ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &lt; 24 T, RUB";
-    const railGtHead =
-      "POD ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &gt; 24 T, RUB";
-    const rail40Head =
-      "POD ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 40' HQ, RUB";
+    const headSample =
+      Array.isArray(expandedRates) && expandedRates.length
+        ? expandedRates[0]
+        : null;
+    const routePrimaryRaw = kpBuildPodStationPrimaryLineForHead(headSample);
+    const routePrimaryEsc = escapeHtml(routePrimaryRaw);
+    const railLtTh =
+      '<th scope="col" title="' +
+      escapeHtml(routePrimaryRaw + " — 20′ ft < 24 t, RUB") +
+      '">' +
+      routePrimaryEsc +
+      "<br />ДЛЯ 20'FT &lt; 24 T, RUB</th>";
+    const railGtTh =
+      '<th scope="col" title="' +
+      escapeHtml(routePrimaryRaw + " — 20′ ft > 24 t, RUB") +
+      '">' +
+      routePrimaryEsc +
+      "<br />ДЛЯ 20'FT &gt; 24 T, RUB</th>";
+    const rail40Th =
+      '<th scope="col" title="' +
+      escapeHtml(routePrimaryRaw + " — 40′ HQ, RUB") +
+      '">' +
+      routePrimaryEsc +
+      "<br />ДЛЯ 40' HQ, RUB</th>";
+    const autoColHeadHtml = kpBuildAutoColumnHeadTh(headSample);
 
     const rail3Memo = new WeakMap();
     function kpRailTripleForRate(rate) {
@@ -4396,25 +4462,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       {
         collapse: true,
         screenOnly: false,
-        head: '<th scope="col">' + railLtHead + "</th>",
+        head: railLtTh,
         cell: (rate) => kpRailTripleForRate(rate).cell20Lt,
       },
       {
         collapse: true,
         screenOnly: false,
-        head: '<th scope="col">' + railGtHead + "</th>",
+        head: railGtTh,
         cell: (rate) => kpRailTripleForRate(rate).cell20Gt,
       },
       {
         collapse: true,
         screenOnly: false,
-        head: '<th scope="col">' + rail40Head + "</th>",
+        head: rail40Th,
         cell: (rate) => kpRailTripleForRate(rate).cell40,
       },
       {
         collapse: true,
         screenOnly: false,
-        head: '<th scope="col">Авто, RUB</th>',
+        head: autoColHeadHtml,
         cell: (rate) => formatKpTariffCeilPlain(rate.autoRub),
       },
       {
