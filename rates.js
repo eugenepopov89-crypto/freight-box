@@ -4346,25 +4346,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? expandedRates[0]
         : null;
     const routePrimaryRaw = kpBuildPodStationPrimaryLineForHead(headSample);
-    const routePrimaryEsc = escapeHtml(routePrimaryRaw);
     const railLtTh =
       '<th scope="col" title="' +
-      escapeHtml(routePrimaryRaw + " — 20′ ft < 24 t, RUB") +
-      '">' +
-      routePrimaryEsc +
-      "<br />ДЛЯ 20'FT &lt; 24 T, RUB</th>";
+      escapeHtml(routePrimaryRaw + " — ЖД 20' <24 т, RUB") +
+      '">ЖД 20&#39;<br />&lt;24т</th>';
     const railGtTh =
       '<th scope="col" title="' +
-      escapeHtml(routePrimaryRaw + " — 20′ ft > 24 t, RUB") +
-      '">' +
-      routePrimaryEsc +
-      "<br />ДЛЯ 20'FT &gt; 24 T, RUB</th>";
+      escapeHtml(routePrimaryRaw + " — ЖД 20' >24 т, RUB") +
+      '">ЖД 20&#39;<br />&gt;24т</th>';
     const rail40Th =
       '<th scope="col" title="' +
-      escapeHtml(routePrimaryRaw + " — 40′ HQ, RUB") +
-      '">' +
-      routePrimaryEsc +
-      "<br />ДЛЯ 40' HQ, RUB</th>";
+      escapeHtml(routePrimaryRaw + " — ЖД 40' HQ, RUB") +
+      '">ЖД 40&#39;<br />HQ</th>';
     const autoColHeadHtml = kpBuildAutoColumnHeadTh(headSample);
 
     const rail3Memo = new WeakMap();
@@ -5432,10 +5425,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     buildSalesKpDocument(allRates, false);
   }
 
-  /** Адреса выгрузки из набора КП для блока «Автодоставка до». */
-  function formatKpAutodeliveryToLine(expandedRates) {
+  /** Уникальные адреса выгрузки из набора КП (порядок сохраняется). */
+  function collectKpUnloadAddresses(expandedRates) {
     if (!Array.isArray(expandedRates) || !expandedRates.length) {
-      return "—";
+      return [];
     }
     const parts = [];
     const seen = new Set();
@@ -5456,7 +5449,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         parts.push(d);
       });
     });
-    return parts.length ? parts.join(", ") : "—";
+    return parts;
+  }
+
+  /** Непустые адреса выгрузки из блока моря (уникальные, порядок полей в форме). */
+  function collectBundleUnloadAddresses(bundle) {
+    if (!(bundle instanceof HTMLElement)) {
+      return [];
+    }
+    const out = [];
+    const seen = new Set();
+    bundle.querySelectorAll(".sea-route-unload").forEach((inp) => {
+      if (!(inp instanceof HTMLInputElement)) {
+        return;
+      }
+      const d = String(inp.value || "").trim().replace(/\s+/g, " ");
+      if (!d) {
+        return;
+      }
+      const k = d.toLocaleLowerCase("ru-RU");
+      if (seen.has(k)) {
+        return;
+      }
+      seen.add(k);
+      out.push(d);
+    });
+    return out;
   }
 
   function buildSalesKpDocument(allRates, shouldIncrementSerial) {
@@ -5481,8 +5499,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     salesKpDocNum.textContent = salesKpLastDocNumber;
     salesKpDocDate.textContent = salesKpLastDocDate;
 
-    const autodeliveryLineEl = document.getElementById(
-      "sales-kp-autodelivery-to"
+    const autodeliveryLeadEl = document.getElementById(
+      "sales-kp-autodelivery-lead"
+    );
+    const unloadAddressesKpEl = document.getElementById(
+      "sales-kp-unload-addresses"
     );
 
     const managerId = String(salesKpManagerSelect?.value || "vlad").trim();
@@ -5550,8 +5571,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         '<tr><td colspan="' +
         String(KP_DIRECTIONS_COL_COUNT_MAX) +
         '">Таблица не сформирована. Нажмите «Сформировать таблицу для продаж».</td></tr>';
-      if (autodeliveryLineEl instanceof HTMLElement) {
-        autodeliveryLineEl.textContent = "—";
+      if (autodeliveryLeadEl instanceof HTMLElement) {
+        autodeliveryLeadEl.textContent =
+          "Автодоставка до указанного склада выгрузки";
+      }
+      if (unloadAddressesKpEl instanceof HTMLElement) {
+        unloadAddressesKpEl.innerHTML = "";
       }
       return;
     }
@@ -5580,9 +5605,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         gatherKpUniqueShippingLinesForLead(expandedWorksetRates)
       );
     }
-    if (autodeliveryLineEl instanceof HTMLElement) {
-      autodeliveryLineEl.textContent =
-        formatKpAutodeliveryToLine(expandedWorksetRates);
+    const unloadAddrs = collectKpUnloadAddresses(expandedWorksetRates);
+    if (autodeliveryLeadEl instanceof HTMLElement) {
+      autodeliveryLeadEl.textContent =
+        unloadAddrs.length > 1
+          ? "Автодоставка до указанных складов выгрузки"
+          : "Автодоставка до указанного склада выгрузки";
+    }
+    if (unloadAddressesKpEl instanceof HTMLElement) {
+      unloadAddressesKpEl.innerHTML = unloadAddrs.length
+        ? unloadAddrs
+            .map(
+              (addr) =>
+                '<div class="kp-cond-item"><span class="kp-cond-copy"><strong>Адрес выгрузки:</strong> ' +
+                escapeHtml(addr) +
+                "</span></div>"
+            )
+            .join("")
+        : "";
     }
 
     const kpDir = buildKpDirectionsTableHtml(expandedWorksetRates);
@@ -6750,6 +6790,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const addrSeen = new Set();
     const blocks = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
     blocks.forEach((seaBlk, blockIndex) => {
+      const unloadVals = collectBundleUnloadAddresses(seaBlk);
+      unloadVals.forEach((addr) => {
+        const keyAddr = addr.toLocaleLowerCase("ru-RU");
+        if (addr && !addrSeen.has(keyAddr)) {
+          addrSeen.add(keyAddr);
+          const wh = document.createElement("input");
+          wh.type = "hidden";
+          wh.name = "warehouseAddress";
+          wh.value = addr;
+          warehouseAddressesWrap.appendChild(wh);
+        }
+      });
+      const addrHdr =
+        unloadVals.length === 0
+          ? "—"
+          : unloadVals.map((a) => "«" + a + "»").join(", ");
       const stack = seaBlk.querySelector(".sea-route-maritime-stack");
       const segEls =
         stack instanceof HTMLElement
@@ -6764,11 +6820,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           ctSel instanceof HTMLSelectElement ? ctSel.value : ""
         );
         const stEl = seaBlk.querySelector(".sea-route-station");
-        const adEl = seaBlk.querySelector(".sea-route-unload");
         const st =
           stEl instanceof HTMLInputElement ? String(stEl.value || "").trim() : "";
-        const addr =
-          adEl instanceof HTMLInputElement ? String(adEl.value || "").trim() : "";
         const rowWrap = document.createElement("div");
         rowWrap.className = "auto-delivery-route-bundle";
         rowWrap.dataset.seaAutoRoute = ixStr;
@@ -6778,9 +6831,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         hdr.textContent =
           "«" +
           (st || "—") +
-          "» - «" +
-          (addr || "—") +
           "» - " +
+          addrHdr +
+          " - " +
           railSlotHeadlineRu(slot) +
           " (" +
           (line || "—") +
@@ -6800,15 +6853,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         rowWrap.appendChild(lab);
         rowWrap.appendChild(inp);
         autoDeliveryRowsWrap.appendChild(rowWrap);
-        const keyAddr = addr.toLocaleLowerCase("ru-RU");
-        if (addr && !addrSeen.has(keyAddr)) {
-          addrSeen.add(keyAddr);
-          const wh = document.createElement("input");
-          wh.type = "hidden";
-          wh.name = "warehouseAddress";
-          wh.value = addr;
-          warehouseAddressesWrap.appendChild(wh);
-        }
       });
     });
   }
@@ -7089,9 +7133,105 @@ document.addEventListener("DOMContentLoaded", async () => {
     return foot;
   }
 
+  function ensureSeaUnloadStackFooter(stack) {
+    let foot = stack.querySelector(".sea-unload-stack-footer");
+    if (foot instanceof HTMLElement) {
+      return foot;
+    }
+    foot = document.createElement("div");
+    foot.className = "sea-unload-stack-footer";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-add-sea-unload-row btn-mini-control";
+    btn.dataset.action = "add-sea-unload-row";
+    btn.textContent = "+";
+    btn.title = "Добавить ещё один адрес выгрузки";
+    btn.setAttribute("aria-label", "Добавить адрес выгрузки");
+    foot.appendChild(btn);
+    stack.appendChild(foot);
+    return foot;
+  }
+
+  /**
+   * @param {number} bundleIdx 1-based index блока
+   * @param {number} rowIdx индекс строки в стеке
+   */
+  function createSeaUnloadRow(bundleIdx, rowIdx, value, isFirst) {
+    const row = document.createElement("div");
+    row.className = "sea-route-unload-row";
+    const lab = document.createElement("label");
+    lab.className = "sea-grid-lab sea-grid-lab--unload-inline";
+    const inpId = "sea-route-unl-" + String(bundleIdx) + "-" + String(rowIdx);
+    lab.htmlFor = inpId;
+    lab.textContent = isFirst ? "Адрес выгрузки *" : "Адрес выгрузки";
+    const wrapCtrl = document.createElement("div");
+    wrapCtrl.className = "sea-route-unload-controls";
+    const inp = document.createElement("input");
+    inp.id = inpId;
+    inp.className = "sea-route-unload";
+    inp.type = "text";
+    inp.placeholder = "МО, Подольск, …";
+    inp.value = value || "";
+    if (isFirst) {
+      inp.required = true;
+    }
+    wrapCtrl.appendChild(inp);
+    if (!isFirst) {
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "btn-remove-sea-unload-row btn-mini-control";
+      rm.dataset.action = "remove-sea-unload-row";
+      rm.textContent = "×";
+      rm.title = "Удалить этот адрес";
+      rm.setAttribute("aria-label", "Удалить адрес выгрузки");
+      wrapCtrl.appendChild(rm);
+    }
+    row.appendChild(lab);
+    row.appendChild(wrapCtrl);
+    return row;
+  }
+
   function handleSeaUsdMaritimeStackClick(event) {
     const t = event.target;
     if (!(t instanceof Element)) {
+      return;
+    }
+    const addUnlBtn = t.closest("[data-action='add-sea-unload-row']");
+    if (addUnlBtn instanceof HTMLButtonElement) {
+      const stack = addUnlBtn.closest(".sea-route-unload-stack");
+      const bundle = addUnlBtn.closest(".sea-route-block");
+      if (!(stack instanceof HTMLElement) || !(bundle instanceof HTMLElement)) {
+        return;
+      }
+      const foot = stack.querySelector(".sea-unload-stack-footer");
+      const blocks = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
+      const idx = blocks.indexOf(bundle) + 1;
+      const rowCount = stack.querySelectorAll(".sea-route-unload-row").length;
+      const newRow = createSeaUnloadRow(idx, rowCount, "", false);
+      if (foot instanceof HTMLElement) {
+        stack.insertBefore(newRow, foot);
+      } else {
+        stack.appendChild(newRow);
+      }
+      syncRailAutoSectionsFromSea();
+      return;
+    }
+    const rmUnlBtn = t.closest("[data-action='remove-sea-unload-row']");
+    if (rmUnlBtn instanceof HTMLButtonElement) {
+      const row = rmUnlBtn.closest(".sea-route-unload-row");
+      const stack = rmUnlBtn.closest(".sea-route-unload-stack");
+      if (!(row instanceof HTMLElement) || !(stack instanceof HTMLElement)) {
+        return;
+      }
+      if (stack.querySelectorAll(".sea-route-unload-row").length <= 1) {
+        return;
+      }
+      row.remove();
+      const firstInp = stack.querySelector(".sea-route-unload");
+      if (firstInp instanceof HTMLInputElement) {
+        firstInp.required = true;
+      }
+      syncRailAutoSectionsFromSea();
       return;
     }
     const addBtn = t.closest("[data-action='add-sea-maritime-segment']");
@@ -7164,7 +7304,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const shippingLine = String(bundle.dataset.routeLine || "").trim();
         const dvInp = bundle.querySelector(".sea-route-dv-terminal");
         const stInp = bundle.querySelector(".sea-route-station");
-        const unlInp = bundle.querySelector(".sea-route-unload");
+        const unloadParts = collectBundleUnloadAddresses(bundle);
+        const unloadAddress = unloadParts.join("; ");
         const dvTerminal =
           dvInp instanceof HTMLInputElement
             ? String(dvInp.value || "").trim()
@@ -7172,10 +7313,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const destinationStation =
           stInp instanceof HTMLInputElement
             ? String(stInp.value || "").trim()
-            : "";
-        const unloadAddress =
-          unlInp instanceof HTMLInputElement
-            ? String(unlInp.value || "").trim()
             : "";
         const stack = bundle.querySelector(".sea-route-maritime-stack");
         const segments =
@@ -7246,9 +7383,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const el = b.querySelector(".sea-route-station");
       return el instanceof HTMLInputElement ? el.value.trim() : "";
     });
-    const prevUnl = prevBundles.map((b) => {
-      const el = b.querySelector(".sea-route-unload");
-      return el instanceof HTMLInputElement ? el.value.trim() : "";
+    const prevUnloadStacks = prevBundles.map((b) => {
+      const raw = [...b.querySelectorAll(".sea-route-unload")].map((el) =>
+        el instanceof HTMLInputElement ? String(el.value || "").trim() : ""
+      );
+      return raw.length ? raw : [""];
     });
     seaUsdWrap.innerHTML = "";
     for (let i = 0; i < combos.length; i++) {
@@ -7386,25 +7525,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
       });
 
-      const ulab = document.createElement("label");
-      ulab.className =
-        "sea-grid-lab sea-grid-lab--unload sea-route-unload-label";
-      ulab.htmlFor = "sea-route-unl-" + String(idx);
-      ulab.textContent = "Адрес выгрузки *";
-      const unl = document.createElement("input");
-      unl.id = "sea-route-unl-" + String(idx);
-      unl.className = "sea-route-unload";
-      unl.type = "text";
-      unl.required = true;
-      unl.placeholder = "МО, Подольск, …";
-      unl.value = prevUnl[i] || "";
+      const unloadStackVals =
+        i < prevUnloadStacks.length && prevUnloadStacks[i].length
+          ? prevUnloadStacks[i]
+          : [""];
+      const unloadStack = document.createElement("div");
+      unloadStack.className = "sea-route-unload-stack";
+      unloadStackVals.forEach((uval, ur) => {
+        unloadStack.appendChild(
+          createSeaUnloadRow(idx, ur, uval, ur === 0)
+        );
+      });
+      ensureSeaUnloadStackFooter(unloadStack);
 
       landGrid.appendChild(dvLab);
       landGrid.appendChild(termIn);
       landGrid.appendChild(stLab);
       landGrid.appendChild(stIn);
-      landGrid.appendChild(ulab);
-      landGrid.appendChild(unl);
+      landGrid.appendChild(unloadStack);
 
       bundle.appendChild(maritimeStack);
       syncSeaSecondarySailingDatesFromPrimary(bundle);
