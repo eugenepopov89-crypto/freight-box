@@ -2999,7 +2999,9 @@ footer {
 }
 
 .sea-usd-row.sea-usd-route-maritime-grid .sea-route-line-display,
-.sea-usd-row.sea-usd-route-maritime-grid .sea-route-port-display {
+.sea-usd-row.sea-usd-route-maritime-grid .sea-route-port-display,
+.sea-usd-row.sea-usd-route-maritime-grid .sea-route-port-input,
+.sea-usd-row.sea-usd-route-maritime-grid .sea-route-line-input {
   display: block;
   box-sizing: border-box;
   min-height: 2.5rem;
@@ -3039,7 +3041,8 @@ footer {
     grid-row: 1;
   }
 
-  .sea-usd-row.sea-usd-route-maritime-grid .sea-route-port-display {
+  .sea-usd-row.sea-usd-route-maritime-grid .sea-route-port-display,
+  .sea-usd-row.sea-usd-route-maritime-grid .sea-route-port-input {
     grid-column: 2;
     grid-row: 2;
     min-width: 0;
@@ -3050,7 +3053,8 @@ footer {
     grid-row: 1;
   }
 
-  .sea-usd-row.sea-usd-route-maritime-grid .sea-route-line-display {
+  .sea-usd-row.sea-usd-route-maritime-grid .sea-route-line-display,
+  .sea-usd-row.sea-usd-route-maritime-grid .sea-route-line-input {
     grid-column: 3;
     grid-row: 2;
     min-width: 0;
