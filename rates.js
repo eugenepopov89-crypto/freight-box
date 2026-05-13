@@ -534,6 +534,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const seaUsdWrap = document.getElementById("sea-usd-wrap");
   /** Ключи «порт\u0000линия» для связок, которые пользователь убрал кнопкой удаления блока. */
   const seaRouteBlockExclusions = new Set();
+  /** Дополнительные блоки с тем же портом и линией (копии); id — префикс `c-`. */
+  const seaRouteExtraCopies = [];
+  /** Первое заполнение новой копии до появления в DOM: id → снимок полей. */
+  const pendingSeaRouteCopyState = new Map();
   const railRubRowsWrap = document.getElementById("rail-rub-rows-wrap");
   const cargoDepartureTerminalSelect = document.getElementById("cargoDepartureTerminal");
   const cargoDestinationStationSelect = document.getElementById("cargoDestinationStation");
@@ -6966,6 +6970,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     ];
   }
 
+  function snapshotSeaRouteFullState(bundle) {
+    if (!(bundle instanceof HTMLElement)) {
+      return {
+        snaps: [{ seaUsd: "", sailingDate: "", slot: "40HQ" }],
+        dv: "",
+        st: "",
+        unload: [""],
+      };
+    }
+    const rawUnload = [...bundle.querySelectorAll(".sea-route-unload")].map(
+      (el) =>
+        el instanceof HTMLInputElement ? String(el.value || "").trim() : ""
+    );
+    const dvEl = bundle.querySelector(".sea-route-dv-terminal");
+    const stEl = bundle.querySelector(".sea-route-station");
+    return {
+      snaps: snapshotMaritimeSegmentsFromBundle(bundle).map((s) => ({
+        seaUsd: String(s.seaUsd ?? ""),
+        sailingDate: String(s.sailingDate ?? ""),
+        slot: normalizeContainerSlotValue(s.slot),
+      })),
+      dv: dvEl instanceof HTMLInputElement ? dvEl.value.trim() : "",
+      st: stEl instanceof HTMLInputElement ? stEl.value.trim() : "",
+      unload: rawUnload.length ? rawUnload : [""],
+    };
+  }
+
+  function seaRoutePrimarySlotId(comboKey) {
+    return "p-" + encodeURIComponent(comboKey);
+  }
+
   function syncSeaSecondarySailingDatesFromPrimary(bundle) {
     if (!(bundle instanceof HTMLElement)) {
       return;
@@ -7198,6 +7233,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!(t instanceof Element)) {
       return;
     }
+    const copyBlockBtn = t.closest("[data-action='copy-sea-route-block']");
+    if (copyBlockBtn instanceof HTMLButtonElement) {
+      const bundle = copyBlockBtn.closest(".sea-route-block");
+      if (!(bundle instanceof HTMLElement)) {
+        return;
+      }
+      const origin = String(bundle.dataset.routeOrigin || "");
+      const line = String(bundle.dataset.routeLine || "");
+      const comboKey =
+        normalizeOriginPortToken(origin) + "\u0000" + String(line || "").trim();
+      const id =
+        "c-" +
+        (typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : String(Date.now()) + "-" + Math.random().toString(36).slice(2, 10));
+      seaRouteExtraCopies.push({ id, comboKey });
+      pendingSeaRouteCopyState.set(id, snapshotSeaRouteFullState(bundle));
+      syncSeaUsdRowsToRouteCombinations();
+      return;
+    }
     const rmBlockBtn = t.closest("[data-action='remove-sea-route-block']");
     if (rmBlockBtn instanceof HTMLButtonElement) {
       const bundle = rmBlockBtn.closest(".sea-route-block");
@@ -7206,9 +7261,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       const origin = String(bundle.dataset.routeOrigin || "");
       const line = String(bundle.dataset.routeLine || "");
-      seaRouteBlockExclusions.add(
-        normalizeOriginPortToken(origin) + "\u0000" + String(line || "").trim()
-      );
+      const key =
+        normalizeOriginPortToken(origin) + "\u0000" + String(line || "").trim();
+      const slotId = String(bundle.dataset.seaRouteSlotId || "").trim();
+      if (slotId.startsWith("c-")) {
+        const ix = seaRouteExtraCopies.findIndex((x) => x.id === slotId);
+        if (ix !== -1) {
+          seaRouteExtraCopies.splice(ix, 1);
+        }
+        pendingSeaRouteCopyState.delete(slotId);
+      } else {
+        seaRouteBlockExclusions.add(key);
+        for (let i = seaRouteExtraCopies.length - 1; i >= 0; i--) {
+          if (seaRouteExtraCopies[i].comboKey === key) {
+            seaRouteExtraCopies.splice(i, 1);
+          }
+        }
+      }
       syncSeaUsdRowsToRouteCombinations();
       return;
     }
@@ -7407,8 +7476,46 @@ document.addEventListener("DOMContentLoaded", async () => {
         String(combo.shippingLine || "").trim();
       return !seaRouteBlockExclusions.has(k);
     });
+    const visibleKeySet = new Set(
+      visibleCombos.map(
+        (c) =>
+          normalizeOriginPortToken(c.origin) +
+          "\u0000" +
+          String(c.shippingLine || "").trim()
+      )
+    );
+    for (let i = seaRouteExtraCopies.length - 1; i >= 0; i--) {
+      if (!visibleKeySet.has(seaRouteExtraCopies[i].comboKey)) {
+        pendingSeaRouteCopyState.delete(seaRouteExtraCopies[i].id);
+        seaRouteExtraCopies.splice(i, 1);
+      }
+    }
+    const renderRows = [];
+    for (const combo of visibleCombos) {
+      const comboKey =
+        normalizeOriginPortToken(combo.origin) +
+        "\u0000" +
+        String(combo.shippingLine || "").trim();
+      renderRows.push({
+        combo,
+        comboKey,
+        slotId: seaRoutePrimarySlotId(comboKey),
+        isCopy: false,
+      });
+      for (const ex of seaRouteExtraCopies) {
+        if (ex.comboKey === comboKey) {
+          renderRows.push({
+            combo,
+            comboKey,
+            slotId: ex.id,
+            isCopy: true,
+          });
+        }
+      }
+    }
     const prevBundles = [...seaUsdWrap.querySelectorAll(".sea-route-block")];
     const prevByKey = new Map();
+    const prevBySlotId = new Map();
     prevBundles.forEach((b) => {
       const o = String(b.dataset.routeOrigin || "");
       const l = String(b.dataset.routeLine || "");
@@ -7419,28 +7526,55 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
       const dvEl = b.querySelector(".sea-route-dv-terminal");
       const stEl = b.querySelector(".sea-route-station");
-      prevByKey.set(key, {
+      const state = {
         snaps: snapshotMaritimeSegmentsFromBundle(b),
         dv: dvEl instanceof HTMLInputElement ? dvEl.value.trim() : "",
         st: stEl instanceof HTMLInputElement ? stEl.value.trim() : "",
         unload: rawUnload.length ? rawUnload : [""],
-      });
+      };
+      prevByKey.set(key, state);
+      const sid = String(b.dataset.seaRouteSlotId || "").trim();
+      if (sid) {
+        prevBySlotId.set(sid, state);
+      }
     });
     seaUsdWrap.innerHTML = "";
-    for (let i = 0; i < visibleCombos.length; i++) {
+    for (let i = 0; i < renderRows.length; i++) {
       const idx = i + 1;
-      const combo = visibleCombos[i];
-      const comboKey =
-        normalizeOriginPortToken(combo.origin) +
-        "\u0000" +
-        String(combo.shippingLine || "").trim();
-      const prev = prevByKey.get(comboKey);
+      const { combo, comboKey, slotId, isCopy } = renderRows[i];
+      let prev = null;
+      if (pendingSeaRouteCopyState.has(slotId)) {
+        prev = pendingSeaRouteCopyState.get(slotId);
+        pendingSeaRouteCopyState.delete(slotId);
+      } else {
+        prev = prevBySlotId.get(slotId);
+        if (!prev && !isCopy) {
+          prev = prevByKey.get(comboKey);
+        }
+      }
+      if (!prev) {
+        prev = {
+          snaps: [{ seaUsd: "", sailingDate: "", slot: "40HQ" }],
+          dv: "",
+          st: "",
+          unload: [""],
+        };
+      }
+      const snaps =
+        prev.snaps && prev.snaps.length
+          ? prev.snaps.map((s) => ({
+              seaUsd: String(s.seaUsd ?? ""),
+              sailingDate: String(s.sailingDate ?? ""),
+              slot: normalizeContainerSlotValue(s.slot),
+            }))
+          : [{ seaUsd: "", sailingDate: "", slot: "40HQ" }];
       const portLabel = combo.origin || "—";
       const lineLabel = combo.shippingLine || "—";
       const bundle = document.createElement("div");
       bundle.className = "sea-route-block";
       bundle.dataset.routeOrigin = combo.origin || "";
       bundle.dataset.routeLine = combo.shippingLine || "";
+      bundle.dataset.seaRouteSlotId = slotId;
 
       const detDv = document.createElement("details");
       detDv.className = "origin-quick-picks-details sea-row-dv-details";
@@ -7491,10 +7625,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const maritimeStack = document.createElement("div");
       maritimeStack.className = "sea-route-maritime-stack";
-      const snaps =
-        prev && prev.snaps && prev.snaps.length
-          ? prev.snaps
-          : [{ seaUsd: "", sailingDate: "", slot: "40HQ" }];
       snaps.forEach((snap, sj) => {
         maritimeStack.appendChild(
           createSeaMaritimeSegment(
@@ -7586,6 +7716,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const blockToolbar = document.createElement("div");
       blockToolbar.className = "sea-route-block-toolbar";
+      const copyBlockBtn = document.createElement("button");
+      copyBlockBtn.type = "button";
+      copyBlockBtn.className = "btn-copy-sea-route-block";
+      copyBlockBtn.dataset.action = "copy-sea-route-block";
+      copyBlockBtn.textContent = "Скопировать";
+      copyBlockBtn.setAttribute(
+        "aria-label",
+        "Скопировать блок фрахта с текущими данными полей"
+      );
       const delBlockBtn = document.createElement("button");
       delBlockBtn.type = "button";
       delBlockBtn.className = "btn-remove-sea-route-block";
@@ -7595,6 +7734,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "aria-label",
         "Удалить блок фрахта для этой связки порта отправления и морской линии"
       );
+      blockToolbar.appendChild(copyBlockBtn);
       blockToolbar.appendChild(delBlockBtn);
 
       bundle.appendChild(blockToolbar);
