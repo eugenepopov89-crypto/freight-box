@@ -2043,6 +2043,24 @@ footer {
   gap: 8px;
 }
 
+.sales-kp-print-sheet .kp-inc-item--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.sales-kp-print-sheet .kp-inc-item-lead {
+  font-weight: 600;
+  color: #0d1f3c;
+}
+
+.sales-kp-print-sheet .kp-inc-item-detail {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #3a5068;
+  word-break: break-word;
+}
+
 .sales-kp-print-sheet .kp-inc-icon {
   font-size: 14px;
 }
