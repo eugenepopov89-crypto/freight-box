@@ -4274,11 +4274,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function buildKpDirectionsTableHtml(expandedRates) {
     const railLtHead =
-      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &lt; 24 T, RUB";
+      "POD ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &lt; 24 T, RUB";
     const railGtHead =
-      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &gt; 24 T, RUB";
+      "POD ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 20'FT &gt; 24 T, RUB";
     const rail40Head =
-      "ЖД ТЕРМИНАЛ ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 40' HQ, RUB";
+      "POD ОТПРАВЛ.–СТ. НАЗНАЧ.<br />ДЛЯ 40' HQ, RUB";
 
     const rail3Memo = new WeakMap();
     function kpRailTripleForRate(rate) {
@@ -4294,24 +4294,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       {
         collapse: false,
         screenOnly: false,
-        head: '<th scope="col">Условия<br />поставки</th>',
+        head: '<th scope="col">Incoterms</th>',
         cell: (rate) =>
           escapeHtml(normalizeDeliveryTerms(rate?.deliveryTerms)),
       },
       {
         collapse: false,
         screenOnly: false,
-        head: '<th scope="col">Отправление</th>',
+        head: '<th scope="col">POL</th>',
         cell: (rate) =>
           escapeHtml(
-            formatOriginPorts(rate.originPorts || [rate.origin]) +
-              " → VLADIVOSTOK"
+            formatOriginPorts(rate.originPorts || [rate.origin])
           ),
       },
       {
         collapse: true,
         screenOnly: false,
-        head: '<th scope="col">ЖД терминал</th>',
+        head: '<th scope="col">POD</th>',
         cell: (rate) => escapeHtml(rate.railTerminal || "—"),
       },
       {
@@ -4364,7 +4363,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         collapse: true,
         screenOnly: false,
         head:
-          '<th scope="col" title="Стоимость EXW или FCA (USD) при соответствующих условиях поставки">EXW/FCA,<br />USD</th>',
+          '<th scope="col" title="Стоимость EXW или FCA (USD) при соответствующих Incoterms">EXW/FCA,<br />USD</th>',
         cell: (rate) => escapeHtml(formatDeliveryExwFcaKpCell(rate)),
       },
       {
@@ -4596,7 +4595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!filteredBase.length) {
       tbody.innerHTML =
-        '<tr><td colspan="21">В выбранной группе (направление и календарный месяц в шапке таблицы; учитывается пересечение со сроком действия тарифа) ставок пока нет.</td></tr>';
+        '<tr><td colspan="22">В выбранной группе (направление и календарный месяц в шапке таблицы; учитывается пересечение со сроком действия тарифа) ставок пока нет.</td></tr>';
       syncCbrSortBanner();
       refreshSalesWorksetTable(rates);
       return;
@@ -4606,7 +4605,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const filtered = applyPublicationTableFilters(expandedBase);
     if (!filtered.length) {
       tbody.innerHTML =
-        '<tr><td colspan="21">Под выбранные порты, типы контейнера, морские линии или букирующих агентов ставок не найдено — измените галочки или «Не фильтровать».</td></tr>';
+        '<tr><td colspan="22">Под выбранные порты, типы контейнера, морские линии или букирующих агентов ставок не найдено — измените галочки или «Не фильтровать».</td></tr>';
       syncCbrSortBanner();
       refreshSalesWorksetTable(rates);
       return;
@@ -4649,7 +4648,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         return (
           "<tr>" +
           "<td>" +
-          escapeHtml(formatOriginPorts(rate.originPorts || [rate.origin]) + " → VLADIVOSTOK") +
+          escapeHtml(normalizeDeliveryTerms(rate.deliveryTerms)) +
+          "</td>" +
+          "<td>" +
+          escapeHtml(formatOriginPorts(rate.originPorts || [rate.origin])) +
           "</td>" +
           "<td>" +
           escapeHtml(rate.destination) +
@@ -4742,7 +4744,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const monthIndex = Math.max(0, Math.min(11, Number(activeMonth) - 1));
     const monthName = months[monthIndex] || "";
     const n = Array.isArray(salesWorksetIds) ? salesWorksetIds.length : 0;
-    const route = "VLADIVOSTOK → " + dest;
+    const route = "ДВ → " + dest;
     salesPrintMeta.textContent =
       route +
       " · " +
@@ -5248,7 +5250,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           "\">" +
           "<td>" +
           escapeHtml(
-            formatOriginPorts(expandedRate.originPorts || [expandedRate.origin]) + " → VLADIVOSTOK"
+            formatOriginPorts(expandedRate.originPorts || [expandedRate.origin])
           ) +
           "</td>" +
           "<td>" +
@@ -5447,7 +5449,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function syncPrintRoute() {
-    const routeLabel = "VLADIVOSTOK → " + activeDestination;
+    const routeLabel = "ДВ → " + activeDestination;
     if (printRouteTop) {
       printRouteTop.textContent = routeLabel;
     }
