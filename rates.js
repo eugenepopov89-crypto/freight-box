@@ -226,21 +226,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       return { ok: false, message: "Внутренняя ошибка формы направления." };
     }
     const inf = inferDestinationFromFormStations();
-    if (!inf.ok && inf.code === "conflict") {
-      return {
-        ok: false,
-        message:
-          "Станции назначения из разных групп (Москва, Санкт-Петербург или Минск). Приведите строки к одному финальному региону.",
-      };
+    if (inf.ok && inf.value) {
+      field.value = inf.value;
+      return { ok: true };
     }
-    if (!inf.ok) {
-      return {
-        ok: false,
-        message:
-          "Не удалось определить направление по станциям: укажите названия из быстрого выбора станций или добавьте станцию с привязкой к региону (Москва / СПб / Минск).",
-      };
-    }
-    field.value = inf.value;
+    const tabDest =
+      typeof activeDestination === "string" &&
+      DESTINATIONS.includes(activeDestination)
+        ? activeDestination
+        : "MOSCOW";
+    field.value = tabDest;
     return { ok: true };
   }
 
