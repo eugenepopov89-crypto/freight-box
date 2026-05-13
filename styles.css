@@ -2822,9 +2822,29 @@ footer {
 
 .sea-route-block-toolbar {
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 10px;
   width: 100%;
+}
+
+.btn-copy-sea-route-block {
+  border: 1px solid rgba(14, 165, 233, 0.45);
+  background: #ecfeff;
+  color: #0369a1;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-copy-sea-route-block:hover {
+  background: #cffafe;
 }
 
 .btn-remove-sea-route-block {
