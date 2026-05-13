@@ -7671,22 +7671,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             }))
           : [{ seaUsd: "", sailingDate: "", slot: "40HQ" }];
       const portLabel = isCopy
-        ? String(prev.routeOrigin || combo.origin || "")
+        ? String(
+            "routeOrigin" in prev ? prev.routeOrigin : combo.origin || ""
+          )
             .trim()
-            .toUpperCase() || "—"
+            .toUpperCase()
         : combo.origin || "—";
       const lineLabel = isCopy
-        ? String(prev.routeLine || combo.shippingLine || "").trim() || "—"
+        ? String(
+            "routeLine" in prev ? prev.routeLine : combo.shippingLine || ""
+          ).trim()
         : combo.shippingLine || "—";
       const bundle = document.createElement("div");
       bundle.className = "sea-route-block";
       bundle.dataset.seaRouteSlotId = slotId;
       if (isCopy) {
         bundle.dataset.seaRouteCopy = "1";
-        bundle.dataset.routeOrigin =
-          portLabel === "—" ? "" : String(portLabel).trim().toUpperCase();
-        bundle.dataset.routeLine =
-          lineLabel === "—" ? "" : String(lineLabel).trim();
+        bundle.dataset.routeOrigin = portLabel
+          ? String(portLabel).trim().toUpperCase()
+          : "";
+        bundle.dataset.routeLine = lineLabel
+          ? String(lineLabel).trim()
+          : "";
       } else {
         bundle.removeAttribute("data-sea-route-copy");
         bundle.dataset.routeOrigin = combo.origin || "";
