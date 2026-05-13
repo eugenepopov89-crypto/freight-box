@@ -4219,7 +4219,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return String(Math.ceil(n));
   }
 
-  const KP_DIRECTIONS_COL_COUNT_MAX = 19;
+  const KP_DIRECTIONS_COL_COUNT_MAX = 18;
 
   function kpStripTagsToPlain(fragment) {
     return String(fragment || "")
@@ -4417,12 +4417,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         head: '<th scope="col">Таможня</th>',
         cell: (rate) =>
           escapeHtml(formatCustomsClearance(rate.customsClearance)),
-      },
-      {
-        collapse: true,
-        screenOnly: false,
-        head: '<th scope="col">Склад выгрузки</th>',
-        cell: (rate) => escapeHtml(formatWarehouseAddresses(rate)),
       },
       {
         collapse: true,
@@ -4753,7 +4747,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!filteredBase.length) {
       tbody.innerHTML =
-        '<tr><td colspan="21">В выбранной группе (направление и календарный месяц в шапке таблицы; учитывается пересечение со сроком действия тарифа) ставок пока нет.</td></tr>';
+        '<tr><td colspan="20">В выбранной группе (направление и календарный месяц в шапке таблицы; учитывается пересечение со сроком действия тарифа) ставок пока нет.</td></tr>';
       syncCbrSortBanner();
       refreshSalesWorksetTable(rates);
       return;
@@ -4763,7 +4757,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const filtered = applyPublicationTableFilters(expandedBase);
     if (!filtered.length) {
       tbody.innerHTML =
-        '<tr><td colspan="21">Под выбранные порты, типы контейнера, морские линии или букирующих агентов ставок не найдено — измените галочки или «Не фильтровать».</td></tr>';
+        '<tr><td colspan="20">Под выбранные порты, типы контейнера, морские линии или букирующих агентов ставок не найдено — измените галочки или «Не фильтровать».</td></tr>';
       syncCbrSortBanner();
       refreshSalesWorksetTable(rates);
       return;
@@ -4823,9 +4817,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           "</td>" +
           "<td>" +
           escapeHtml(formatCustomsClearance(rate.customsClearance)) +
-          "</td>" +
-          "<td>" +
-          escapeHtml(formatWarehouseAddresses(rate)) +
           "</td>" +
           "<td>" +
           escapeHtml(formatSailingDates(rate.nextSailingDates || rate.nextSailing)) +
@@ -5441,6 +5432,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     buildSalesKpDocument(allRates, false);
   }
 
+  /** Адреса выгрузки из набора КП для блока «Автодоставка до». */
+  function formatKpAutodeliveryToLine(expandedRates) {
+    if (!Array.isArray(expandedRates) || !expandedRates.length) {
+      return "—";
+    }
+    const parts = [];
+    const seen = new Set();
+    expandedRates.forEach((r) => {
+      const rawList = Array.isArray(r.warehouseAddresses)
+        ? r.warehouseAddresses
+        : [r.warehouseAddress];
+      rawList.forEach((item) => {
+        const d = String(item || "").trim().replace(/\s+/g, " ");
+        if (!d) {
+          return;
+        }
+        const k = d.toLocaleLowerCase("ru-RU");
+        if (seen.has(k)) {
+          return;
+        }
+        seen.add(k);
+        parts.push(d);
+      });
+    });
+    return parts.length ? parts.join(", ") : "—";
+  }
+
   function buildSalesKpDocument(allRates, shouldIncrementSerial) {
     if (
       !(salesKpDocNum instanceof HTMLElement) ||
@@ -5462,6 +5480,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     salesKpDocNum.textContent = salesKpLastDocNumber;
     salesKpDocDate.textContent = salesKpLastDocDate;
+
+    const autodeliveryLineEl = document.getElementById(
+      "sales-kp-autodelivery-to"
+    );
 
     const managerId = String(salesKpManagerSelect?.value || "vlad").trim();
     const managerData = salesManagerCards[managerId] || salesManagerCards.vlad;
@@ -5528,6 +5550,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         '<tr><td colspan="' +
         String(KP_DIRECTIONS_COL_COUNT_MAX) +
         '">Таблица не сформирована. Нажмите «Сформировать таблицу для продаж».</td></tr>';
+      if (autodeliveryLineEl instanceof HTMLElement) {
+        autodeliveryLineEl.textContent = "—";
+      }
       return;
     }
 
@@ -5554,6 +5579,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       kpChinaLeadEl.textContent = buildKpChinaFarEastLeadText(
         gatherKpUniqueShippingLinesForLead(expandedWorksetRates)
       );
+    }
+    if (autodeliveryLineEl instanceof HTMLElement) {
+      autodeliveryLineEl.textContent =
+        formatKpAutodeliveryToLine(expandedWorksetRates);
     }
 
     const kpDir = buildKpDirectionsTableHtml(expandedWorksetRates);
