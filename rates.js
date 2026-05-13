@@ -4383,15 +4383,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       {
         collapse: true,
         screenOnly: false,
-        head:
-          '<th scope="col" title="Стоимость EXW или FCA (USD) при соответствующих Incoterms">EXW/FCA,<br />USD</th>',
-        cell: (rate) => escapeHtml(formatDeliveryExwFcaKpCell(rate)),
+        head: '<th scope="col">Фрахт, USD</th>',
+        cell: (rate) => formatKpTariffCeilPlain(rate.seaUsd),
       },
       {
         collapse: true,
         screenOnly: false,
-        head: '<th scope="col">Море, USD</th>',
-        cell: (rate) => formatKpTariffCeilPlain(rate.seaUsd),
+        head:
+          '<th scope="col" title="Стоимость EXW или FCA (USD) при соответствующих Incoterms">EXW/FCA,<br />USD</th>',
+        cell: (rate) => escapeHtml(formatDeliveryExwFcaKpCell(rate)),
       },
       {
         collapse: true,
@@ -4771,13 +4771,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           escapeHtml(formatContainerTypesDisplay(rate)) +
           "</td>" +
           "<td>" +
+          formatNumber(rate.seaUsd) +
+          "</td>" +
+          "<td>" +
           escapeHtml(formatDeliveryExwFcaRegistryCell(rate)) +
           "</td>" +
           '<td class="no-print">' +
           escapeHtml(formatBookingAgentDisplay(rate)) +
-          "</td>" +
-          "<td>" +
-          formatNumber(rate.seaUsd) +
           "</td>" +
           "<td>" +
           rail3.cell20Lt +
