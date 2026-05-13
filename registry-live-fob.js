@@ -8,9 +8,9 @@
   const API_BASE = "https://pocketbase-production-3100.up.railway.app";
 
   const COLUMN_DEFS = [
-    { key: "terms", label: "Условия<br />поставки", filter: true, sort: true },
-    { key: "departure", label: "Отправление", filter: true, sort: true },
-    { key: "railTerminal", label: "ЖД<br />терминал", filter: true, sort: true },
+    { key: "terms", label: "Incoterms", filter: true, sort: true },
+    { key: "departure", label: "POL", filter: true, sort: true },
+    { key: "railTerminal", label: "POD", filter: true, sort: true },
     { key: "destinationStation", label: "Станция<br />назначения", filter: true, sort: true },
     { key: "customs", label: "Таможня", filter: true, sort: true },
     { key: "sailings", label: "Ближайшие<br />выходы", filter: true, sort: true },
@@ -650,9 +650,7 @@
     const rail = formatRegistryRailTriple(rate);
     return {
       terms: normalizeDeliveryTerms(rate.deliveryTerms),
-      departure:
-        formatOriginPorts(rate.originPorts || [rate.origin]) +
-        " → VLADIVOSTOK",
+      departure: formatOriginPorts(rate.originPorts || [rate.origin]),
       railTerminal: String(rate.railTerminal || "").trim() || "—",
       destinationStation: formatDestinationStations(
         rate.destinationStations || [rate.destinationStation]
