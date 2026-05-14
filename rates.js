@@ -4489,8 +4489,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function kpBuildAutoColumnHeadTh(sampleRate) {
+    const label = "АВТО";
     if (!sampleRate) {
-      return '<th scope="col">Авто, RUB</th>';
+      return '<th scope="col">' + label + "</th>";
     }
     const st = formatDestinationStations(
       sampleRate.destinationStations || [sampleRate.destinationStation]
@@ -4504,11 +4505,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     return (
       '<th scope="col" title="' +
       escapeHtml(full) +
-      '">Авто (' +
-      escapeHtml(s) +
-      " — " +
-      escapeHtml(a) +
-      "), RUB</th>"
+      '">' +
+      label +
+      "</th>"
     );
   }
 
