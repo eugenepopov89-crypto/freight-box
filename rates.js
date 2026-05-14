@@ -4680,7 +4680,34 @@ document.addEventListener("DOMContentLoaded", async () => {
               railRub20Gt24 = rate.railRub20Gt24;
               railRub40Hq = rate.railRub40Hq;
             }
-            addresses.forEach((address, addressIndex) => {
+            const podTerminal = routeRow
+              ? String(routeRow.dvTerminal || "").trim()
+              : String(rate.railTerminal || "").trim();
+            const destStation = routeRow
+              ? String(routeRow.destinationStation || "").trim()
+              : String(rate.destinationStation || "").trim();
+            const destStationsForRow = routeRow
+              ? destStation
+                ? [destStation]
+                : []
+              : Array.isArray(rate.destinationStations) && rate.destinationStations.length
+                ? rate.destinationStations
+                : destStation
+                  ? [destStation]
+                  : [];
+            const unloadParts = routeRow
+              ? String(routeRow.unloadAddress || "")
+                  .split(";")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [];
+            const addrLoop =
+              routeRow && unloadParts.length
+                ? unloadParts
+                : addresses.length
+                  ? addresses
+                  : [""];
+            addrLoop.forEach((address, addressIndex) => {
               const rowAuto = routeRow
                 ? rateNumericOrNaN(routeRow.autoRub)
                 : Number.NaN;
@@ -4691,6 +4718,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ...rate,
                 origin: String(origin || "").trim().toUpperCase(),
                 originPorts: [String(origin || "").trim().toUpperCase()],
+                railTerminal: podTerminal || String(rate.railTerminal || "").trim(),
+                destinationStation:
+                  destStation || String(rate.destinationStation || "").trim(),
+                destinationStations:
+                  destStationsForRow.length > 0
+                    ? destStationsForRow
+                    : rate.destinationStations,
+                cargoDepartureTerminal: routeRow
+                  ? podTerminal || rate.cargoDepartureTerminal
+                  : rate.cargoDepartureTerminal,
+                cargoDestinationStation: routeRow
+                  ? destStation || rate.cargoDestinationStation
+                  : rate.cargoDestinationStation,
                 shippingLine: String(routeRow?.shippingLine || line || "")
                   .trim()
                   .replace(/\s+/g, " "),
