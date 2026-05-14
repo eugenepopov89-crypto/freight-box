@@ -3703,6 +3703,100 @@ document.addEventListener("DOMContentLoaded", async () => {
     return Number.NaN;
   }
 
+  /**
+   * Профит по ЖД в каждой строке seaRouteRows (реестр и КП берут суммы из строк).
+   * @param {'PAIR20_FIXED'|'PAIR20_PCT'|'SINGLE_LT'|'SINGLE_GT'|'ALL_SLOTS'} railRowKind
+   */
+  function applyRailProfitToSeaRouteRows(
+    rows,
+    railDeltaMode,
+    railValue,
+    railRowKind,
+    cargoWeightKg
+  ) {
+    if (!Array.isArray(rows) || !rows.length) {
+      return rows;
+    }
+    return rows.map((row) => {
+      const slot = normalizeContainerSlotValue(row.containerSlot);
+      if (slot === "40HQ") {
+        if (railRowKind === "SINGLE_LT" || railRowKind === "SINGLE_GT") {
+          return row;
+        }
+        const cur = rateNumericOrNaN(row.railRub40Hq);
+        if (!Number.isFinite(cur) || cur < 0) {
+          return row;
+        }
+        const rowAdd =
+          railDeltaMode === "percent" ? cur * (railValue / 100) : railValue;
+        return { ...row, railRub40Hq: Math.round(cur + rowAdd) };
+      }
+      if (slot === "20LT24") {
+        if (railRowKind === "SINGLE_GT") {
+          return row;
+        }
+        if (railRowKind === "PAIR20_FIXED") {
+          const w = rateNumericOrNaN(cargoWeightKg);
+          if (Number.isFinite(w) && w > 24000) {
+            return row;
+          }
+        }
+        const cur = rateNumericOrNaN(row.railRub20Lt24);
+        if (!Number.isFinite(cur) || cur < 0) {
+          return row;
+        }
+        const rowAdd =
+          railDeltaMode === "percent" ? cur * (railValue / 100) : railValue;
+        return { ...row, railRub20Lt24: Math.round(cur + rowAdd) };
+      }
+      if (slot === "20GT24") {
+        if (railRowKind === "SINGLE_LT") {
+          return row;
+        }
+        if (railRowKind === "PAIR20_FIXED") {
+          const w = rateNumericOrNaN(cargoWeightKg);
+          if (!Number.isFinite(w) || w <= 24000) {
+            return row;
+          }
+        }
+        const cur = rateNumericOrNaN(row.railRub20Gt24);
+        if (!Number.isFinite(cur) || cur < 0) {
+          return row;
+        }
+        const rowAdd =
+          railDeltaMode === "percent" ? cur * (railValue / 100) : railValue;
+        return { ...row, railRub20Gt24: Math.round(cur + rowAdd) };
+      }
+      return row;
+    });
+  }
+
+  /** Первые встреченные значения ЖД 20′ по строкам (для полей карточки после правки seaRouteRows). */
+  function aggregateLtGtRailFromSeaRouteRows(rows) {
+    let lt = Number.NaN;
+    let gt = Number.NaN;
+    if (!Array.isArray(rows)) {
+      return { lt, gt };
+    }
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const s = normalizeContainerSlotValue(row?.containerSlot);
+      if (s === "20LT24" && !Number.isFinite(lt)) {
+        const v = rateNumericOrNaN(row?.railRub20Lt24);
+        if (Number.isFinite(v)) {
+          lt = v;
+        }
+      }
+      if (s === "20GT24" && !Number.isFinite(gt)) {
+        const v = rateNumericOrNaN(row?.railRub20Gt24);
+        if (Number.isFinite(v)) {
+          gt = v;
+        }
+      }
+    }
+    return { lt, gt };
+  }
+
   async function applySalesProfitToVisibleRates(forceMethod) {
     setStatus("Применение профита запущено…", "success");
     if (
@@ -3896,65 +3990,112 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (pair20) {
-          const lt = rateNumericOrNaN(rate.railRub20Lt24);
-          const gt = rateNumericOrNaN(rate.railRub20Gt24);
-          let nLt;
-          let nGt;
-          if (railDeltaMode === "percent") {
-            nLt = Math.round(lt + lt * (railValue / 100));
-            nGt = Math.round(gt + gt * (railValue / 100));
+          if (nextSeaRouteRows.length) {
+            const rk =
+              railDeltaMode === "percent" ? "PAIR20_PCT" : "PAIR20_FIXED";
+            nextSeaRouteRows = applyRailProfitToSeaRouteRows(
+              nextSeaRouteRows,
+              railDeltaMode,
+              railValue,
+              rk,
+              rate.cargoWeightKg
+            );
+            const agg = aggregateLtGtRailFromSeaRouteRows(nextSeaRouteRows);
+            nextLt24 = Number.isFinite(agg.lt)
+              ? agg.lt
+              : rate.railRub20Lt24;
+            nextGt24 = Number.isFinite(agg.gt)
+              ? agg.gt
+              : rate.railRub20Gt24;
+            nextRailRub = profitEffective20RailRub(
+              rateNumericOrNaN(nextLt24),
+              rateNumericOrNaN(nextGt24),
+              rate.cargoWeightKg
+            );
           } else {
-            const w = rateNumericOrNaN(rate.cargoWeightKg);
-            const heavy = Number.isFinite(w) && w > 24000;
-            if (heavy) {
-              nLt = Math.round(lt);
-              nGt = Math.round(gt + railValue);
+            const lt = rateNumericOrNaN(rate.railRub20Lt24);
+            const gt = rateNumericOrNaN(rate.railRub20Gt24);
+            let nLt;
+            let nGt;
+            if (railDeltaMode === "percent") {
+              nLt = Math.round(lt + lt * (railValue / 100));
+              nGt = Math.round(gt + gt * (railValue / 100));
             } else {
-              nLt = Math.round(lt + railValue);
-              nGt = Math.round(gt);
+              const w = rateNumericOrNaN(rate.cargoWeightKg);
+              const heavy = Number.isFinite(w) && w > 24000;
+              if (heavy) {
+                nLt = Math.round(lt);
+                nGt = Math.round(gt + railValue);
+              } else {
+                nLt = Math.round(lt + railValue);
+                nGt = Math.round(gt);
+              }
             }
+            nextLt24 = nLt;
+            nextGt24 = nGt;
+            nextRailRub = profitEffective20RailRub(nLt, nGt, rate.cargoWeightKg);
           }
-          nextLt24 = nLt;
-          nextGt24 = nGt;
-          nextRailRub = profitEffective20RailRub(nLt, nGt, rate.cargoWeightKg);
         } else if (single20Lt) {
-          if (railDeltaMode === "percent") {
-            nextLt24 = Math.round(ltRail0 + ltRail0 * (railValue / 100));
+          if (nextSeaRouteRows.length) {
+            nextSeaRouteRows = applyRailProfitToSeaRouteRows(
+              nextSeaRouteRows,
+              railDeltaMode,
+              railValue,
+              "SINGLE_LT",
+              rate.cargoWeightKg
+            );
+            const agg = aggregateLtGtRailFromSeaRouteRows(nextSeaRouteRows);
+            nextLt24 = Number.isFinite(agg.lt)
+              ? agg.lt
+              : railDeltaMode === "percent"
+                ? Math.round(ltRail0 + ltRail0 * (railValue / 100))
+                : Math.round(ltRail0 + railValue);
+            nextRailRub = nextLt24;
           } else {
-            nextLt24 = Math.round(ltRail0 + railValue);
+            if (railDeltaMode === "percent") {
+              nextLt24 = Math.round(ltRail0 + ltRail0 * (railValue / 100));
+            } else {
+              nextLt24 = Math.round(ltRail0 + railValue);
+            }
+            nextRailRub = nextLt24;
           }
-          nextRailRub = nextLt24;
         } else if (single20Gt) {
-          if (railDeltaMode === "percent") {
-            nextGt24 = Math.round(gtRail0 + gtRail0 * (railValue / 100));
+          if (nextSeaRouteRows.length) {
+            nextSeaRouteRows = applyRailProfitToSeaRouteRows(
+              nextSeaRouteRows,
+              railDeltaMode,
+              railValue,
+              "SINGLE_GT",
+              rate.cargoWeightKg
+            );
+            const agg = aggregateLtGtRailFromSeaRouteRows(nextSeaRouteRows);
+            nextGt24 = Number.isFinite(agg.gt)
+              ? agg.gt
+              : railDeltaMode === "percent"
+                ? Math.round(gtRail0 + gtRail0 * (railValue / 100))
+                : Math.round(gtRail0 + railValue);
+            nextRailRub = nextGt24;
           } else {
-            nextGt24 = Math.round(gtRail0 + railValue);
+            if (railDeltaMode === "percent") {
+              nextGt24 = Math.round(gtRail0 + gtRail0 * (railValue / 100));
+            } else {
+              nextGt24 = Math.round(gtRail0 + railValue);
+            }
+            nextRailRub = nextGt24;
           }
-          nextRailRub = nextGt24;
         } else {
           const addRail =
             railDeltaMode === "percent"
               ? railRub * (railValue / 100)
               : railValue;
           if (nextSeaRouteRows.length) {
-            nextSeaRouteRows = nextSeaRouteRows.map((row) => {
-              const slot = normalizeContainerSlotValue(row.containerSlot);
-              if (slot !== "40HQ") {
-                return row;
-              }
-              const cur = rateNumericOrNaN(row.railRub40Hq);
-              if (!Number.isFinite(cur) || cur < 0) {
-                return row;
-              }
-              const rowAdd =
-                railDeltaMode === "percent"
-                  ? cur * (railValue / 100)
-                  : railValue;
-              return {
-                ...row,
-                railRub40Hq: Math.round(cur + rowAdd),
-              };
-            });
+            nextSeaRouteRows = applyRailProfitToSeaRouteRows(
+              nextSeaRouteRows,
+              railDeltaMode,
+              railValue,
+              "ALL_SLOTS",
+              rate.cargoWeightKg
+            );
             nextRailRub = primaryRailRubFromSeaRouteRows(nextSeaRouteRows);
             if (!Number.isFinite(nextRailRub)) {
               nextRailRub = Math.round(railRub + addRail);
