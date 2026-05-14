@@ -616,6 +616,14 @@
             const sailingDate = routeRow
               ? String(routeRow.sailingDate || "")
               : "";
+            const sailTrim = String(sailingDate || "").trim();
+            const nextSailingForRow =
+              sailTrim
+                ? [sailTrim]
+                : Array.isArray(rate.nextSailingDates) &&
+                    rate.nextSailingDates.length === 1
+                  ? [String(rate.nextSailingDates[0] || "").trim()].filter(Boolean)
+                  : [];
             const slot = routeRow
               ? normalizeContainerSlotValue(routeRow.containerSlot)
               : normalizeContainerSlotValue(rate.containerType);
@@ -646,7 +654,11 @@
               }
             }
             if (!Number.isFinite(railRub)) {
-              railRub = rateNumericOrNaN(rate.railRub);
+              const multiSea =
+                Array.isArray(rate.seaRouteRows) && rate.seaRouteRows.length > 1;
+              railRub = multiSea
+                ? Number.NaN
+                : rateNumericOrNaN(rate.railRub);
               railRub20Lt24 = rate.railRub20Lt24;
               railRub20Gt24 = rate.railRub20Gt24;
               railRub40Hq = rate.railRub40Hq;
@@ -657,15 +669,7 @@
             const destStation = routeRow
               ? String(routeRow.destinationStation || "").trim()
               : String(rate.destinationStation || "").trim();
-            const destStationsForRow = routeRow
-              ? destStation
-                ? [destStation]
-                : []
-              : Array.isArray(rate.destinationStations) && rate.destinationStations.length
-                ? rate.destinationStations
-                : destStation
-                  ? [destStation]
-                  : [];
+            const destStationsForRow = destStation ? [destStation] : [];
             const unloadParts = routeRow
               ? String(routeRow.unloadAddress || "")
                   .split(";")
@@ -692,10 +696,7 @@
                 railTerminal: podTerminal || String(rate.railTerminal || "").trim(),
                 destinationStation:
                   destStation || String(rate.destinationStation || "").trim(),
-                destinationStations:
-                  destStationsForRow.length > 0
-                    ? destStationsForRow
-                    : rate.destinationStations,
+                destinationStations: destStationsForRow,
                 cargoDepartureTerminal: routeRow
                   ? podTerminal || rate.cargoDepartureTerminal
                   : rate.cargoDepartureTerminal,
@@ -718,11 +719,7 @@
                     ? seaUsdValue
                     : Number(rate.seaUsd),
                 ],
-                nextSailingDates: sailingDate
-                  ? [sailingDate]
-                  : Array.isArray(rate.nextSailingDates)
-                    ? rate.nextSailingDates
-                    : [],
+                nextSailingDates: nextSailingForRow,
                 warehouseAddress: address,
                 warehouseAddresses: [address],
                 autoRub: Number.isFinite(autoRubValue)
@@ -746,7 +743,17 @@
           if (matching.length) {
             matching.forEach((routeRow) => pushExpandedForRouteRow(routeRow));
           } else {
-            pushExpandedForRouteRow(null);
+            const guess =
+              seaRouteRowsNormalized[bundleIdx] ||
+              seaRouteRowsNormalized.find(
+                (row) =>
+                  normalizeOriginPortToken(row.origin) ===
+                    normalizeOriginPortToken(origin) &&
+                  normalizeShippingLineToken(row.shippingLine) ===
+                    normalizeShippingLineToken(line)
+              ) ||
+              null;
+            pushExpandedForRouteRow(guess);
           }
         });
       });
