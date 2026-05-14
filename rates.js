@@ -2350,12 +2350,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  salesProfitApplyBtn?.addEventListener("click", () => {
-    void applySalesProfitToVisibleRates("percent");
-  });
-  salesProfitApplyBtnFixed?.addEventListener("click", () => {
-    void applySalesProfitToVisibleRates("fixed");
-  });
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
@@ -3690,6 +3684,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     return ltRounded;
   }
 
+  /** Агрегат railRub на карточке: как при сохранении — по первой строке seaRouteRows и её слоту. */
+  function primaryRailRubFromSeaRouteRows(rows) {
+    if (!Array.isArray(rows) || !rows.length) {
+      return Number.NaN;
+    }
+    const r0 = rows[0];
+    const slot = normalizeContainerSlotValue(r0?.containerSlot);
+    if (slot === "40HQ") {
+      return rateNumericOrNaN(r0?.railRub40Hq);
+    }
+    if (slot === "20LT24") {
+      return rateNumericOrNaN(r0?.railRub20Lt24);
+    }
+    if (slot === "20GT24") {
+      return rateNumericOrNaN(r0?.railRub20Gt24);
+    }
+    return Number.NaN;
+  }
+
   async function applySalesProfitToVisibleRates(forceMethod) {
     setStatus("Применение профита запущено…", "success");
     if (
@@ -3923,7 +3936,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             railDeltaMode === "percent"
               ? railRub * (railValue / 100)
               : railValue;
-          nextRailRub = Math.round(railRub + addRail);
           if (nextSeaRouteRows.length) {
             nextSeaRouteRows = nextSeaRouteRows.map((row) => {
               const slot = normalizeContainerSlotValue(row.containerSlot);
@@ -3943,6 +3955,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 railRub40Hq: Math.round(cur + rowAdd),
               };
             });
+            nextRailRub = primaryRailRubFromSeaRouteRows(nextSeaRouteRows);
+            if (!Number.isFinite(nextRailRub)) {
+              nextRailRub = Math.round(railRub + addRail);
+            }
+          } else {
+            nextRailRub = Math.round(railRub + addRail);
           }
         }
 
@@ -4645,6 +4663,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             const sailingDate = routeRow
               ? String(routeRow.sailingDate || "")
               : "";
+            const sailTrim = String(sailingDate || "").trim();
+            const nextSailingForRow =
+              sailTrim
+                ? [sailTrim]
+                : Array.isArray(rate.nextSailingDates) &&
+                    rate.nextSailingDates.length === 1
+                  ? [String(rate.nextSailingDates[0] || "").trim()].filter(Boolean)
+                  : [];
             const slot = routeRow
               ? normalizeContainerSlotValue(routeRow.containerSlot)
               : normalizeContainerSlotValue(rate.containerType);
@@ -4675,7 +4701,11 @@ document.addEventListener("DOMContentLoaded", async () => {
               }
             }
             if (!Number.isFinite(railRub)) {
-              railRub = rateNumericOrNaN(rate.railRub);
+              const multiSea =
+                Array.isArray(rate.seaRouteRows) && rate.seaRouteRows.length > 1;
+              railRub = multiSea
+                ? Number.NaN
+                : rateNumericOrNaN(rate.railRub);
               railRub20Lt24 = rate.railRub20Lt24;
               railRub20Gt24 = rate.railRub20Gt24;
               railRub40Hq = rate.railRub40Hq;
@@ -4686,15 +4716,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const destStation = routeRow
               ? String(routeRow.destinationStation || "").trim()
               : String(rate.destinationStation || "").trim();
-            const destStationsForRow = routeRow
-              ? destStation
-                ? [destStation]
-                : []
-              : Array.isArray(rate.destinationStations) && rate.destinationStations.length
-                ? rate.destinationStations
-                : destStation
-                  ? [destStation]
-                  : [];
+            const destStationsForRow = destStation ? [destStation] : [];
             const unloadParts = routeRow
               ? String(routeRow.unloadAddress || "")
                   .split(";")
@@ -4721,10 +4743,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 railTerminal: podTerminal || String(rate.railTerminal || "").trim(),
                 destinationStation:
                   destStation || String(rate.destinationStation || "").trim(),
-                destinationStations:
-                  destStationsForRow.length > 0
-                    ? destStationsForRow
-                    : rate.destinationStations,
+                destinationStations: destStationsForRow,
                 cargoDepartureTerminal: routeRow
                   ? podTerminal || rate.cargoDepartureTerminal
                   : rate.cargoDepartureTerminal,
@@ -4747,11 +4766,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ? seaUsdValue
                     : Number(rate.seaUsd),
                 ],
-                nextSailingDates: sailingDate
-                  ? [sailingDate]
-                  : Array.isArray(rate.nextSailingDates)
-                    ? rate.nextSailingDates
-                    : [],
+                nextSailingDates: nextSailingForRow,
                 warehouseAddress: address,
                 warehouseAddresses: [address],
                 autoRub: Number.isFinite(autoRubValue)
@@ -4775,7 +4790,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (matching.length) {
             matching.forEach((routeRow) => pushExpandedForRouteRow(routeRow));
           } else {
-            pushExpandedForRouteRow(null);
+            const guess =
+              seaRouteRowsNormalized[bundleIdx] ||
+              seaRouteRowsNormalized.find(
+                (row) =>
+                  normalizeOriginPortToken(row.origin) ===
+                    normalizeOriginPortToken(origin) &&
+                  normalizeShippingLineToken(row.shippingLine) ===
+                    normalizeShippingLineToken(line)
+              ) ||
+              null;
+            pushExpandedForRouteRow(guess);
           }
         });
       });
