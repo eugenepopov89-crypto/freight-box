@@ -1208,7 +1208,7 @@
                     />
                   </div>
                   <div class="rates-sales-actions">
-                    <button type="button" id="sales-profit-apply-btn" class="btn-primary btn-sales-apply" onclick="window.__applyProfitPercent && window.__applyProfitPercent()">
+                    <button type="button" id="sales-profit-apply-btn" class="btn-primary btn-sales-apply">
                       Применить профит
                     </button>
                     <button
@@ -1247,7 +1247,7 @@
                     />
                   </div>
                   <div class="rates-sales-actions">
-                    <button type="button" id="sales-profit-apply-btn-fixed" class="btn-primary btn-sales-apply" onclick="window.__applyProfitFixed && window.__applyProfitFixed()">
+                    <button type="button" id="sales-profit-apply-btn-fixed" class="btn-primary btn-sales-apply">
                       Применить профит
                     </button>
                     <button
@@ -1280,109 +1280,5 @@
     </footer>
 
     <script src="rates.js?v=1779000000008"></script>
-    <script>
-      (function () {
-        var STORAGE_KEY = "factoriall-rates-v1";
-        function toNum(value) {
-          var raw = String(value == null ? "" : value).trim().replace(",", ".");
-          if (raw === "") return NaN;
-          var n = Number(raw);
-          return Number.isFinite(n) ? n : NaN;
-        }
-        function setStatus(text, type) {
-          var el = document.getElementById("rates-status");
-          if (!el) return;
-          el.textContent = text;
-          el.className = "status" + (type ? " " + type : "");
-        }
-        function getTargetIdsFromUi() {
-          var ids = [];
-          var wsRows = document.querySelectorAll("#sales-workset-tbody tr[data-rate-id]");
-          for (var i = 0; i < wsRows.length; i++) {
-            var id = String(wsRows[i].getAttribute("data-rate-id") || "").trim();
-            if (id) ids.push(id);
-          }
-          if (ids.length) return Array.from(new Set(ids));
-          var delBtns = document.querySelectorAll('#rates-tbody .btn-row-delete[data-id]');
-          for (var j = 0; j < delBtns.length; j++) {
-            var bid = String(delBtns[j].getAttribute("data-id") || "").trim();
-            if (bid) ids.push(bid);
-          }
-          return Array.from(new Set(ids));
-        }
-        function loadRates() {
-          try {
-            var raw = localStorage.getItem(STORAGE_KEY);
-            var parsed = raw ? JSON.parse(raw) : [];
-            return Array.isArray(parsed) ? parsed : [];
-          } catch (_) {
-            return [];
-          }
-        }
-        function saveRates(rates) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(rates));
-        }
-        function applyProfitFallback(mode) {
-          var seaValue = mode === "percent"
-            ? toNum(document.getElementById("sales-profit-sea-pct") && document.getElementById("sales-profit-sea-pct").value)
-            : toNum(document.getElementById("sales-profit-sea-fixed") && document.getElementById("sales-profit-sea-fixed").value);
-          var railValue = mode === "percent"
-            ? toNum(document.getElementById("sales-profit-rail-pct") && document.getElementById("sales-profit-rail-pct").value)
-            : toNum(document.getElementById("sales-profit-rail-fixed") && document.getElementById("sales-profit-rail-fixed").value);
-          if (!Number.isFinite(seaValue) || seaValue < 0 || !Number.isFinite(railValue) || railValue < 0) {
-            setStatus("Заполните корректные значения профита.", "error");
-            return;
-          }
-          var rates = loadRates();
-          if (!rates.length) {
-            setStatus("Нет ставок для применения профита.", "error");
-            return;
-          }
-          var targetIds = getTargetIdsFromUi();
-          var idSet = new Set(targetIds);
-          var applyAll = idSet.size === 0;
-          var applied = 0;
-          for (var i = 0; i < rates.length; i++) {
-            var r = rates[i];
-            var rid = String(r && r.id || "").trim();
-            if (!applyAll && !idSet.has(rid)) continue;
-            var sea = Number(r.seaUsd);
-            if (Number.isFinite(sea) && sea >= 0) {
-              r.seaUsd = mode === "percent" ? Math.round((sea + sea * seaValue / 100) * 100) / 100 : Math.round((sea + seaValue) * 100) / 100;
-            }
-            if (Array.isArray(r.seaUsds)) {
-              for (var s = 0; s < r.seaUsds.length; s++) {
-                var sv = Number(r.seaUsds[s]);
-                if (!Number.isFinite(sv) || sv < 0) continue;
-                r.seaUsds[s] = mode === "percent" ? Math.round((sv + sv * seaValue / 100) * 100) / 100 : Math.round((sv + seaValue) * 100) / 100;
-              }
-            }
-            if (Array.isArray(r.seaRouteRows)) {
-              for (var rr = 0; rr < r.seaRouteRows.length; rr++) {
-                var cur = Number(r.seaRouteRows[rr] && r.seaRouteRows[rr].seaUsd);
-                if (!Number.isFinite(cur) || cur < 0) continue;
-                r.seaRouteRows[rr].seaUsd = mode === "percent" ? Math.round((cur + cur * seaValue / 100) * 100) / 100 : Math.round((cur + seaValue) * 100) / 100;
-              }
-            }
-            var rail = Number(r.railRub);
-            if (Number.isFinite(rail) && rail >= 0) {
-              r.railRub = mode === "percent" ? Math.round(rail + rail * railValue / 100) : Math.round(rail + railValue);
-            }
-            applied++;
-          }
-          saveRates(rates);
-          setStatus("Профит применен (fallback): " + applied + " строк.", "success");
-          setTimeout(function () {
-            window.location.reload();
-          }, 250);
-        }
-        window.__applyProfitPercent = function () {
-          applyProfitFallback("percent");
-        };
-        window.__applyProfitFixed = function () {
-          applyProfitFallback("fixed");
-        };
-      })();
-    </script>
   </body>
 </html>
